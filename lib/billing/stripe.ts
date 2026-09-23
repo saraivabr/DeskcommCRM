@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { marcaDaSaida } from "@/lib/branding/saida";
+import { branding } from "@/lib/branding";
 import { subscriptionPlan, type SubscriptionPlanId } from "./plans";
 
 export class BillingUnavailable extends Error {
@@ -68,7 +68,7 @@ export function checkoutParameters(input: {
     "line_items[0][price_data][currency]": "brl",
     "line_items[0][price_data][unit_amount]": String(plan.monthly_price_cents),
     "line_items[0][price_data][recurring][interval]": "month",
-    "line_items[0][price_data][product_data][name]": `${marcaDaSaida().nome} — ${plan.name}`,
+    "line_items[0][price_data][product_data][name]": `${branding().name} — ${plan.name}`,
     "subscription_data[metadata][organization_id]": input.organizationId,
     "subscription_data[metadata][plan_id]": plan.id,
     "metadata[organization_id]": input.organizationId,
