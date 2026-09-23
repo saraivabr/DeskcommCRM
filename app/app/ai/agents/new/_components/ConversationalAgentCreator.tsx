@@ -220,7 +220,7 @@ export function ConversationalAgentCreator(props: Props) {
                   className={message.role === "user" ? "ml-4 rounded-lg bg-muted p-3" : "mr-4 py-2"}
                 >
                   <p className="mb-1 text-xs font-bold text-muted-foreground">
-                    {message.role === "user" ? t("Você") : "escreve.ai"}
+                    {message.role === "user" ? t("Você") : t("Assistente")}
                   </p>
                   <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
                     {message.content}

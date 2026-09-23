@@ -36,7 +36,7 @@ export function InstagramGrowthClient({ orgId }: { orgId: string }) {
   const [name, setName] = useState("");
   const [keywords, setKeywords] = useState("EU QUERO, PREÇO, QUERO");
   const [dmTemplate, setDmTemplate] = useState(
-    "Olá! Vi seu comentário no nosso post. Aqui está o link exclusivo que você pediu: https://saraiva.ai",
+    "Olá! Vi seu comentário no nosso post. Aqui está o link exclusivo que você pediu: https://meusistema.com/link",
   );
   const [autoLead, setAutoLead] = useState(true);
 

@@ -93,7 +93,7 @@ export function resolveBranding(
  * escrita, só pintada de outro jeito.
  */
 export function marcaEhADoProduto(marca: Pick<Branding, "name" | "logoUrl">): boolean {
-  return marca.logoUrl === null && (marca.name === DEFAULT_APP_NAME || marca.name === "escreve.ai");
+  return marca.logoUrl === null && marca.name === DEFAULT_APP_NAME;
 }
 
 export function branding(): Branding {

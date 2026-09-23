@@ -51,7 +51,7 @@ export function SidebarContent({
   );
   const name = activeOrg?.marca?.nome ?? brand.name;
   const logo = activeOrg?.marca?.logoUrl || brand.logoUrl;
-  const productBrand = !logo && (name === DEFAULT_APP_NAME || name === "escreve.ai");
+  const productBrand = !logo && name === DEFAULT_APP_NAME;
   const linkClass = (active: boolean) =>
     cn("workspace-nav-item", active && "is-active", collapsed && "justify-center px-0");
   return (
@@ -59,7 +59,7 @@ export function SidebarContent({
       <Link
         href="/app"
         onClick={onNavigate}
-        aria-label={productBrand ? "escreve.ai — início" : `${name} — início`}
+        aria-label={`${name} — início`}
         className={cn(
           "flex h-20 shrink-0 items-center gap-2 px-6",
           collapsed && "justify-center px-2",
@@ -67,9 +67,9 @@ export function SidebarContent({
       >
         {productBrand ? (
           collapsed ? (
-            <SimboloDoProduto nome="escreve.ai" className="h-9 w-9" />
+            <SimboloDoProduto nome={name} className="h-9 w-9" />
           ) : (
-            <LogotipoDoProduto nome="escreve.ai" className="h-10 w-full" />
+            <LogotipoDoProduto nome={name} className="h-10 w-full" />
           )
         ) : logo && !collapsed ? (
           <div className="rounded-lg dark:bg-white dark:p-1">
