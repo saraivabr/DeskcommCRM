@@ -47,6 +47,7 @@ export function SidebarContent({
     user.is_platform_admin && !user.support,
     activeOrg?.role ?? null,
     activeOrg?.interface_settings,
+    activeOrg?.modulos_ligados ?? [],
   );
   const name = activeOrg?.marca?.nome ?? brand.name;
   const logo = activeOrg?.marca?.logoUrl || brand.logoUrl;

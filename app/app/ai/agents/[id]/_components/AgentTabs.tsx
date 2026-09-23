@@ -14,7 +14,6 @@ import { RunsTable } from "./RunsTable";
 import { UsoDasCapacidades } from "./UsoDasCapacidades";
 import { VersionHistory } from "./VersionHistory";
 import { ProposalsPanel } from "./ProposalsPanel";
-import { VoiceAssistantPanel } from "./VoiceAssistantPanel";
 import type { AgentRow } from "@/hooks/ai/useAgent";
 import type { AgentVersionRow } from "@/hooks/ai/useAgentVersions";
 import type { CredentialRow } from "@/hooks/ai/useCredentials";
@@ -44,17 +43,9 @@ interface Props {
 export function AgentTabs(props: Props) {
   const t = useT();
   const [tab, setTab] = React.useState<
-    "configuration" | "test" | "voice" | "capacidades" | "runs" | "history" | "proposals"
+    "configuration" | "test" | "capacidades" | "runs" | "history" | "proposals"
   >("configuration");
   const hasVersion = !!(props.draft || props.published);
-  React.useEffect(() => {
-    const openVoice = () => {
-      if (window.location.hash === "#voice-assistant") setTab("voice");
-    };
-    openVoice();
-    window.addEventListener("hashchange", openVoice);
-    return () => window.removeEventListener("hashchange", openVoice);
-  }, []);
 
   return (
     <Tabs
@@ -62,12 +53,11 @@ export function AgentTabs(props: Props) {
       onValueChange={(v) => setTab(v as typeof tab)}
       className="flex flex-col gap-4"
     >
-      <TabsList className="h-auto flex-wrap justify-start">
+      <TabsList>
         <TabsTrigger value="configuration">{t("Configuração")}</TabsTrigger>
         <TabsTrigger value="test" disabled={!hasVersion}>
           {t("Teste")}
         </TabsTrigger>
-        <TabsTrigger value="voice">{t("Assistente de voz")}</TabsTrigger>
         <TabsTrigger value="capacidades">{t("Capacidades")}</TabsTrigger>
         <TabsTrigger value="runs">{t("Execuções")}</TabsTrigger>
         <TabsTrigger value="history">{t("Histórico")}</TabsTrigger>
@@ -98,14 +88,6 @@ export function AgentTabs(props: Props) {
           agent={props.agent}
           draft={props.draft}
           published={props.published}
-          readOnly={props.readOnly}
-        />
-      </TabsContent>
-
-      <TabsContent value="voice" className="m-0">
-        <VoiceAssistantPanel
-          key={props.agent.id}
-          agentId={props.agent.id}
           readOnly={props.readOnly}
         />
       </TabsContent>

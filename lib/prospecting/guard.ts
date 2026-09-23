@@ -40,7 +40,8 @@ export async function assertProspectingDelivery(db: SupabaseClient, ctx: Prospec
     candidate.status !== "sending" ||
     candidate.conversation_id !== ctx.conversationId
   )
-    throw new ProspectingError("Abordagem cancelada ou indisponível.", 409);
+    // DO CANDIDATO: esta abordagem específica foi cancelada ou já não vale.
+    throw new ProspectingError("Abordagem cancelada ou indisponível.", 409, "candidato");
   const [campaign, contact, conversation] = await Promise.all([
     db
       .from("prospecting_campaigns")

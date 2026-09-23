@@ -1,3 +1,4 @@
+import { audit } from "@/lib/audit";
 import type pg from "pg";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendMessageHandler } from "@/app/api/v1/messages/_handler";
@@ -10,6 +11,11 @@ import {
 import { gerarAbordagemDeFormulario } from "@/lib/agent-engine/agent/abordagem-de-formulario";
 import { llmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/llm/credentials";
 import { assertServiceBoundarySupabase } from "@/lib/atendimento/origem";
+import { comSaida } from "./rodape-de-saida";
+import {
+  proximoEnvioDaEsteiraFria,
+  tetoDiarioDaEsteiraFria,
+} from "./ritmo-da-esteira-fria";
 import { parseServiceBoundary } from "@/lib/atendimento/fronteira";
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 import { decidirPreGoLiveDoCanalViaSupabase } from "@/lib/ai/elegibilidade/consulta-pre-go-live";
@@ -86,6 +92,22 @@ export async function sendNextCandidate(
     [c.organization_id, c.id],
   );
   const count = counts[0]!;
+  // O TETO DO WARM-UP DESTA ESTEIRA. Os degraus da casa (20 no primeiro dia)
+  // foram calibrados para a esteira de RESPOSTA, onde cada saída tem uma entrada
+  // correspondente. Vinte PRIMEIRAS abordagens saindo de um número novo, todas
+  // para quem nunca falou com a empresa, é o retrato do que a plataforma pune —
+  // e quem perde o número é o cliente que instalou.
+  const idadeEmDias = numberActivatedAt
+    ? Math.floor((now.getTime() - new Date(numberActivatedAt).getTime()) / 86_400_000)
+    : 0; // sem data registrada = degrau mais conservador, como o motor da casa faz
+  const tetoFrio = tetoDiarioDaEsteiraFria(knobs, idadeEmDias);
+  if (tetoFrio !== null && count.total >= tetoFrio) {
+    await db.query(
+      "update prospecting_campaigns set next_send_at=$3 where organization_id=$1 and id=$2",
+      [c.organization_id, c.id, count.retry_at],
+    );
+    return;
+  }
   if (count.campaign >= cfg.daily_limit || count.total >= 50) {
     await db.query(
       "update prospecting_campaigns set next_send_at=$3 where organization_id=$1 and id=$2",
@@ -116,6 +138,16 @@ export async function sendNextCandidate(
     );
     return;
   }
+  // O idioma da instalação decide a PALAVRA de saída. Uma consulta por envio, no
+  // mesmo caminho que já faz várias — e o envio é limitado a 1 por vez pelo
+  // ritmo anti-banimento, então não há volume aqui para otimizar.
+  const locale =
+    (
+      await db.query<{ locale: string | null }>(
+        "select locale from organizations where id=$1",
+        [c.organization_id],
+      )
+    ).rows[0]?.locale ?? null;
   const preflight = await decidirPreGoLiveDoCanalViaSupabase(admin, {
     organizationId: c.organization_id,
     channelSessionId: cfg.channel_session_id,
@@ -125,16 +157,30 @@ export async function sendNextCandidate(
     throw new ProspectingError(`O canal ainda não permite esta abordagem: ${preflight.motivo}.`);
   const boundary = parseServiceBoundary(p.service_boundary);
   if (!boundary || !p.contact_id || !p.conversation_id)
-    throw new ProspectingError("Destino da abordagem incompleto. Revise a campanha.");
+    // DO CANDIDATO: este não tem contato/conversa resolvidos. O próximo pode ter.
+    throw new ProspectingError(
+      "Destino da abordagem incompleto para este candidato.",
+      422,
+      "candidato",
+    );
   await db.query("begin");
   try {
     await db.query(
       "update prospecting_candidates set status='sending',attempted_at=now(),updated_at=now() where organization_id=$1 and id=$2",
       [c.organization_id, p.id],
     );
+    // O agendamento leva JITTER: o intervalo exato (`now + N minutos`, sempre o
+    // mesmo número de milissegundos) é cadência de robô, que é justamente o que
+    // a detecção de automação procura. A doutrina da casa manda throttle+jitter
+    // em todo envio; aqui faltava. O jitter só ATRASA, nunca adianta, para não
+    // furar o intervalo mínimo que o operador configurou.
     await db.query(
-      "update prospecting_campaigns set next_send_at=now()+($3::int*interval '1 minute') where organization_id=$1 and id=$2",
-      [c.organization_id, c.id, cfg.interval_minutes],
+      "update prospecting_campaigns set next_send_at=$3 where organization_id=$1 and id=$2",
+      [
+        c.organization_id,
+        c.id,
+        proximoEnvioDaEsteiraFria(new Date(), cfg.interval_minutes, knobs),
+      ],
     );
     // Reserve the shared channel budget before the external effect, including uncertain attempts.
     await recordSend(db, c.organization_id, cfg.channel_session_id, now);
@@ -165,7 +211,9 @@ export async function sendNextCandidate(
       leadId: p.contact_id,
       instrucao: `${cfg.instruction}\nFaça uma primeira abordagem curta e transparente. Os dados vieram de pesquisa pública, não de um formulário preenchido pela pessoa. Não invente familiaridade, resultados ou interesse. Uma pergunta por vez. Critérios a confirmar durante a conversa: ${cfg.qualification}`,
       origem: "Pesquisa de empresas",
-      veioDeFormulario: false,
+      // NÃO é `automacao`: a pessoa não entrou em funil nenhum. O prompt do
+      // ramo frio é o único que proíbe afirmar preenchimento — ver blocoDeModo.
+      origemDaAbordagem: "prospeccao_fria",
       dados: {
         Empresa: p.data.name,
         Segmento: p.data.category ?? "",
@@ -176,7 +224,12 @@ export async function sendNextCandidate(
       },
     });
     if (!generated.ok)
-      throw new ProspectingError(`A IA não produziu uma abordagem: ${generated.reason}.`);
+      // DO CANDIDATO: o modelo não produziu texto para ESTES dados.
+      throw new ProspectingError(
+        `A IA não produziu uma abordagem: ${generated.reason}.`,
+        422,
+        "candidato",
+      );
     await assertProspectingDelivery(admin, guard);
     const authorization = await autorizarContatoParaIA(admin, {
       organizationId: c.organization_id,
@@ -202,7 +255,17 @@ export async function sendNextCandidate(
           revision: String(agent.operation_revision),
         },
       },
-      { conversation_id: p.conversation_id, type: "text", body: generated.texto },
+      {
+        conversation_id: p.conversation_id,
+        type: "text",
+        // A SAÍDA vai junto da primeira mensagem, e é montada aqui — não pedida
+        // ao modelo. Sem ela, a saída que a pessoa usa é "Denunciar spam", que
+        // é invisível ao sistema e queima o número do CLIENTE que instalou.
+        // O idioma sai de `organizations.locale`: um rodapé em português numa
+        // instalação em espanhol oferece uma palavra que a pessoa não responde,
+        // e o detector de opt-out só reconhece a palavra ISOLADA.
+        body: comSaida(generated.texto, locale),
+      },
     );
     const sent = ["sent", "delivered", "read"].includes(message.status);
     if (!sent) {
@@ -221,6 +284,42 @@ export async function sendNextCandidate(
         sent ? null : "Envio não confirmado. Consulte a conversa antes de reenviar.",
       ],
     );
+
+    /*
+     * A TRILHA DA ABORDAGEM FRIA — quem foi abordado, por qual campanha, quando.
+     *
+     * Esta é a única linha do produto que fala PRIMEIRO com alguém que nunca
+     * falou com a empresa, e o titular pode perguntar "por que vocês me
+     * escreveram?". Sem esta entrada, a resposta não existe em lugar nenhum:
+     * `prospecting_candidates.status` guarda o ESTADO atual (e é reescrito no
+     * próximo passo), não o fato de que a mensagem saiu naquele instante.
+     *
+     * Auditado quando houve EFEITO — a tentativa, bem ou malsucedida —, nunca
+     * rodada de cron vazia: o tick sem candidato não passa por aqui, que é a
+     * regra do CLAUDE.md ("rodada de cron que não fez nada NÃO é mutação").
+     * `sent` entra no metadata em vez de virar duas ações: a pergunta que a
+     * trilha responde é "houve abordagem para este contato", e a recusa do
+     * transporte é parte dessa história, não outra.
+     *
+     * Sem PII: nem telefone, nem o texto gerado. Os ponteiros bastam para
+     * chegar à conversa, e o texto vive nela.
+     */
+    void audit({
+      action: "prospecting.approach_sent",
+      organizationId: c.organization_id,
+      bypassedRls: true,
+      resourceType: "prospecting_candidate",
+      resourceId: p.id,
+      metadata: {
+        campaign_id: c.id,
+        contact_id: p.contact_id,
+        conversation_id: p.conversation_id,
+        agent_id: cfg.agent_id,
+        channel_session_id: cfg.channel_session_id,
+        sent,
+      },
+      requestId: `prospecting:${p.id}`,
+    });
   } catch (error) {
     await db.query(
       "update prospecting_candidates set status='failed',error=$3,updated_at=now() where organization_id=$1 and id=$2",
@@ -286,16 +385,41 @@ export async function tickProspecting(pool: pg.Pool, admin: SupabaseClient) {
           try {
             await sendNextCandidate(pool, db, admin, c);
           } catch (error) {
-            await db.query(
-              "update prospecting_campaigns set status='paused',error=$3,updated_at=now() where organization_id=$1 and id=$2",
-              [
-                org,
-                c.id,
-                error instanceof ProspectingError
-                  ? error.message
-                  : "Campanha pausada após falha. Confira o histórico antes de retomar.",
-              ],
-            );
+            // DE QUEM É A FALHA decide se a fila para.
+            //
+            // Antes, QUALQUER exceção pausava a campanha inteira: um número
+            // inválido numa lista de mil, um contato que virou bloqueado entre a
+            // busca e o envio, uma instabilidade de um segundo no provedor — e a
+            // lista só voltava se alguém abrisse a tela e retomasse à mão. É o
+            // oposto do que a casa faz em todo lugar: item ruim marca o ITEM.
+            const doCandidato =
+              error instanceof ProspectingError && error.escopo === "candidato";
+            const motivo =
+              error instanceof ProspectingError
+                ? error.message
+                : "Falha inesperada no envio. Confira o histórico antes de retomar.";
+
+            if (doCandidato) {
+              // Marca o candidato e SEGUE: a próxima rodada pega o próximo.
+              // `attempted_at` já foi gravado antes do envio, então ele não
+              // volta para a fila sozinho.
+              await db.query(
+                "update prospecting_candidates set status='failed',error=$3,updated_at=now() where organization_id=$1 and campaign_id=$2 and status='sending'",
+                [org, c.id, motivo],
+              );
+              logger.warn("[prospecting] candidato falhou; a campanha segue", {
+                organization_id: org,
+                campaign_id: c.id,
+                error: motivo,
+              });
+            } else {
+              // Vale para todos: pausar é o certo, e o erro fica na campanha
+              // para a tela explicar a quem for retomar.
+              await db.query(
+                "update prospecting_campaigns set status='paused',error=$3,updated_at=now() where organization_id=$1 and id=$2",
+                [org, c.id, motivo],
+              );
+            }
           }
         }
         await db.query(
@@ -308,7 +432,11 @@ export async function tickProspecting(pool: pg.Pool, admin: SupabaseClient) {
       if (!(error instanceof ProspectingError && error.status === 409))
         logger.error("[prospecting] rodada falhou", {
           organization_id: org,
-          error: "prospecting_tick_failed",
+          // Era a constante "prospecting_tick_failed". O erro estava capturado
+          // na variável e descartado na hora de escrever: o log existia e não
+          // dizia nada além de "falhou" — o que é quase pior que não logar,
+          // porque parece cobertura. Agora vai a causa.
+          error: error instanceof Error ? error.message : String(error),
         });
     }
   }

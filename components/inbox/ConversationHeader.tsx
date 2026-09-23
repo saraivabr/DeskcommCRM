@@ -2,6 +2,16 @@
 import { useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { JanelaSelo } from "@/components/inbox/JanelaSelo";
@@ -10,7 +20,11 @@ import { Phone, ArrowRight } from "@/lib/ui/icons";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useClaimConversation } from "@/hooks/inbox/useClaimConversation";
 import { useReleaseConversation } from "@/hooks/inbox/useReleaseConversation";
-import { useCloseConversation, useReopenConversation } from "@/hooks/inbox/useCloseConversation";
+import {
+  useArchiveConversation,
+  useCloseConversation,
+  useReopenConversation,
+} from "@/hooks/inbox/useCloseConversation";
 import { useResumeAiAttendance } from "@/hooks/inbox/useResumeAiAttendance";
 import { usePauseAiAttendance } from "@/hooks/inbox/usePauseAiAttendance";
 import { useAutomaticoAtivo } from "@/hooks/ai/useAutomaticoAtivo";
@@ -60,12 +74,15 @@ export function ConversationHeader({ conversation }: Props) {
   const release = useReleaseConversation();
   const close = useCloseConversation();
   const reopen = useReopenConversation();
+  const arquivar = useArchiveConversation();
   const retomar = useResumeAiAttendance();
   const pausar = usePauseAiAttendance();
   // "Existe automático nesta org?" — sem isto o selo afirmava que o robô estava
   // atendendo em instalação que nunca configurou agente nenhum.
   const automaticoDaOrg = useAutomaticoAtivo();
   const [reassignOpen, setReassignOpen] = useState(false);
+  const [confirmFecharOpen, setConfirmFecharOpen] = useState(false);
+  const [confirmArquivarOpen, setConfirmArquivarOpen] = useState(false);
 
   const c = conversation.contacts ?? null;
   const displayName = rotuloDoContato(c, t);
@@ -299,11 +316,7 @@ export function ConversationHeader({ conversation }: Props) {
             size="sm"
             variant="outline"
             disabled={close.isPending}
-            onClick={() => {
-              if (confirm(t("Fechar esta conversa?"))) {
-                close.mutate({ conversation_id: conversation.id, expected_revision: conversation.service_revision });
-              }
-            }}
+            onClick={() => setConfirmFecharOpen(true)}
           >
             {t("Fechar")}
           </Button>
@@ -312,6 +325,24 @@ export function ConversationHeader({ conversation }: Props) {
           onClick={() => reopen.mutate({ conversation_id: conversation.id, expected_revision: conversation.service_revision })}>
           {t("Reabrir")}
         </Button>}
+        {/* ARQUIVAR (#923): tira da frente sem destruir.
+            A conversa já arquivada não mostra o botão — arquivar duas vezes não
+            é um gesto que exista, e o botão só reapareceria como um clique que
+            não muda nada. Fechada E resolvida mostram: são exatamente as que se
+            quer mandar para o arquivo depois de encerradas, e é o caminho que
+            faz a aba "Arquivadas" deixar de ser uma pasta morta.
+            A permissão é a mesma de fechar (a rota `/conversations/[id]` é
+            `requireSupportWrite`): quem pode encerrar, pode arquivar. */}
+        {status !== "archived" && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={arquivar.isPending}
+            onClick={() => setConfirmArquivarOpen(true)}
+          >
+            {arquivar.isPending ? t("Arquivando...") : t("Arquivar")}
+          </Button>
+        )}
         {/* `xl:hidden` porque a partir de 1280px o painel lateral de CRM entra
             na tela — e ele já tem um "Ver contato", para o MESMO contato, a um
             palmo de distância. Duas portas idênticas na mesma tela não são
@@ -337,6 +368,65 @@ export function ConversationHeader({ conversation }: Props) {
         open={reassignOpen}
         onOpenChange={setReassignOpen}
       />
+      <AlertDialog open={confirmFecharOpen} onOpenChange={setConfirmFecharOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Fechar esta conversa?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("O atendimento é encerrado. Se o cliente escrever de novo, você pode reabrir.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                close.mutate({
+                  conversation_id: conversation.id,
+                  expected_revision: conversation.service_revision,
+                })
+              }
+            >
+              {t("Fechar")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* A confirmação precisa dizer o que ACONTECE, e o que acontece depende
+          do estado. `fn_conversation_set_status` trata `archived` como
+          terminal: encerra o atendimento (grava `service_closed_at`,
+          incrementa a revisão) e, com isso, desfaz a pausa do automático. Um
+          atendente que leia "arquivar = tirar da vista, volto depois"
+          encerraria o atendimento sem saber — e o robô voltaria a responder
+          no próximo "oi" do cliente. Por isso a descrição só aparece quando
+          `!encerrada`: quando já está encerrada, arquivar não muda o
+          atendimento, só o lugar onde a conversa mora. */}
+      <AlertDialog open={confirmArquivarOpen} onOpenChange={setConfirmArquivarOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Arquivar esta conversa?")}</AlertDialogTitle>
+            {!encerrada && (
+              <AlertDialogDescription>
+                {t(
+                  "Arquivar encerra este atendimento e guarda a conversa no histórico. Se o cliente escrever de novo, ela volta.",
+                )}
+              </AlertDialogDescription>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                arquivar.mutate({
+                  conversation_id: conversation.id,
+                  expected_revision: conversation.service_revision,
+                })
+              }
+            >
+              {t("Arquivar")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

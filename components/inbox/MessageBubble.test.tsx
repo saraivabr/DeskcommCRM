@@ -64,9 +64,14 @@ describe("MessageBubble — rótulo de origem", () => {
     expect(screen.getByText("Celular")).toBeInTheDocument();
   });
 
-  it("automação não inventa rótulo — ninguém grava esse valor", () => {
+  it("automação tem rótulo próprio — o motor passou a gravar esse valor (#652)", () => {
+    // Até a #652 ninguém carimbava `'automation'` — tudo que não era pessoa saía
+    // `'ai'` —, e este caso prendia o rótulo AUSENTE: a tela não podia oferecer
+    // uma distinção que o motor não fazia. Com o carimbo em `origemDaMensagem`,
+    // o rótulo ganhou emissor e o caso inverte de lado. O par continua vigiado
+    // nas duas direções por tests/unit/rotulo-de-origem-tem-emissor.test.ts.
     render(<MessageBubble message={msg({ sent_via: "automation" })} />);
-    expect(screen.queryByText("Automação")).not.toBeInTheDocument();
+    expect(screen.getByText("Automação")).toBeInTheDocument();
   });
 
   it("digitada no CRM por QUEM ESTÁ LENDO mostra 'Você'", () => {
@@ -120,10 +125,37 @@ describe("MessageBubble — rótulo de origem", () => {
     expect(screen.queryByText("Celular")).not.toBeInTheDocument();
   });
 
-  it("system não inventa rótulo", () => {
+  it("system leva 'Sistema' — a integração respondeu, mas não foi a IA", () => {
+    // Antes este caso exigia o CONTRÁRIO ("não inventa rótulo"), e estava certo
+    // enquanto nenhuma linha gravava `system`. Desde a #866 o envio por token
+    // grava esse valor: sem o ramo, a bolha voltava a omitir a autoria de quem
+    // falou — e a tela lia como se tudo tivesse saído do CRM.
     render(<MessageBubble message={msg({ sent_via: "system" })} />);
-    for (const rotulo of ["Celular", "Automação", "Você", "Atendente", "IA"]) {
-      expect(screen.queryByText(rotulo)).not.toBeInTheDocument();
-    }
+    expect(screen.getByText("Sistema")).toBeInTheDocument();
+    expect(screen.queryByText("IA")).not.toBeInTheDocument();
   });
 });
+
+describe("MessageBubble — contenção de layout e quebra de palavras (#1451)", () => {
+  it("texto longo sem espaços (ex: chave Pix) tem quebra forçada wrap-anywhere e bolha tem min-w-0", () => {
+    const pixLongo =
+      "00020126580014br.gov.bcb.pix0136a1b2c3d4-e5f6-7890-abcd-ef1234567890520400005303986540510.005802BR5913TESTE TESTE6008BRASILIA62070503***6304ABCD";
+    const { container } = render(<MessageBubble message={msg({ body: pixLongo })} />);
+
+    const p = screen.getByText(pixLongo);
+    expect(p).toBeInTheDocument();
+    expect(p.className).toContain("wrap-anywhere");
+    // O Tailwind 4 gera `.break-words` (overflow-wrap: break-word) DEPOIS da
+    // classe arbitrária `[overflow-wrap:anywhere]`, com a mesma especificidade:
+    // juntas, vence o break-word e a quebra forçada fica sem efeito.
+    expect(p.className).not.toContain("break-words");
+
+    const bolha = p.closest(".max-w-\\[75\\%\\]");
+    expect(bolha).not.toBeNull();
+    expect(bolha?.className).toContain("min-w-0");
+
+    const linha = container.firstElementChild as HTMLElement;
+    expect(linha.className).toContain("min-w-0");
+  });
+});
+

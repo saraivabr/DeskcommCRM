@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   generate: vi.fn(),
   send: vi.fn(),
+  audit: vi.fn(),
   guard: vi.fn(),
   boundary: vi.fn(),
   preflight: vi.fn(),
@@ -10,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   open: vi.fn(),
 }));
 vi.mock("@/app/api/v1/messages/_handler", () => ({ sendMessageHandler: mocks.send }));
+vi.mock("@/lib/audit", () => ({ audit: mocks.audit }));
 vi.mock("@/lib/agent-engine/agent/abordagem-de-formulario", () => ({
   gerarAbordagemDeFormulario: mocks.generate,
 }));
@@ -33,6 +35,15 @@ vi.mock("@/lib/agent-engine/pacing/engine", () => ({
   janelaDeEnvioAberta: mocks.open,
   decidePacing: () => ({ allow: true, waitMs: 0 }),
   proximaAberturaDaJanela: () => new Date(Date.now() + 3600000),
+  // O ritmo da esteira fria (`lib/prospecting/ritmo-da-esteira-fria.ts`) deriva
+  // o teto diário DESTA função em vez de manter uma tabela de degraus própria.
+  // O mock precisa dela, senão o import do worker morre antes de qualquer caso
+  // — e a falha aparece como "esperava erro X" em testes que não têm nada a ver.
+  warmupCapFor: (_idade: number, degraus: Array<{ minAgeDays: number; cap: number | null }>) => {
+    let cap: number | null = degraus[0]?.cap ?? null;
+    for (const d of degraus) if (_idade >= d.minAgeDays) cap = d.cap;
+    return cap;
+  },
 }));
 vi.mock("@/lib/env", () => ({ env: {} }));
 vi.mock("@/lib/prospecting/store", () => ({
@@ -116,6 +127,45 @@ describe("gradual outreach", () => {
     expect(mocks.guard).toHaveBeenCalledTimes(2);
     expect(db.query.mock.calls.some(([q]) => q.includes("attempted_at=now()"))).toBe(true);
   });
+  /*
+   * A TRILHA DA ABORDAGEM FRIA (LGPD adjacente).
+   *
+   * Esta é a única linha do produto que fala PRIMEIRO com quem nunca falou com
+   * a empresa. Sem entrada em `api_audit_log`, "por que vocês me escreveram?"
+   * não tem resposta: `prospecting_candidates.status` guarda o estado ATUAL e é
+   * reescrito no passo seguinte.
+   *
+   * O par abaixo é o que impede as duas falhas opostas: não auditar o envio, e
+   * auditar rodada de cron vazia (a regra do CLAUDE.md — 43.200 linhas/mês numa
+   * instalação que não aborda ninguém).
+   */
+  it("audita a abordagem que SAIU, com os ponteiros e sem PII", async () => {
+    await sendNextCandidate({} as never, database() as never, {} as never, campaign);
+    expect(mocks.audit).toHaveBeenCalledTimes(1);
+    const entrada = mocks.audit.mock.calls[0]?.[0];
+    expect(entrada).toMatchObject({
+      action: "prospecting.approach_sent",
+      resourceType: "prospecting_candidate",
+      resourceId: "candidate",
+      metadata: { campaign_id: campaign.id, sent: true },
+    });
+    const texto = JSON.stringify(entrada);
+    expect(texto, "telefone ou texto da mensagem na trilha seria PII a mais").not.toMatch(
+      /Posso entender como vocês atendem|\+55/,
+    );
+  });
+
+  it("NÃO audita quando o tick não abordou ninguém (teto batido)", async () => {
+    await sendNextCandidate(
+      {} as never,
+      database({ campaign: 10, total: 10, retry_at: new Date(), last_attempt: null }) as never,
+      {} as never,
+      campaign,
+    );
+    expect(mocks.send).not.toHaveBeenCalled();
+    expect(mocks.audit, "rodada sem efeito não é mutação — não audita").not.toHaveBeenCalled();
+  });
+
   it.each([
     { campaign: 10, total: 10 },
     { campaign: 1, total: 50 },

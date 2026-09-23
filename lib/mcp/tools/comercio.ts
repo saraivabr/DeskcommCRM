@@ -128,6 +128,33 @@ export function avisosDaBusca(input: { empate: boolean; ignorados: readonly stri
   return avisos.join(" ");
 }
 
+/**
+ * O vocabulário fechado do vazio desta busca. Quem contar "não achei" depois —
+ * por loja, por termo — conta por estes valores, não por texto de mensagem.
+ */
+export type MotivoDeVazio = "sem_estoque" | "varredura_parcial" | "nao_encontrado";
+
+/**
+ * "Não achei" NÃO é sucesso.
+ *
+ * A busca já sabe distinguir "não achei" de "falhei" — é o que as três respostas
+ * vazias dizem ao modelo. O que faltava era DIZER ISSO À AUDITORIA: a chamada
+ * terminava bem, `metadata.success` virava `true`, e o painel de capacidades
+ * (`fn_agent_tool_usage`) contava `falhas: 0` enquanto o agente nunca achava um
+ * produto e o dono lia "nenhuma falha" (issue #484). A busca que não acha nada é
+ * exatamente a que o dono precisa ver.
+ *
+ * Quem lê este predicado é a auditoria em `lib/ai/runtime/tools.ts`. Vazio
+ * declarado = o vazio que carrega `motivo`; resposta com item = sucesso, como
+ * sempre foi.
+ */
+export function motivoDoVazioDaBusca(resultado: unknown): string | null {
+  if (resultado === null || typeof resultado !== "object") return null;
+  const r = resultado as { produtos?: unknown; motivo?: unknown };
+  if (!Array.isArray(r.produtos) || r.produtos.length > 0) return null;
+  return typeof r.motivo === "string" && r.motivo.length > 0 ? r.motivo : null;
+}
+
 export const crmSearchProducts: McpToolDefinition<typeof produtosInputShape> = {
   name: "crm_search_products",
   description:
@@ -142,11 +169,18 @@ export const crmSearchProducts: McpToolDefinition<typeof produtosInputShape> = {
     "Lista vazia só significa que a loja não tem esse item quando a busca conseguiu varrer o " +
     "catálogo INTEIRO: se a resposta disser que a varredura foi parcial, não afirme que a loja não " +
     "tem — diga que vai confirmar com a equipe. Em qualquer caso, não invente preço e nunca " +
-    "invente um valor que você lembra.",
+    "invente um valor que você lembra. " +
+    "Produto com `fotos` tem foto cadastrada: ao apresentá-lo, passe o `codigo` dele em " +
+    "`produto_codigo` no send_message, e a foto vai junto com o texto.",
   inputSchema: produtosInputShape,
   category: "read",
   requiresRole: "agent",
   requiresScope: "mcp:read",
+  // Vazio aqui não é sucesso: `produtos: []` com motivo é "não achei" e passa a
+  // ser auditado como falha, para o painel parar de dizer "nenhuma falha"
+  // enquanto ninguém acha nada (#484). Tool sem este campo segue tratando vazio
+  // como sucesso — agenda vazia numa janela é resposta, não falha.
+  motivoDoVazio: motivoDoVazioDaBusca,
   handler: async (input, ctx) => {
     // Traz os ativos da org e pontua em memória. A busca por token (palavra
     // difusa, número exato) não é exprimível num `ilike` — e é ela que impede o
@@ -185,7 +219,7 @@ export const crmSearchProducts: McpToolDefinition<typeof produtosInputShape> = {
       const { data: lote, error, count } = await ctx.supabase
         .from("catalog_products")
         .select(
-          "id, codigo, nome, descricao, marca, categoria, preco_cents, moeda, controla_estoque, quantidade, ativo",
+          "id, codigo, nome, descricao, marca, categoria, preco_cents, moeda, controla_estoque, quantidade, ativo, fotos",
           { count: "exact" },
         )
         .eq("organization_id", ctx.organizationId)
@@ -228,6 +262,7 @@ export const crmSearchProducts: McpToolDefinition<typeof produtosInputShape> = {
       moeda: string;
       controla_estoque: boolean;
       quantidade: number;
+      fotos: string[] | null;
     };
 
     const { achados, ignorados } = buscarComRelaxamento((data ?? []) as Linha[], input.termo);
@@ -245,6 +280,9 @@ export const crmSearchProducts: McpToolDefinition<typeof produtosInputShape> = {
       if (achados.length > 0) {
         return {
           produtos: [],
+          // Existe, mas ninguém pode comprar. Para a auditoria isto é vazio
+          // declarado — "não achei um produto que dê para vender" —, não sucesso.
+          motivo: "sem_estoque" satisfies MotivoDeVazio,
           mensagem:
             "esse produto existe no catálogo, mas está sem estoque. Não prometa: ofereça avisar quando chegar.",
         };
@@ -262,6 +300,9 @@ export const crmSearchProducts: McpToolDefinition<typeof produtosInputShape> = {
       // repetia "tem null" (tests/unit/catalogo-nao-corta-cego.test.ts).
       return {
         produtos: [],
+        // Os dois vazios NÃO são o mesmo vazio, e a auditoria agora os separa:
+        // varredura parcial é "não sei", ausência é "não tem" (#484).
+        motivo: (varreduraParcial ? "varredura_parcial" : "nao_encontrado") satisfies MotivoDeVazio,
         mensagem: varreduraParcial
           ? `não encontrei entre os ${linhas.length} produtos que consegui consultar, e ` +
             (total === null
@@ -289,6 +330,10 @@ export const crmSearchProducts: McpToolDefinition<typeof produtosInputShape> = {
         ...(produto.marca ? { marca: produto.marca } : {}),
         ...(produto.descricao ? { descricao: produto.descricao } : {}),
         disponivel: !produto.controla_estoque || produto.quantidade > 0,
+        // Quantas fotos, e não quais: o caminho é vocabulário interno e a URL
+        // assinada expira. Quem manda a foto é o `send_message` do agente, com
+        // `produto_codigo` — ele acha as fotos pelo código (migration 0390).
+        ...(produto.fotos && produto.fotos.length > 0 ? { fotos: produto.fotos.length } : {}),
       })),
       empate,
       // Relaxamento é o irmão do empate: nos dois a busca sabe que a resposta

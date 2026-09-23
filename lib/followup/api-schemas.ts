@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import { flowGraphSchema } from "./graph-schema";
+import { MAX_THRESHOLD_MINUTES, MIN_THRESHOLD_MINUTES } from "./gap-de-retorno";
 
 /** Vocabulário da coluna `surface` (0167). A UI não recorta mais por ela. */
 export const FOLLOWUP_FLOW_SURFACES = ["followup", "crm_automation"] as const;
@@ -28,6 +29,11 @@ export const triggerConfigSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("manual"), ...CANCEL_ON_REPLY }),
   z.strictObject({ kind: z.literal("webhook"), ...CANCEL_ON_REPLY }),
   z.strictObject({
+    kind: z.literal("lead_created"),
+    params: z.strictObject({}).optional(),
+    ...CANCEL_ON_REPLY,
+  }),
+  z.strictObject({
     kind: z.literal("stage_change"),
     params: z.strictObject({ stage_id: z.string().uuid() }),
     ...CANCEL_ON_REPLY,
@@ -36,6 +42,16 @@ export const triggerConfigSchema = z.discriminatedUnion("kind", [
     kind: z.literal("silence"),
     params: z.strictObject({
       threshold_minutes: z.number().int().min(5).max(10_080),
+      segments: z.array(z.string()).optional(),
+    }),
+    ...CANCEL_ON_REPLY,
+  }),
+  z.strictObject({
+    kind: z.literal("inbound_after_silence"),
+    params: z.strictObject({
+      // Piso 1h / teto 90 dias: `lib/followup/gap-de-retorno.ts`. A tela pede
+      // valor + unidade; o fio guarda só minutos.
+      threshold_minutes: z.number().int().min(MIN_THRESHOLD_MINUTES).max(MAX_THRESHOLD_MINUTES),
       segments: z.array(z.string()).optional(),
     }),
     ...CANCEL_ON_REPLY,
@@ -57,6 +73,23 @@ export const triggerConfigSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type TriggerConfig = z.infer<typeof triggerConfigSchema>;
+
+/**
+ * Instalar um modelo pronto (`lib/followup/modelos/`). O corpo é mínimo de
+ * propósito: nome, textos, prazos e política de handoff vêm do MODELO, nunca do
+ * cliente — quem manda o grafo é o catálogo, e um body que pudesse mandar o seu
+ * seria a mesma porta do PATCH com outro nome.
+ *
+ * `stage_id` só é lido por modelo de gatilho de etapa (`pedeEtapa`), e é
+ * conferido contra a organização ativa antes de gravar: etapa de outra org no
+ * body é o anti-pattern nº 10 do CLAUDE.md.
+ */
+export const instalarModeloSchema = z.strictObject({
+  model_id: z.string().trim().min(1).max(80),
+  stage_id: z.string().uuid().optional(),
+  /** Renomear na hora de instalar — duas clínicas na mesma instalação, dois nomes. */
+  name: z.string().trim().min(1).max(80).optional(),
+});
 
 export const patchFollowupFlowSchema = z.strictObject({
   name: z.string().trim().min(1).max(80).optional(),

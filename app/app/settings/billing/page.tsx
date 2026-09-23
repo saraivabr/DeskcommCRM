@@ -28,6 +28,7 @@ export default async function BillingPage() {
   if (!activeOrg || ROLE_RANK[activeOrg.role] < ROLE_RANK.admin) {
     redirect("/403");
   }
+<<<<<<< HEAD
   let view: ReturnType<typeof subscriptionView> | null = null;
   let loadFailed = false;
   let allowance: AiAllowanceView | null = null;
@@ -62,7 +63,7 @@ export default async function BillingPage() {
       loadFailed = true;
     }
   }
-  const suporte = emailDeSuporte();
+  const suporte = await emailDeSuporte();
   const idioma = user.idioma;
   return (
     <div className="flex h-full flex-col gap-6 p-6">

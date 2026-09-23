@@ -47,6 +47,9 @@ export interface McpToolMeta extends CapacidadeSelecionavel {
   o_que_toca: string;
   risco: ToolRisk;
   pacotes: ReadonlyArray<ToolBundle>;
+  /** `false` = capacidade do harness: mostra, explica e não deixa marcar. */
+  marcavel: boolean;
+  motivo_nao_marcavel: string | null;
 }
 
 interface Props {
@@ -112,7 +115,7 @@ function FichaCapacidade({
         className="mt-1 h-4 w-4 shrink-0 rounded-md border-border accent-primary"
         checked={marcada}
         onChange={onToggle}
-        disabled={disabled || bloqueada}
+        disabled={disabled || (bloqueada && !marcada)}
         aria-label={t(capacidade.rotulo)}
       />
       <span className="flex-1 space-y-1">
@@ -122,6 +125,16 @@ function FichaCapacidade({
           <span className="text-xs text-muted-foreground">· {t(capacidade.o_que_toca)}</span>
         </span>
         <span className="block text-xs text-muted-foreground">{t(capacidade.explicacao)}</span>
+        {capacidade.motivo_nao_marcavel ? (
+          // O motivo do descarte, NA TELA. Antes disto o dono marcava e o engine
+          // jogava fora; o aviso existia só no log do worker, que ninguém lê.
+          <span
+            data-testid={`motivo-nao-marcavel-${capacidade.name}`}
+            className="block text-xs text-sky-700 dark:text-sky-400"
+          >
+            {t(capacidade.motivo_nao_marcavel)}
+          </span>
+        ) : null}
         {mostrarNomeTecnico ? (
           <code className="block font-mono text-[11px] text-muted-foreground">
             {capacidade.name}
@@ -272,7 +285,7 @@ export function ToolPicker({ value, onChange, disabled }: Props) {
                   checked={estado === "ligado"}
                   onCheckedChange={(v) => alternarPacote(pacote.id, v)}
                   disabled={disabled || vazio}
-                  aria-label={pacote.rotulo}
+                  aria-label={t(pacote.rotulo)}
                 />
                 <div className="flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -280,7 +293,7 @@ export function ToolPicker({ value, onChange, disabled }: Props) {
                       htmlFor={`pacote-${pacote.id}`}
                       className="cursor-pointer text-sm font-medium"
                     >
-                      {pacote.rotulo}
+                      {t(pacote.rotulo)}
                     </label>
                     {estado === "parcial" ? (
                       <Badge variant="outline" className="text-[11px]">
@@ -288,7 +301,10 @@ export function ToolPicker({ value, onChange, disabled }: Props) {
                       </Badge>
                     ) : null}
                   </div>
-                  <p className="text-xs text-muted-foreground">{pacote.explicacao}</p>
+                  <p className="text-xs text-muted-foreground">{t(pacote.explicacao)}</p>
+                  <p className="text-xs text-muted-foreground" data-testid={`contagem-${pacote.id}`}>
+                    {textoDaContagem(total, ligadas, t)}
+                  </p>
                 </div>
               </div>
 
@@ -314,7 +330,7 @@ export function ToolPicker({ value, onChange, disabled }: Props) {
                         key={name}
                         capacidade={capacidade}
                         marcada={marcada}
-                        bloqueada={!marcada && cheio}
+                        bloqueada={!marcada && (cheio || !capacidade.marcavel)}
                         onToggle={() => alternarCapacidade(name)}
                         disabled={disabled}
                       />

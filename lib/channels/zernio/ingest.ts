@@ -1,4 +1,5 @@
 import type { SocialMessage } from "../social/parser";
+import { ehCanalDeConversa } from "@/lib/channels/canais-de-conversa";
 /**
  * Ingestão do canal intermediado: webhook → contato, conversa, mensagem.
  *
@@ -30,7 +31,12 @@ import { marcarConversaComMensagem } from "@/lib/channels/marcar-conversa";
 
 import { extrairAtribuicaoMeta } from "@/lib/channels/atribuicao-de-anuncio-oficial";
 import { estamparAtribuicaoDoContato } from "@/lib/leads/atribuicao-de-anuncio";
+import { extrairEEstamparAtribuicaoGoogle } from "@/lib/plataformas-de-anuncio/google/atribuicao";
 import { pausarIaPorAtendimentoManual } from "@/lib/escalacao/atendimento-manual";
+import {
+  ehNumeroInternoDeAviso,
+  registrarMensagemIgnorada,
+} from "@/lib/escalacao/numero-interno-de-aviso";
 
 import { aplicarEfeitosPosEntrada } from "../pos-entrada";
 
@@ -103,6 +109,28 @@ export async function ingestZernioInbound(
       : { status: "ignored", reason: "mensagem_desconhecida" };
   }
 
+  // ── O NÚMERO INTERNO DE AVISOS NÃO VIRA ATENDIMENTO ─────────────────────
+  //
+  // Antes da resolução pela thread E do upsert do contato — os DOIS caminhos
+  // criam conversa, e é o nascimento dela que dispara o pedido de rodízio pelo
+  // banco. Só o ramo do telefone é alcançável aqui: a âncora opaca deste canal
+  // é do provedor, não o identificador de privacidade do WhatsApp, e casar por
+  // ela exigiria um segundo campo na configuração sem consumidor nenhum hoje.
+  if (
+    msg.identity.phone &&
+    (await ehNumeroInternoDeAviso(admin, input.organizationId, {
+      kind: "phone",
+      phone: msg.identity.phone,
+      lid: null,
+    }))
+  ) {
+    await registrarMensagemIgnorada(admin, input.organizationId, {
+      direction: "inbound",
+      sessionId: input.channelSessionId,
+    });
+    return { status: "ignored", reason: "numero_interno_de_aviso" };
+  }
+
   // ─── A THREAD é a prova de identidade, e vem ANTES da âncora ─────────────
   //
   // O provider dá um id próprio à conversa. Se já existe uma com esse id, é a
@@ -124,6 +152,19 @@ export async function ingestZernioInbound(
   );
   if (existente) {
     if (input.socialMessage) {
+      // A plataforma vai CRUA para uma coluna com CHECK. Num clone cujo banco
+      // ainda não conhece esta rede, o INSERT volta 23514 — e como o provedor
+      // REENTREGA o webhook, isso vira 500 eterno, com a tela mostrando a conta
+      // ligada e a conversa nunca aparecendo. Recusar aqui troca o laço infinito
+      // por uma linha de log que diz o nome da rede e o que falta.
+      if (!ehCanalDeConversa(input.socialMessage.platform)) {
+        logger.error("zernio: rede sem canal correspondente no banco — conversa não atualizada", {
+          organization_id: input.organizationId,
+          platform: input.socialMessage.platform,
+          detalhe: "falta o valor no CHECK de conversations.channel (migration)",
+        });
+        return { status: "ignored", reason: "canal_desconhecido" };
+      }
       const { error } = await admin
         .from("conversations")
         .update({ channel: input.socialMessage.platform })
@@ -199,6 +240,16 @@ export async function ingestZernioInbound(
   });
   if (!conversationId) return { status: "ignored", reason: "conversa_nao_resolvida" };
   if (input.socialMessage) {
+    // Mesma guarda do ramo acima: sem ela, rede nova = 23514 reentregue para
+    // sempre. Ver `lib/channels/canais-de-conversa.ts`.
+    if (!ehCanalDeConversa(input.socialMessage.platform)) {
+      logger.error("zernio: rede sem canal correspondente no banco — conversa não atualizada", {
+        organization_id: input.organizationId,
+        platform: input.socialMessage.platform,
+        detalhe: "falta o valor no CHECK de conversations.channel (migration)",
+      });
+      return { status: "ignored", reason: "canal_desconhecido" };
+    }
     const { error } = await admin
       .from("conversations")
       .update({ channel: input.socialMessage.platform })
@@ -267,7 +318,12 @@ async function efeitosDaEntrada(
   // regra de primeiro-toque: `estamparAtribuicaoDoContato` só grava se o
   // contato ainda não tem `ad_platform`.
   const atribuicao = extrairAtribuicaoMeta(msg.referral);
-  if (atribuicao) await estamparAtribuicaoDoContato(admin, contactId, atribuicao);
+  if (atribuicao) await estamparAtribuicaoDoContato(admin, input.organizationId, contactId, atribuicao);
+
+  // Irmão do bloco acima, para o Google: o dado não vem no `referral` (que é
+  // exclusivo da Meta), vem no PRÓPRIO texto da mensagem — ver o cabeçalho de
+  // `lib/plataformas-de-anuncio/google/atribuicao.ts`. Best-effort, mesma postura.
+  await extrairEEstamparAtribuicaoGoogle(admin, input.organizationId, contactId, msg.text);
 
   await aplicarEfeitosPosEntrada(admin, {
     organizationId: input.organizationId,
@@ -642,11 +698,18 @@ async function upsertSocialContact(
   identity: string,
   name: string | null,
 ): Promise<string> {
+  // Contato FUNDIDO não é alvo: ele aponta para o vencedor da fusão, e
+  // escrever nele é escrever num cadastro que ninguém mais lê — o mesmo motivo
+  // de `contato-por-telefone`. Aqui a guarda ainda evita um segundo defeito: o
+  // índice único é PARCIAL (`where ... and is_merged_into is null`), então duas
+  // linhas com a mesma identidade — uma mesclada, uma viva — são estado
+  // legítimo, e sem o filtro o `.maybeSingle()` estoura.
   const { data: existing, error: readError } = await admin
     .from("contacts")
     .select("id")
     .eq("organization_id", org)
     .eq("social_identity", identity)
+    .is("is_merged_into", null)
     .maybeSingle();
   if (readError) throw new Error("social_contact_lookup_failed");
   if (existing) return existing.id as string;
@@ -667,6 +730,10 @@ async function upsertSocialContact(
       .select("id")
       .eq("organization_id", org)
       .eq("social_identity", identity)
+      // Mesma guarda da busca acima: quem perdeu a corrida procura o VIVO.
+      // O `.single()` reclama de zero e de duas — sem o filtro, uma ficha
+      // mesclada com a mesma identidade tornaria "duas" alcançável.
+      .is("is_merged_into", null)
       .single();
     if (retryError || !winner) throw new Error("social_contact_race_failed");
     return winner.id as string;

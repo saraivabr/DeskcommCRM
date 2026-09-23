@@ -7,7 +7,9 @@
  */
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { citacaoDaLei, perfilDoPais } from "@/lib/legal/perfil-do-pais";
 import { logger } from "@/lib/logger";
+import { maskPhone } from "@/lib/lgpd/mask";
 import type { Json } from "@/lib/database.types";
 
 // ---------------------------------------------------------------------------
@@ -30,6 +32,8 @@ export interface ContactSnapshot {
   source_metadata: Record<string, unknown> | null;
   created_at: string;
   last_activity_at: string | null;
+  /** Primeiro atendimento marcado. Sobrevive à anonimização: é registro de operação. */
+  first_service_at: string | null;
 }
 
 export interface ConsentRow {
@@ -91,6 +95,22 @@ export interface ActivityRow {
 }
 
 /**
+ * O resumo que o agente guarda sobre o titular (`lead_checkpoints`).
+ *
+ * Entra porque a anonimização o REDIGE (migration 0391): o resumo corrido, os
+ * compromissos e a próxima ação são texto que o modelo escreveu SOBRE a pessoa,
+ * e o que se apaga a pedido do titular é o que se entrega a pedido dele.
+ */
+export interface CheckpointRow {
+  id: string;
+  rolling_summary: string;
+  commitments: unknown;
+  objections: unknown;
+  next_action: string | null;
+  created_at: string;
+}
+
+/**
  * Compromisso da agenda do titular.
  *
  * As colunas são as MESMAS que a migration 0184 redige ao anonimizar — e não é
@@ -116,6 +136,32 @@ export interface AppointmentRow {
   google_pending_write?: Json | null;
   meeting_url?: string | null;
   meeting_state?: string;
+}
+
+/**
+ * A comanda do titular (migrations 0350-0359).
+ *
+ * Entra porque a anonimização APAGA: a 0359 pôs `sales` na cascata de redação
+ * (`notes`, `cancel_reason`, `reverse_reason`), e neste repo redigir e exportar
+ * andam juntos. Valor, forma de pagamento e datas a cascata PRESERVA — é
+ * registro financeiro da organização —, e ainda assim entram aqui pela mesma
+ * razão que `starts_at` da agenda entra: "gastei tanto, em tal dia, pago
+ * assim" é informação a respeito dele, e é a mais legível deste bloco.
+ *
+ * Os ITENS não entram: `sale_items.description` é o nome do serviço, não dado
+ * de pessoa, e a cascata não o toca — as duas pontas continuam espelhadas.
+ */
+export interface SaleRow {
+  id: string;
+  number: number;
+  status: string;
+  total_cents: number;
+  currency: string;
+  notes: string | null;
+  cancel_reason: string | null;
+  reverse_reason: string | null;
+  finalized_at: string | null;
+  created_at: string;
 }
 
 /**
@@ -197,6 +243,125 @@ export interface AppointmentNoticeRow {
   resolved_at: string | null;
 }
 
+/**
+ * Um caso aberto pela IA sobre o titular — o que ela entendeu quando travou.
+ *
+ * O vínculo é pela CONVERSA: `agent_cases` não tem FK para `contacts`. `kind`
+ * (migration 0248) fica fora da projeção porque `lib/database.types.ts` ainda
+ * não o conhece, e selecionar coluna que o tipo não tem é erro de compilação.
+ */
+export interface CaseRow {
+  id: string;
+  conversation_id: string;
+  status: string;
+  title: string;
+  summary: string;
+  blocker: string;
+  source: string;
+  opened_at: string;
+  closed_at: string | null;
+  created_at: string;
+}
+
+/** Uma linha do tempo do caso: quem tocou, quando, e o que escreveu. */
+export interface CaseEventRow {
+  id: string;
+  case_id: string;
+  kind: string;
+  actor_kind: string;
+  human_action: string | null;
+  body: string | null;
+  metadata: unknown;
+  created_at: string;
+}
+
+/**
+ * Uma mensagem da conversa INTERNA da equipe com a IA sobre um caso do titular
+ * (migration 0281). O que se apaga a pedido dele é o que se entrega a pedido
+ * dele: `body` está na cascata de redação, logo a tabela tem de ser visitada
+ * aqui — é o que `tests/unit/lgpd-exporta-o-que-redige.test.ts` cobra.
+ *
+ * O vínculo é a FK DIRETA `contact_id`, e não a conversa: ela existe nesta
+ * tabela exatamente para isso.
+ */
+export interface CaseChatMessageRow {
+  id: string;
+  case_id: string;
+  turn_id: string;
+  author_kind: string;
+  body: string | null;
+  error_code: string | null;
+  created_at: string;
+}
+
+/**
+ * Uma passagem do atendimento automático para uma pessoa (migration 0291).
+ *
+ * O que se apaga a pedido do titular é o que se entrega a pedido dele: as quatro
+ * colunas de texto estão na cascata de redação, logo a tabela tem de ser
+ * visitada aqui — é o que `tests/unit/lgpd-exporta-o-que-redige.test.ts` cobra,
+ * derivando as duas pontas da fonte.
+ *
+ * O vínculo é a FK DIRETA `contact_id`. As colunas de OPERAÇÃO entram junto
+ * (`motor`, `origem`, `motivo_codigo`, o par do aviso e o do reconhecimento):
+ * o titular tem direito de saber não só o que escreveram sobre ele, mas que a
+ * conversa dele foi passada a uma pessoa, por quê, e quando alguém assumiu.
+ */
+export interface PassagemDeAtendimentoRow {
+  id: string;
+  conversation_id: string;
+  caso_id: string | null;
+  motor: string;
+  origem: string;
+  motivo_codigo: string;
+  title: string | null;
+  body: string;
+  notes: string | null;
+  content: string | null;
+  tentativas: unknown;
+  cliente_avisado: boolean | null;
+  aviso_motivo_codigo: string | null;
+  criado_em: string;
+  reconhecido_em: string | null;
+}
+
+/**
+ * O registro de que a equipe foi (ou não foi) avisada no WhatsApp sobre um caso
+ * do titular — migration 0292.
+ *
+ * ⚠️ `destino` entra MASCARADO. Ele é o telefone de um FUNCIONÁRIO, não do
+ * titular: entregá-lo inteiro num relatório do Art. 18 II trocaria o dado
+ * pessoal de uma pessoa pelo de outra. O que o titular tem direito de saber é
+ * QUE houve um aviso sobre o atendimento dele, quando, e se chegou.
+ *
+ * O corpo do aviso não aparece porque ele NÃO É GUARDADO — a tabela tem só o
+ * resumo criptográfico, e um hash não reidentifica ninguém.
+ */
+export interface AvisoDeCasoEntregaRow {
+  id: string;
+  case_id: string;
+  destino_mascarado: string | null;
+  status: string;
+  erro_codigo: string | null;
+  tentativas: number;
+  enviado_em: string | null;
+  created_at: string;
+}
+
+/** Uma demanda do titular — o pedido, seu dono e seu desfecho. */
+export interface DemandaRow {
+  id: string;
+  agent_case_id: string | null;
+  origem: string;
+  assunto: string | null;
+  estado: string;
+  dono_kind: string;
+  proximo_passo: string | null;
+  desfecho: string | null;
+  aberta_em: string;
+  fechada_em: string | null;
+}
+
 /** Uma chamada de voz do titular — o registro, não a gravação (não gravamos). */
 export interface VoiceCallRow {
   id: string;
@@ -210,7 +375,7 @@ export interface VoiceCallRow {
   duration_ms: number | null;
 }
 
-/** Pesquisa e resultado da abordagem ligados ao titular (redação: migration 0263). */
+/** Pesquisa e resultado da abordagem ligados ao titular (redação: migration 0370). */
 export interface ProspectingCandidateRow {
   id: string;
   campaign_id: string;
@@ -226,6 +391,43 @@ export interface ProspectingCandidateRow {
   updated_at: string;
 }
 
+/**
+ * Uma campanha que falou com este titular (migration 0374).
+ *
+ * O texto vai junto porque é o que foi DITO a ele; o telefone não, porque ele já
+ * está no bloco do contato e repeti-lo só multiplica PII no arquivo entregue.
+ */
+export interface CampaignRecipientRow {
+  id: string;
+  campaign_id: string;
+  status: string;
+  eligibility_status: string;
+  exclusion_reason: string | null;
+  rendered_body: string | null;
+  sent_at: string | null;
+  delivered_at: string | null;
+  read_at: string | null;
+  replied_at: string | null;
+  opted_out_at: string | null;
+}
+
+/**
+ * Uma linha da lista de exclusão de campanhas que aponta para este titular
+ * (migration 0375).
+ *
+ * O hash do telefone NÃO entra: ele não diz nada a quem lê e não é dado que o
+ * titular reconheça. O que entra é o fato — "este número está fora das
+ * campanhas desde tal dia, por tal motivo" —, que é exatamente a informação
+ * dele que a organização guarda.
+ */
+export interface CampaignSuppressionRow {
+  id: string;
+  address_tail: string | null;
+  reason: string | null;
+  source: string;
+  created_at: string;
+}
+
 export interface ExportPayload {
   request_id: string;
   organization_id: string;
@@ -237,8 +439,19 @@ export interface ExportPayload {
   organization_legal_name: string;
   /** Nome fantasia. Não vai para o rodapé; existe para o JSON do export. */
   organization_display_name: string;
-  /** Encarregado da organização. `null` cai em `env.LGPD_DPO_EMAIL`. */
+  /** Encarregado da organização; `null` cai no encarregado da INSTALAÇÃO (0341). */
   dpo_email: string | null;
+  /**
+   * A lei que o documento de acesso cita, pronta (`LGPD Art. 18, II (Lei nº
+   * 13.709/2018)`), ou `null` quando o país da organização ainda não tem
+   * citação revisada (issue #1033). `null` NÃO cai para a lei brasileira: o
+   * documento responde a um direito legal do titular, e afirmar a lei de outro
+   * país é pior do que não citar artigo nenhum — o rodapé diz que não há
+   * citação revisada em vez de inventar uma.
+   */
+  lei_citada: string | null;
+  /** O rótulo do documento do titular no país ("CPF", "Documento"). */
+  documento_rotulo: string;
   generated_at: string;
   no_local_footprint: boolean;
   contact: ContactSnapshot | null;
@@ -249,7 +462,9 @@ export interface ExportPayload {
   leads: LeadRow[];
   orders: OrderRow[];
   activities: ActivityRow[];
+  checkpoints: CheckpointRow[];
   appointments: AppointmentRow[];
+  sales: SaleRow[];
   tasks: TaskRow[];
   webhook_captures: CaptureRow[];
   audit_log_extract: AuditRow[];
@@ -266,6 +481,53 @@ export interface ExportPayload {
    */
   voice_calls: VoiceCallRow[];
   prospecting_candidates: ProspectingCandidateRow[];
+  /**
+   * Casos, linha do tempo do caso e demandas (migration 0280).
+   *
+   * Entram pelo mesmo motivo de `voice_calls`: a 0280 pôs as três na cascata de
+   * redação, e o que se apaga a pedido do titular é o que se entrega a pedido
+   * dele. Sem os três blocos, o relatório mostrava a conversa e as mensagens e
+   * não mencionava que o atendimento tinha parado, o que a IA entendeu do
+   * problema dele, nem quem da equipe respondeu — que é a parte em que uma
+   * pessoa identificável é DESCRITA por máquina.
+   */
+  cases: CaseRow[];
+  case_events: CaseEventRow[];
+  demandas: DemandaRow[];
+  /**
+   * O que a equipe PERGUNTOU à IA sobre os casos do titular, e o que ela
+   * respondeu. Obrigatório, não opcional: campo obrigatório faz um caminho de
+   * export novo NÃO COMPILAR se esquecer, que é a única sincronia que não
+   * depende de memória humana.
+   */
+  case_chat_messages: CaseChatMessageRow[];
+  /**
+   * As passagens do atendimento dele para uma pessoa. Obrigatório, não
+   * opcional, pela mesma razão do campo acima: campo obrigatório faz um caminho
+   * de export novo NÃO COMPILAR se esquecer, que é a única sincronia que não
+   * depende de memória humana.
+   */
+  passagens: PassagemDeAtendimentoRow[];
+  avisos_de_caso: AvisoDeCasoEntregaRow[];
+  /**
+   * Campanhas que falaram com o titular (migration 0375).
+   *
+   * Entra pelo mesmo motivo de `voice_calls`: o trigger
+   * `trg_redigir_campanhas_anonimizado` APAGA o texto e o telefone destas linhas
+   * quando ele pede anonimização, e o que se apaga a pedido dele é o que se
+   * entrega a pedido dele (Art. 18 II). Sem este bloco, alguém que recebeu uma
+   * prospecção pediria acesso e não veria a mensagem que recebeu.
+   */
+  campaign_recipients: CampaignRecipientRow[];
+  /**
+   * Lista de exclusão de campanhas (migration 0375).
+   *
+   * Entra pelo mesmo motivo das demais: o trigger
+   * `trg_redigir_exclusoes_anonimizado` APAGA o vínculo e os últimos dígitos
+   * quando o titular pede anonimização, e o que se apaga a pedido dele é o que
+   * se entrega a pedido dele (Art. 18 II).
+   */
+  campaign_suppressions: CampaignSuppressionRow[];
   reply_drafts?: Array<{
     id: string;
     status: string;
@@ -287,6 +549,18 @@ interface CollectArgs {
   requestId: string;
   contactId: string | null;
   externalCustomerId: string | null;
+  /**
+   * O encarregado de dados da INSTALAÇÃO — o piso do da organização, já
+   * RESOLVIDO por quem chama.
+   *
+   * Injetado, e não lido aqui, porque o coletor de LGPD tem de tocar o mínimo:
+   * `tests/invariants/agenda-meet-export.test.ts` exige que a coleta sem
+   * identificador visite APENAS `organizations`, e consultar a configuração da
+   * instalação acrescentaria uma tabela a toda coleta — inclusive à que não vai
+   * usar o valor. Quem chama já é assíncrono e já resolve outras coisas da
+   * instalação; resolver mais esta ali não custa visita nenhuma aqui.
+   */
+  dpoDaInstalacao?: string | null;
 }
 
 const RECENT_MESSAGES_LIMIT = 100;
@@ -297,6 +571,14 @@ interface Controlador {
   legal_name: string;
   display_name: string;
   dpo_email: string | null;
+  /**
+   * O país da organização (issue #1033). Lido JUNTO do controlador, na mesma
+   * consulta, porque é dele que saem a lei citada e o rótulo do documento: dois
+   * `select` na mesma linha divergem no dia em que um ganhar fallback e o outro
+   * não — e aqui a divergência sairia impressa num documento entregue a um
+   * titular, afirmando a lei de um país com o rótulo de outro.
+   */
+  country: string | null;
 }
 
 /**
@@ -309,11 +591,17 @@ async function lerControlador(
   admin: ReturnType<typeof createAdminClient>,
   organizationId: string,
   requestId: string,
+  dpoDaInstalacao: string | null,
 ): Promise<Controlador> {
-  const vazio: Controlador = { legal_name: "", display_name: "", dpo_email: null };
+  const vazio: Controlador = {
+    legal_name: "",
+    display_name: "",
+    dpo_email: dpoDaInstalacao,
+    country: null,
+  };
   const { data, error } = await admin
     .from("organizations")
-    .select("legal_name, display_name, dpo_email")
+    .select("legal_name, display_name, dpo_email, country")
     .eq("id", organizationId)
     .maybeSingle();
   if (error || !data) {
@@ -326,7 +614,8 @@ async function lerControlador(
   return {
     legal_name: data.legal_name ?? "",
     display_name: data.display_name ?? "",
-    dpo_email: data.dpo_email ?? null,
+    dpo_email: data.dpo_email?.trim() || dpoDaInstalacao,
+    country: (data as { country?: string | null }).country ?? null,
   };
 }
 
@@ -335,7 +624,7 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
   const { organizationId, requestId, externalCustomerId } = args;
   // ANTES do primeiro `return`: o caminho "nenhum dado localizado" também gera
   // um relatório entregue ao titular, e ele precisa nomear o controlador igual.
-  const controlador = await lerControlador(admin, organizationId, requestId);
+  const controlador = await lerControlador(admin, organizationId, requestId, args.dpoDaInstalacao ?? null);
   let contactId = args.contactId;
 
   // Resolve contact_id when only external customer id is provided.
@@ -368,7 +657,7 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
     const { data, error } = await admin
       .from("contacts")
       .select(
-        "id, name, display_name, email, phone_number, cpf_encrypted, birthdate, is_blocked, is_anonymized, consent, tags, source, source_metadata, custom_fields, created_at, last_activity_at",
+        "id, name, display_name, email, phone_number, cpf_encrypted, birthdate, is_blocked, is_anonymized, consent, tags, source, source_metadata, custom_fields, created_at, last_activity_at, first_service_at",
       )
       .eq("organization_id", organizationId)
       .eq("id", contactId)
@@ -396,6 +685,7 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
         source_metadata: (data.source_metadata as Record<string, unknown> | null) ?? null,
         created_at: data.created_at,
         last_activity_at: data.last_activity_at ?? null,
+        first_service_at: data.first_service_at ?? null,
       };
     }
   }
@@ -570,6 +860,26 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
     }
   }
 
+  // Resumos do agente — contact_id direto em lead_checkpoints.
+  let checkpoints: CheckpointRow[] = [];
+  if (contactId) {
+    const { data, error } = await admin
+      .from("lead_checkpoints")
+      .select("id, rolling_summary, commitments, objections, next_action, created_at")
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) {
+      logger.warn("[lgpd-export-worker] checkpoints load failed", {
+        request_id: requestId,
+        error: error.message,
+      });
+    } else if (data) {
+      checkpoints = data;
+    }
+  }
+
   // Agenda — contact_id direto em calendar_appointments.
   //
   // ⚠️ ESTA METADE FALTAVA, e a outra tinha gate. A migration 0184 declarou esta
@@ -596,6 +906,34 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
       });
     } else if (data) {
       appointments = data;
+    }
+  }
+
+  // Comandas — contact_id direto em sales (migrations 0350-0359).
+  //
+  // A 0359 acrescentou esta tabela à cascata de redação; este bloco é a outra
+  // metade, escrita no mesmo PR. Sem ele, o titular pediria acesso e receberia
+  // um relatório que não menciona nenhuma compra que ele fez — o defeito que
+  // `tests/unit/lgpd-exporta-o-que-redige.test.ts` existe para pegar, e que
+  // pegou este bloco antes de ele ser escrito.
+  let sales: SaleRow[] = [];
+  if (contactId) {
+    const { data, error } = await admin
+      .from("sales")
+      .select(
+        "id, number, status, total_cents, currency, notes, cancel_reason, reverse_reason, finalized_at, created_at",
+      )
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) {
+      logger.warn("[lgpd-export-worker] sales load failed", {
+        request_id: requestId,
+        error: error.message,
+      });
+    } else if (data) {
+      sales = data;
     }
   }
 
@@ -646,6 +984,48 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
       });
     } else if (data) {
       voice_calls = data as VoiceCallRow[];
+    }
+  }
+
+  // Campanhas — `contact_id` direto em `campaign_recipients` (migration 0375).
+  let campaign_recipients: CampaignRecipientRow[] = [];
+  if (contactId) {
+    const { data, error } = await admin
+      .from("campaign_recipients")
+      .select(
+        "id, campaign_id, status, eligibility_status, exclusion_reason, rendered_body, sent_at, delivered_at, read_at, replied_at, opted_out_at",
+      )
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) {
+      logger.warn("[lgpd-export-worker] campaign recipients load failed", {
+        request_id: requestId,
+        error: error.message,
+      });
+    } else if (data) {
+      campaign_recipients = data as unknown as CampaignRecipientRow[];
+    }
+  }
+
+  // Lista de exclusão de campanhas — `contact_id` direto (migration 0375).
+  let campaign_suppressions: CampaignSuppressionRow[] = [];
+  if (contactId) {
+    const { data, error } = await admin
+      .from("campaign_suppressions")
+      .select("id, address_tail, reason, source, created_at")
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) {
+      logger.warn("[lgpd-export-worker] campaign suppressions load failed", {
+        request_id: requestId,
+        error: error.message,
+      });
+    } else if (data) {
+      campaign_suppressions = data as unknown as CampaignSuppressionRow[];
     }
   }
 
@@ -716,7 +1096,7 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
       if (!data || data.length < 500) break;
     }
   }
-  // Espelha exatamente o escopo da redação 0263: contato + organização.
+  // Espelha exatamente o escopo da redação 0361: contato + organização.
   // Telefone coincidente sem vínculo não comprova identidade. Tokens de
   // supressão e a autorização de envio permanecem internos, fora da projeção.
   const prospecting_candidates: ProspectingCandidateRow[] = [];
@@ -737,6 +1117,185 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
       if (!data || data.length < 500) break;
     }
   }
+  // Casos, linha do tempo do caso e demandas — o que a 0280 pôs na cascata.
+  //
+  // O escopo do CASO é a CONVERSA do titular: `agent_cases` não tem FK para
+  // `contacts`. Os ids das conversas são paginados por conta própria em vez de
+  // reaproveitar a projeção `conversations` acima — ela tem teto de 500 e existe
+  // para o relatório. Usá-la como filtro faria o titular com mais de 500
+  // conversas receber um export sem os casos das excedentes, em silêncio.
+  const cases: CaseRow[] = [];
+  const case_events: CaseEventRow[] = [];
+  let demandas: DemandaRow[] = [];
+  const case_chat_messages: CaseChatMessageRow[] = [];
+  const passagens: PassagemDeAtendimentoRow[] = [];
+  const avisos_de_caso: AvisoDeCasoEntregaRow[] = [];
+  if (contactId) {
+    const pageSize = 500;
+    const refBatchSize = 100; // Mantém o filtro IN abaixo dos limites de URL dos proxies.
+    const conversationIds: string[] = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await admin
+        .from("conversations")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("contact_id", contactId)
+        .order("id")
+        .range(offset, offset + pageSize - 1);
+      if (error) {
+        logger.warn("[lgpd-export-worker] case conversation refs load failed", {
+          request_id: requestId,
+          error: error.message,
+        });
+        break;
+      }
+      for (const conversa of data ?? []) conversationIds.push(conversa.id);
+      if (!data || data.length < pageSize) break;
+    }
+    for (let batch = 0; batch < conversationIds.length; batch += refBatchSize) {
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await admin
+          .from("agent_cases")
+          .select(
+            "id, conversation_id, status, title, summary, blocker, source, opened_at, closed_at, created_at",
+          )
+          .eq("organization_id", organizationId)
+          .in("conversation_id", conversationIds.slice(batch, batch + refBatchSize))
+          .order("id")
+          .range(offset, offset + pageSize - 1);
+        if (error) {
+          logger.warn("[lgpd-export-worker] cases load failed", {
+            request_id: requestId,
+            error: error.message,
+          });
+          break;
+        }
+        cases.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+      }
+    }
+    // A linha do tempo pende do caso já coletado: um `case_id` que não esteja em
+    // `cases` seria de outro titular, e é por isso que o escopo sai daqui e não
+    // de uma segunda derivação pela conversa.
+    const caseIds = cases.map((caso) => caso.id);
+    for (let batch = 0; batch < caseIds.length; batch += refBatchSize) {
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await admin
+          .from("agent_case_events")
+          .select("id, case_id, kind, actor_kind, human_action, body, metadata, created_at")
+          .eq("organization_id", organizationId)
+          .in("case_id", caseIds.slice(batch, batch + refBatchSize))
+          .order("id")
+          .range(offset, offset + pageSize - 1);
+        if (error) {
+          logger.warn("[lgpd-export-worker] case events load failed", {
+            request_id: requestId,
+            error: error.message,
+          });
+          break;
+        }
+        case_events.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+      }
+    }
+    // Demanda tem FK direta para o contato (`contact_id` é `not null`).
+    const { data, error } = await admin
+      .from("demandas")
+      .select(
+        "id, agent_case_id, origem, assunto, estado, dono_kind, proximo_passo, desfecho, aberta_em, fechada_em",
+      )
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .order("aberta_em", { ascending: false })
+      .limit(500);
+    if (error) {
+      logger.warn("[lgpd-export-worker] demandas load failed", {
+        request_id: requestId,
+        error: error.message,
+      });
+    } else if (data) {
+      demandas = data;
+    }
+    // A conversa interna sobre o caso (migration 0281). FK direta para o
+    // contato, então não passa pelos ids de conversa acima — e paginada, e não
+    // com `limit`, porque uma deliberação longa num titular antigo não pode
+    // sumir do relatório em silêncio.
+    for (let offset = 0; ; offset += pageSize) {
+      const { data: pagina, error: erro } = await admin
+        .from("agent_case_chat_messages")
+        .select("id, case_id, turn_id, author_kind, body, error_code, created_at")
+        .eq("organization_id", organizationId)
+        .eq("contact_id", contactId)
+        .order("id")
+        .range(offset, offset + pageSize - 1);
+      if (erro) {
+        logger.warn("[lgpd-export-worker] case chat messages load failed", {
+          request_id: requestId,
+          error: erro.message,
+        });
+        break;
+      }
+      case_chat_messages.push(...(pagina ?? []));
+      if (!pagina || pagina.length < pageSize) break;
+    }
+    // As passagens para uma pessoa (migration 0291). FK direta para o contato,
+    // como a de cima, e paginada pela mesma razão: um titular de dois anos pode
+    // ter dezenas, e um `limit` faria as mais antigas sumirem do relatório sem
+    // ninguém saber que sumiram.
+    for (let offset = 0; ; offset += pageSize) {
+      const { data: pagina, error: erro } = await admin
+        .from("passagens_de_atendimento")
+        // UM literal, sem concatenação: o supabase-js lê a lista de colunas do
+        // TIPO da string para inferir a linha, e `"a" + "b"` vira `string` —
+        // a linha volta como `GenericStringError` e o `push` não compila.
+        .select("id, conversation_id, caso_id, motor, origem, motivo_codigo, title, body, notes, content, tentativas, cliente_avisado, aviso_motivo_codigo, criado_em, reconhecido_em")
+        .eq("organization_id", organizationId)
+        .eq("contact_id", contactId)
+        .order("id")
+        .range(offset, offset + pageSize - 1);
+      if (erro) {
+        logger.warn("[lgpd-export-worker] passagens load failed", {
+          request_id: requestId,
+          error: erro.message,
+        });
+        break;
+      }
+      passagens.push(...(pagina ?? []));
+      if (!pagina || pagina.length < pageSize) break;
+    }
+    // O registro de entrega do aviso ao suporte (migration 0292). O escopo sai
+    // dos CASOS já coletados, e não de uma segunda derivação pela conversa: um
+    // `case_id` que não esteja em `cases` seria de outro titular.
+    //
+    // A cascata de LGPD zera `erro_detalhe` desta tabela, e é por isso que ela
+    // entra aqui: `tests/unit/lgpd-exporta-o-que-redige.test.ts` deriva as duas
+    // pontas da fonte e reprova quem redige e não exporta — o que se apaga a
+    // pedido do titular é o que se entrega a pedido dele.
+    for (let batch = 0; batch < caseIds.length; batch += refBatchSize) {
+      for (let offset = 0; ; offset += pageSize) {
+        const { data: pagina, error: erro } = await admin
+          .from("entregas_de_aviso_de_caso")
+          .select("id, case_id, destino, status, erro_codigo, tentativas, enviado_em, created_at")
+          .eq("organization_id", organizationId)
+          .in("case_id", caseIds.slice(batch, batch + refBatchSize))
+          .order("id")
+          .range(offset, offset + pageSize - 1);
+        if (erro) {
+          logger.warn("[lgpd-export-worker] avisos de caso load failed", {
+            request_id: requestId,
+            error: erro.message,
+          });
+          break;
+        }
+        for (const linha of pagina ?? []) {
+          const { destino, ...resto } = linha;
+          avisos_de_caso.push({ ...resto, destino_mascarado: maskPhone(destino) });
+        }
+        if (!pagina || pagina.length < pageSize) break;
+      }
+    }
+  }
+
   const meeting_deliveries: MeetingDeliveryRow[] = [];
   const appointment_notices: AppointmentNoticeRow[] = [];
   if (contactId) {
@@ -821,12 +1380,16 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
     }
   }
 
+  const perfil = perfilDoPais(controlador.country);
+
   return {
     request_id: requestId,
     organization_id: organizationId,
     organization_legal_name: controlador.legal_name,
     organization_display_name: controlador.display_name,
     dpo_email: controlador.dpo_email,
+    lei_citada: citacaoDaLei(perfil),
+    documento_rotulo: perfil.documento.rotulo,
     generated_at: new Date().toISOString(),
     no_local_footprint:
       !contact &&
@@ -841,7 +1404,9 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
     leads,
     orders,
     activities,
+    checkpoints,
     appointments,
+    sales,
     tasks,
     webhook_captures,
     audit_log_extract,
@@ -850,6 +1415,14 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
     appointment_notices,
     voice_calls,
     prospecting_candidates,
+    cases,
+    case_events,
+    demandas,
+    case_chat_messages,
+    passagens,
+    avisos_de_caso,
+    campaign_recipients,
+    campaign_suppressions,
   };
 }
 
@@ -864,6 +1437,8 @@ function emptyPayload(
     organization_legal_name: controlador.legal_name,
     organization_display_name: controlador.display_name,
     dpo_email: controlador.dpo_email,
+    lei_citada: citacaoDaLei(perfilDoPais(controlador.country)),
+    documento_rotulo: perfilDoPais(controlador.country).documento.rotulo,
     generated_at: new Date().toISOString(),
     no_local_footprint: true,
     contact: null,
@@ -874,7 +1449,9 @@ function emptyPayload(
     leads: [],
     orders: [],
     activities: [],
+    checkpoints: [],
     appointments: [],
+    sales: [],
     tasks: [],
     webhook_captures: [],
     audit_log_extract: [],
@@ -882,5 +1459,13 @@ function emptyPayload(
     appointment_notices: [],
     voice_calls: [],
     prospecting_candidates: [],
+    cases: [],
+    case_events: [],
+    demandas: [],
+    case_chat_messages: [],
+    passagens: [],
+    avisos_de_caso: [],
+    campaign_recipients: [],
+    campaign_suppressions: [],
   };
 }

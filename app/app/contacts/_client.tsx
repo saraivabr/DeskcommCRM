@@ -16,8 +16,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useContactList } from "@/hooks/contacts/useContactList";
 import { ContactsTable } from "@/components/contacts/ContactsTable";
+import { PontoDaEtiqueta } from "@/components/tags/PontoDaEtiqueta";
 import { NewContactDialog } from "@/components/contacts/NewContactDialog";
 import { ImportContactsDialog } from "@/components/contacts/ImportContactsDialog";
+import { TAG_DE_CLIENTE } from "@/lib/contacts/cliente";
+import { useActiveOrg } from "@/hooks/auth/AuthProvider";
 import { MergeDialog } from "@/components/contacts/MergeDialog";
 import { EmptyContacts } from "@/components/empty";
 import type { ContactOrderBy } from "@/lib/schemas/contacts";
@@ -26,14 +29,24 @@ const SOURCE_OPTIONS = [
   { value: undefined, label: "Todas as origens" },
   { value: "manual", label: "Manual" },
   { value: "whatsapp", label: "WhatsApp" },
+  { value: "site", label: "Site (landing page)" },
   { value: "nuvemshop", label: "Nuvemshop" },
   { value: "import_csv", label: "Importado (CSV)" },
+  // Os dois valores que a atribuição de anúncio grava em `contacts.source`
+  // (`PlataformaDeAnuncio` em lib/leads/atribuicao-de-anuncio.ts). Sem eles, o
+  // contato que veio de um clique em anúncio existe no banco e não é
+  // alcançável por nenhum filtro desta tela. O handler aceita qualquer valor
+  // (`_handler.ts:167` faz `eq("source", q.source)`), então a lista é a única
+  // porta — e ela estava incompleta desde que a atribuição passou a existir.
+  { value: "meta_ads", label: "Anúncio da Meta" },
+  { value: "google_ads", label: "Anúncio do Google" },
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
 export function ContactsListClient() {
   const t = useT();
+  const clientesLigado = useActiveOrg()?.cliente_pela_agenda === true;
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState<string | undefined>(undefined);
@@ -61,8 +74,16 @@ export function ContactsListClient() {
   const tagOptions = useMemo(() => {
     const set = new Set<string>();
     for (const c of allContacts) for (const tag of c.tags) set.add(tag);
+    // `cliente` na lista mesmo que nenhum contato da página carregada a tenha —
+    // COM A REGRA LIGADA. As demais opções saem do que já foi paginado — o que
+    // basta para etiqueta que a equipe criou e usa em bloco, e falha justamente
+    // para esta, que o sistema escreve sozinho e cujo primeiro uso é "filtrar
+    // quem já é cliente" numa base grande, onde a primeira página pode não ter
+    // nenhum. Desligada, a opção fixa ofereceria um filtro de uma regra que não
+    // roda; quem já tem a etiqueta continua aparecendo pela linha de cima.
+    if (clientesLigado) set.add(TAG_DE_CLIENTE);
     return Array.from(set).sort();
-  }, [allContacts]);
+  }, [allContacts, clientesLigado]);
 
   const handleSort = useCallback(
     (column: ContactOrderBy) => {
@@ -137,78 +158,72 @@ export function ContactsListClient() {
           />
         </div>
 
-        <details className="max-w-full min-w-40 rounded-xl border bg-card px-4 py-2">
-          <summary className="cursor-pointer text-sm leading-6">
-            {t("Filtros")}
-            {tag || source || limit !== 25 ? ` · ${t("Personalizados")}` : ""}
-          </summary>
-          <div className="flex flex-wrap gap-2 pt-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={tagOptions.length === 0}>
-                  {tag ? `${t("Tag")}: ${tag}` : `${t("Tag")}: ${t("todas")}`}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>{t("Tag")}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setTag(undefined)}>{t("Todas")}</DropdownMenuItem>
-                {tagOptions.map((tagOption) => (
-                  <DropdownMenuItem key={tagOption} onClick={() => setTag(tagOption)}>
-                    {tagOption}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={tagOptions.length === 0}>
+              {tag ? <PontoDaEtiqueta tag={tag} className="mr-2" /> : null}
+              {tag ? `${t("Tag")}: ${tag}` : `${t("Tag")}: ${t("todas")}`}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>{t("Tag")}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setTag(undefined)}>{t("Todas")}</DropdownMenuItem>
+            {tagOptions.map((tagOption) => (
+              <DropdownMenuItem key={tagOption} onClick={() => setTag(tagOption)}>
+                <PontoDaEtiqueta tag={tagOption} className="mr-2" />
+                {tagOption}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  {t(SOURCE_OPTIONS.find((s) => s.value === source)?.label ?? "Origem")}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {SOURCE_OPTIONS.map((s) => (
-                  <DropdownMenuItem key={s.label} onClick={() => setSource(s.value)}>
-                    {t(s.label)}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              {t(SOURCE_OPTIONS.find((s) => s.value === source)?.label ?? "Origem")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {SOURCE_OPTIONS.map((s) => (
+              <DropdownMenuItem key={s.label} onClick={() => setSource(s.value)}>
+                {t(s.label)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  {limit} {t("por página")}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>{t("Itens por página")}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {PAGE_SIZE_OPTIONS.map((n) => (
-                  <DropdownMenuItem key={n} onClick={() => setLimit(n)}>
-                    {n}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              {limit} {t("por página")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>{t("Itens por página")}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <DropdownMenuItem key={n} onClick={() => setLimit(n)}>
+                {n}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-            {(search || tag || source) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearchInput("");
-                  setSearch("");
-                  setTag(undefined);
-                  setSource(undefined);
-                }}
-              >
-                {t("Limpar filtros")}
-              </Button>
-            )}
-          </div>
-        </details>
+        {(search || tag || source) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearchInput("");
+              setSearch("");
+              setTag(undefined);
+              setSource(undefined);
+            }}
+          >
+            {t("Limpar filtros")}
+          </Button>
+        )}
       </div>
 
       {q.isLoading ? (
