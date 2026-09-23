@@ -216,6 +216,11 @@ export const AUDIT_ACTIONS = [
   // Emitida pelo worker quando houve EFEITO (tentativa de envio), nunca em
   // rodada de cron vazia.
   "prospecting.approach_sent",
+  // A RODADA do cron que TEVE EFEITO: uma linha por execução, com a contagem
+  // de organizações processadas. Rodada vazia não audita — deixá-la na trilha
+  // idêntica à da que trabalhou é o que
+  // tests/unit/cron-audita-so-quando-ha-efeito.test.ts trava.
+  "prospecting.rodada_executada",
   "channel.pairing_code_requested",
   "channel.social_configured",
   "channel.ai_access_updated",
