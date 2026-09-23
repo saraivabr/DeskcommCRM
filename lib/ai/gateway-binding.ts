@@ -31,7 +31,7 @@ import { decryptKey, byteaToBuffer } from "@/lib/crypto/aes_gcm";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-import { OPENROUTER_BASE_URL, resolveLanguageModelWithProvider, type ModelId } from "./gateway";
+import { OPENROUTER_BASE_URL, resolveLanguageModel, resolveLanguageModelWithProvider, type ModelId } from "./gateway";
 
 export interface ModeloResolvido {
   model: LanguageModel;

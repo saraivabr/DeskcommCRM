@@ -124,6 +124,7 @@ describe("sidebarGroups", () => {
     // razão e a condição que encerram a exceção estão ao lado do item, em
     // `lib/navigation/catalogo.ts`.
     const crm = sidebarGroups(true, null).find((g) => g.group.id === "crm");
+    expect(crm?.items.map((i) => i.href)).toEqual([
       "/app/kanban",
       "/app/contacts",
       "/app/tasks",
@@ -171,8 +172,8 @@ describe("hubSections", () => {
     const secoes = hubSections("crm", true, null);
     expect(secoes.map((s) => s.section)).toEqual(["O dia a dia da venda", "Preparar a venda"]);
     expect(secoes.flatMap((s) => s.items.map((i) => i.href))).toEqual([
-      "/app/prospecting",
       "/app/growth/instagram",
+      "/app/prospecting",
       "/app/kanban",
       "/app/campaigns",
       "/app/contacts",

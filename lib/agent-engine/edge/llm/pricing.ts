@@ -1,25 +1,4 @@
 /**
-<<<<<<< HEAD
- * Standard first-party Anthropic prices in USD per million tokens.
- * Source: https://platform.claude.com/docs/en/about-claude/pricing
- * Verified 2026-09-20. Exact versions (and dated snapshots) only: a new
- * model must never silently inherit a differently priced family's tariff.
- * Cache-write duration is supplied by the caller; absent means unknown.
- */
-const USD_PER_MTOK: Record<string, { input: number; output: number }> = {
-  "claude-sonnet-4": { input: 3, output: 15 },
-  "claude-sonnet-4-5": { input: 3, output: 15 },
-  "claude-sonnet-4-6": { input: 3, output: 15 },
-  "claude-sonnet-5": { input: 2, output: 10 },
-  "claude-haiku-4-5": { input: 1, output: 5 },
-  "claude-opus-4": { input: 15, output: 75 },
-  "claude-opus-4-1": { input: 15, output: 75 },
-  "claude-opus-4-5": { input: 5, output: 25 },
-  "claude-opus-4-6": { input: 5, output: 25 },
-  "claude-opus-4-7": { input: 5, output: 25 },
-  "claude-opus-4-8": { input: 5, output: 25 },
-  "claude-opus-5": { input: 5, output: 25 },
-=======
  * Tabela de preços versionada (stack.md §2: usage × pricing.ts → llm_calls.cost_cents).
  * ÚNICO lugar com preço de modelo no repo.
  *
@@ -104,7 +83,6 @@ const USD_PER_MTOK: Record<string, Preco> = {
   'gpt-5.4-mini': { input: 0.75, output: 4.5, cacheRead: 0.075, cacheWrite5m: 0.75, cacheWrite1h: 0.75 },
   'gpt-5.4-nano': { input: 0.2, output: 1.25, cacheRead: 0.02, cacheWrite5m: 0.2, cacheWrite1h: 0.2 },
   'gpt-5.4-pro': { input: 30, output: 180, cacheRead: 30, cacheWrite5m: 30, cacheWrite1h: 30 },
->>>>>>> upstream/main
 };
 
 export interface TokenUsage {

@@ -1,6 +1,7 @@
 import type { ModuloOpcional } from "@/lib/instalacao/modulos";
 import type { InterfaceSettings } from "@/lib/navigation/interface";
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 
 import type { Role } from "@/lib/auth/types";
 import { permissaoDaCapacidade } from "@/lib/extensions/capacidades";

@@ -32,6 +32,7 @@ import {
   ligarPacote,
   vagasExigidasPeloPacote,
   vagasRestantes,
+  textoDaContagem,
   type CapacidadeSelecionavel,
 } from "@/lib/mcp/tools/selecao-por-pacote";
 
@@ -269,6 +270,7 @@ export function ToolPicker({ value, onChange, disabled }: Props) {
           const criticas = capacidadesCriticasDoPacote(catalogo, pacote.id);
           const estado = estadoDoPacote(value, catalogo, pacote.id);
           const total = automaticas.length + criticas.length;
+          const ligadas = [...automaticas, ...criticas].filter((n) => value.includes(n)).length;
           const vazio = total === 0;
 
           return (
