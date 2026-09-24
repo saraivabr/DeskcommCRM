@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,8 @@ async function api<T>(query = "", body?: unknown): Promise<T> {
 const field = "w-full rounded-xl border bg-background p-3";
 export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
   const [state, setState] = useState<State>();
+  const editorRef = useRef<HTMLElement>(null);
+  const logsRef = useRef<HTMLElement>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<InstagramAutomation | "new" | null>(null);
@@ -48,6 +50,12 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
   const [message, setMessage] = useState("");
   const [reply, setReply] = useState("");
   const [logs, setLogs] = useState<{ name: string; rows: InstagramAutomationLog[] } | null>(null);
+  useEffect(() => {
+    if (editing) editorRef.current?.scrollIntoView({ block: "start" });
+  }, [editing]);
+  useEffect(() => {
+    if (logs) logsRef.current?.scrollIntoView({ block: "start" });
+  }, [logs]);
   async function load() {
     setState(await api<State>());
   }
@@ -200,7 +208,7 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
         ))}
       </div>
       {logs && (
-        <section className="space-y-3 rounded-2xl border p-5">
+        <section ref={logsRef} className="scroll-mt-24 space-y-3 rounded-2xl border p-5">
           <div className="flex justify-between gap-3">
             <h2 className="font-semibold">Resultados · {logs.name}</h2>
             <Button variant="ghost" onClick={() => setLogs(null)}>
@@ -232,7 +240,11 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
         </section>
       )}
       {editing && (
-        <section className="rounded-2xl border bg-card p-5 sm:p-7" aria-label="Editor de automação">
+        <section
+          className="scroll-mt-24 rounded-2xl border bg-card p-5 sm:p-7"
+          ref={editorRef}
+          aria-label="Editor de automação"
+        >
           <h2 className="mb-5 text-xl font-semibold">
             {editing === "new" ? "Nova automação" : "Editar automação"}
           </h2>
