@@ -18,8 +18,8 @@ export async function proxy(request: NextRequest) {
   response.headers.set("x-request-id", requestId);
 
   const { pathname, search } = request.nextUrl;
-  // Recover provider links already issued before the public return page existed.
-  // Only navigation changes: account binding remains behind the normal guards.
+  // Recupera retornos de OAuth social já emitidos antes da landing pública existir.
+  // Apenas a navegação é tratada: o vínculo de conta segue protegido pelos guards canônicos.
   if (
     request.method === "GET" &&
     pathname === "/app/connections" &&

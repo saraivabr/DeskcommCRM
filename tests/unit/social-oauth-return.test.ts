@@ -3,15 +3,17 @@ import { createHash } from "node:crypto";
 import { GET } from "@/app/auth/social-return/route";
 import { isPublicPath } from "@/lib/auth/public-paths";
 import { readFileSync } from "node:fs";
+
 describe("social OAuth return", () => {
-  it("exposes only the inert landing, never the protected connections", () => {
+  it("expõe apenas o landing inerte, nunca a rota protegida de conexões", () => {
     expect(isPublicPath("/auth/social-return")).toBe(true);
     expect(isPublicPath("/auth/social-return/admin")).toBe(false);
     expect(isPublicPath("/app/connections")).toBe(false);
     expect(isPublicPath("/api/v1/channels/social")).toBe(false);
   });
-  it("commits a same-origin document with a fixed destination and no token reflection", async () => {
-    const response = GET();
+
+  it("entrega um documento same-origin com destino fixo sem refletir tokens", async () => {
+    const response = await GET();
     const html = await response.text();
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
@@ -23,8 +25,10 @@ describe("social OAuth return", () => {
       createHash("sha256").update(script).digest("base64"),
     );
     expect(html).not.toContain("connect_token");
+    expect(html).toContain("Voltando para suas conexões…");
   });
-  it("sends newly issued authorization flows to the landing", () => {
+
+  it("aponta novos fluxos de autorização emitidos para o landing", () => {
     expect(readFileSync("app/api/v1/channels/social/route.ts", "utf8")).toContain(
       "redirect_url: `${publicBase()}/auth/social-return`",
     );

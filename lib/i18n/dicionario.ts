@@ -1794,6 +1794,7 @@ export const DICIONARIO: Traducoes = {
   "Aguardando resposta": { es: "Esperando respuesta" },
   "Pausado (atendimento humano)": { es: "Pausado (atención humana)" },
   "Pausado por uma pessoa": { es: "Pausado por una persona" },
+  "Coletando respostas do roteiro": { es: "Recopilando respuestas del guion" },
   "Parou de tentar": { es: "Dejó de intentar" },
   Cancelado: { es: "Cancelado" },
   Agendada: { es: "Programada" },
@@ -5365,6 +5366,21 @@ export const DICIONARIO: Traducoes = {
     es: "La transferencia es inmediata: el asesor elegido pasa a ser el responsable y el cambio queda registrado en el historial.",
   },
   "Transferir para": { es: "Transferir a" },
+  "Continuar pelo número": { es: "Continuar por el número" },
+  "Continuar por este número": { es: "Continuar por este número" },
+  "O cliente passa a receber as mensagens pelo número escolhido. Se a conversa lá estiver livre, você fica como responsável. O histórico deste número continua nesta conversa.": {
+    es: "El cliente pasa a recibir los mensajes por el número elegido. Si la conversación allí está libre, tú quedas como responsable. El historial de este número sigue en esta conversación.",
+  },
+  "Este contato não tem telefone salvo, então não dá para falar com ele por outro número.": {
+    es: "Este contacto no tiene teléfono guardado, así que no se le puede hablar por otro número.",
+  },
+  "A conversa neste número está com": { es: "La conversación en este número está con" },
+  "outro atendente": { es: "otro agente" },
+  "Atendimento continua pelo outro número.": { es: "La atención sigue por el otro número." },
+  "O número desta conversa não está conectado.": {
+    es: "El número de esta conversación no está conectado.",
+  },
+  "Responder por outro número": { es: "Responder por otro número" },
   "Carregando atendentes…": { es: "Cargando asesores…" },
   "Nenhum outro atendente disponível nesta organização.": {
     es: "No hay ningún otro asesor disponible en esta organización.",
@@ -8043,6 +8059,9 @@ export const DICIONARIO: Traducoes = {
   "Falha ao salvar o teto diário.": { es: "No se pudo guardar el tope diario." },
   "Faltam nome, idioma ou conteúdo.": { es: "Faltan nombre, idioma o contenido." },
   "Fluxo não encontrado.": { es: "Flujo no encontrado." },
+  "Roteiro de atendimento começa por palavra-gatilho ou pelo roteador, não por gatilho de follow-up.": {
+    es: "El guion de atención empieza por palabra clave o por el enrutador, no por un disparador de seguimiento.",
+  },
   "Fluxo não tem rascunho pronto para publicar.": { es: "El flujo no tiene un borrador listo para publicar." },
   "Fluxo reprovado na validação de publish.": { es: "El flujo no pasó la validación de publicación." },
   "Follow-up não encontrado.": { es: "Follow-up no encontrado." },

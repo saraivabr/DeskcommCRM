@@ -44,7 +44,7 @@ import { reactivateChannelSession } from "@/lib/channels/reactivate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { metadataInicialDoCanal } from "@/lib/ai/elegibilidade/pre-go-live";
 import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
-import { basePublicaDaInstalacao } from "@/lib/webhooks/url-publica";
+import { basePublicaDoWebhookMeta } from "@/lib/webhooks/url-publica";
 import { traduzir } from "@/lib/i18n/dicionario";
 
 export const dynamic = "force-dynamic";
@@ -145,7 +145,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     () => consultar().maybeSingle(),
   );
 
-  const base = basePublicaDaInstalacao(req);
+  const base = basePublicaDoWebhookMeta(req);
   const desfecho = data?.id ? await lerDesfechoDoWebhook(admin, data.id) : null;
   return ok({
     connected: Boolean(data),
@@ -350,7 +350,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           wabaId: waba_id,
           tokenCifrado: cifrado,
           webhookPathToken,
-          base: basePublicaDaInstalacao(req),
+          base: basePublicaDoWebhookMeta(req),
           requestId,
         })
       : null;

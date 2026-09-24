@@ -12005,7 +12005,9 @@ begin
        and rel.relname = 'followup_enrollments'
        and con.contype = 'c'
        and pg_get_constraintdef(con.oid) like '%paused_handoff%'
-       and pg_get_constraintdef(con.oid) not like '%dormente%'
+       -- A versão EM VIGOR tem 'coletando' (0394). Qualquer uma sem ele — a de
+       -- antes da 'dormente' ou a de antes da 0394 — sai aqui e é recriada abaixo.
+       and pg_get_constraintdef(con.oid) not like '%coletando%'
   loop
     execute format('alter table public.followup_enrollments drop constraint %I', c.conname);
   end loop;
@@ -12014,7 +12016,7 @@ end $$;
 do $$ begin
   alter table public.followup_enrollments
     add constraint followup_enrollments_status_valido
-    check (status in ('active','waiting_reply','dormente','paused_handoff','paused_manual','completed','cancelled','dead'));
+    check (status in ('active','waiting_reply','dormente','paused_handoff','paused_manual','coletando','completed','cancelled','dead'));
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -12022,9 +12024,13 @@ do $$ begin
     add constraint followup_enrollments_relogio_coerente
     check (
       (status in ('active','waiting_reply','dormente') and next_eval_at is not null)
-      or (status in ('paused_handoff','paused_manual','completed','cancelled','dead'))
+      or (status in ('paused_handoff','paused_manual','coletando','completed','cancelled','dead'))
     );
 exception when duplicate_object then null; end $$;
+-- 'coletando' (0394): a execução de um roteiro de atendimento, conduzida pelo
+-- TURNO e não pelo relógio — por isso no grupo sem `next_eval_at`, e por isso
+-- fora do `idx_followup_enrollments_one_live` logo abaixo.  Blocos ÚNICOS dos dois
+-- CHECKs; a 0394 não os reconstrói no apêndice.
 
 -- ⚠️ AS COLUNAS SÃO (organization_id, contact_id), NÃO (pointer_id, contact_id).
 --
@@ -14095,6 +14101,34 @@ update public.lead_state_transitions t set contact_id = c.is_merged_into from pu
 update public.cron_jobs           t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
 update public.lead_notes          t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
 update public.before_send_traces  t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
+-- Roteiro de atendimento vivo ('coletando', 0394): UM por contato
+-- (`idx_followup_enrollments_um_roteiro_coletando`). Reapontar sem deduplicar
+-- daria 23505 quando os dois contatos fundidos têm roteiro vivo — e este bloco
+-- roda de novo a cada `update.sh`. Fica o mais NOVO; o excedente é encerrado,
+-- com o evento na trilha. Idempotente: encerrado deixa de ser 'coletando'.
+with vivos as (
+  select e.id, e.organization_id, e.current_node_id,
+         row_number() over (
+           partition by e.organization_id, coalesce(c.is_merged_into, c.id)
+           order by e.started_at desc, e.id desc
+         ) as posicao
+    from public.followup_enrollments e
+    join public.contacts c on c.id = e.contact_id and c.organization_id = e.organization_id
+   where e.status = 'coletando'
+),
+encerrados as (
+  update public.followup_enrollments e
+     set status = 'cancelled', cancel_reason = 'nono_digito_merge', completed_at = now(), updated_at = now()
+    from vivos v
+   where e.id = v.id and v.posicao > 1
+  returning e.id, e.organization_id, e.current_node_id
+)
+insert into public.followup_enrollment_events
+  (organization_id, enrollment_id, node_id, event_type, payload, idempotency_key)
+select organization_id, id, current_node_id, 'roteiro_cancelado',
+       '{"motivo":"nono_digito_merge"}'::jsonb, 'roteiro_cancelado:nono_digito_merge'
+  from encerrados
+on conflict do nothing;
 update public.followup_enrollments t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
 update public.demandas            t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
 update public.contact_field_proposals t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
@@ -14936,10 +14970,13 @@ alter table public.followup_flow_pointers
 
 alter table public.followup_flow_pointers
   add constraint followup_flow_pointers_surface_check
-  check (surface in ('followup', 'crm_automation'));
+  check (surface in ('followup', 'crm_automation', 'atendimento'));
+-- 'atendimento' entrou na migration 0394 (roteiro de perguntas no turno, #1130).
+-- Bloco ÚNICO desta constraint: a 0394 não a reconstrói no apêndice.
 
 comment on column public.followup_flow_pointers.surface is
-  'Onde o fluxo aparece: followup = /app/ai/followups; crm_automation = CRM Automação. '
+  'Onde o fluxo aparece: followup = /app/ai/followups; crm_automation = CRM Automação; '
+  'atendimento = roteiro de perguntas conduzido no turno do agente (módulo opcional, 0394). '
   'Vocabulário cobrado por tests/invariants/vocabulario-banco-x-typescript.test.ts.';
 
 -- ---- inscrição Web Push (migrations 0197 e 0199) ----
@@ -36760,7 +36797,254 @@ update public.lead_checkpoints l set
         or l.next_action is not null
         or l.declaracao is not null);
 
+-- ---- fluxos de atendimento: a base, desligada por padrão (migration 0394, de @vgamkt, #1130) ----
+-- Os CHECKs de `surface` e de `status` ('atendimento', 'coletando') estão nos
+-- blocos únicos da 0196 e da 0145, acima. Aqui: o índice do roteiro vivo, o
+-- ponteiro do roteador com FK composta, e o gatilho que encerra o roteiro vivo
+-- na anonimização (os dois caminhos). Racional inteiro na migration 0394.
+-- ⚠️ ANTES da VARREDURA anon, porque cria função. Idempotente.
+create unique index if not exists idx_followup_enrollments_um_roteiro_coletando
+  on public.followup_enrollments (organization_id, contact_id)
+  where status = 'coletando';
 
+create unique index if not exists idx_followup_flow_pointers_org_id
+  on public.followup_flow_pointers (organization_id, id);
+
+alter table public.ai_router_members
+  add column if not exists flow_pointer_id uuid;
+
+do $$ begin
+  alter table public.ai_router_members
+    add constraint ai_router_members_flow_pointer_mesma_org
+    foreign key (organization_id, flow_pointer_id)
+    references public.followup_flow_pointers (organization_id, id)
+    on delete set null (flow_pointer_id);
+exception when duplicate_object then null; end $$;
+
+comment on column public.ai_router_members.flow_pointer_id is
+  'Roteiro de atendimento (surface=atendimento) que começa quando esta intenção casa. NULL = só roteia o agente. FK composta: só roteiro da mesma organização.';
+
+create or replace function public.fn_contato_anonimizado_encerra_roteiro()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  update public.followup_enrollments
+     set status = 'cancelled',
+         cancel_reason = 'Contato anonimizado (LGPD)',
+         completed_at = now(),
+         updated_at = now()
+   where organization_id = new.organization_id
+     and contact_id = new.id
+     and status = 'coletando';
+  return new;
+end
+$$;
+
+revoke all on function public.fn_contato_anonimizado_encerra_roteiro() from public;
+revoke execute on function public.fn_contato_anonimizado_encerra_roteiro() from anon;
+revoke execute on function public.fn_contato_anonimizado_encerra_roteiro() from authenticated;
+
+drop trigger if exists trg_contato_anonimizado_encerra_roteiro on public.contacts;
+create trigger trg_contato_anonimizado_encerra_roteiro
+  after update of is_anonymized on public.contacts
+  for each row
+  when (new.is_anonymized = true and coalesce(old.is_anonymized, false) = false)
+  execute function public.fn_contato_anonimizado_encerra_roteiro();
+
+-- A superfície e o status andam juntos, no BANCO. Quem cria enrollment pelo
+-- relógio (gatilhos de etapa, lead, caso, retorno, silêncio, o enroll manual) lê
+-- o pointer pelo `trigger_config`, não pela superfície: um roteiro de
+-- atendimento com gatilho de silêncio viraria enrollment 'active' e o motor de
+-- follow-up executaria as perguntas como passos de relógio. E o inverso — um
+-- 'coletando' num fluxo de follow-up — ocuparia a vaga do roteiro. Uma regra, um
+-- lugar, para todos os produtores de hoje e os que vierem.
+create or replace function public.fn_enrollment_superficie_coerente()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_surface text;
+begin
+  select p.surface into v_surface
+    from public.followup_flow_pointers p
+   where p.id = new.pointer_id;
+  if v_surface = 'atendimento' and new.status not in ('coletando','completed','cancelled','dead') then
+    raise exception 'roteiro de atendimento só roda como coletando (status %)', new.status
+      using errcode = '23514';
+  end if;
+  if v_surface is distinct from 'atendimento' and new.status = 'coletando' then
+    raise exception 'coletando é exclusivo de roteiro de atendimento'
+      using errcode = '23514';
+  end if;
+  return new;
+end
+$$;
+
+revoke all on function public.fn_enrollment_superficie_coerente() from public;
+revoke execute on function public.fn_enrollment_superficie_coerente() from anon;
+revoke execute on function public.fn_enrollment_superficie_coerente() from authenticated;
+
+drop trigger if exists trg_enrollment_superficie_coerente on public.followup_enrollments;
+create trigger trg_enrollment_superficie_coerente
+  before insert or update of status, pointer_id on public.followup_enrollments
+  for each row
+  execute function public.fn_enrollment_superficie_coerente();
+
+-- A superfície de um fluxo é IMUTÁVEL depois de criado, e roteiro de atendimento
+-- só tem gatilho manual (revisão adversarial do #1559). A policy de
+-- `followup_flow_pointers` é só de tenant: qualquer membro da empresa, até
+-- viewer, faria pelo PostgREST `update ... set surface = 'atendimento'` num
+-- fluxo de silêncio ativo — e o `trg_enrollment_superficie_coerente` passaria a
+-- recusar (23514) cada inscrição da varredura. E um PATCH de gatilho levaria um
+-- roteiro publicado de Manual para Silêncio. As duas portas fecham no BANCO.
+-- Nenhuma linha antes da 0394 pode ter 'atendimento' (o CHECK de conjunto o
+-- recusava), então o CHECK abaixo não tem dado a corrigir.
+alter table public.followup_flow_pointers
+  drop constraint if exists followup_flow_pointers_roteiro_so_manual;
+alter table public.followup_flow_pointers
+  add constraint followup_flow_pointers_roteiro_so_manual
+  check (surface <> 'atendimento' or coalesce(trigger_config->>'kind', 'manual') = 'manual');
+
+create or replace function public.fn_superficie_do_fluxo_imutavel()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if new.surface is distinct from old.surface then
+    raise exception 'a superfície de um fluxo não muda depois de criado (% → %)', old.surface, new.surface
+      using errcode = '23514';
+  end if;
+  return new;
+end
+$$;
+
+revoke all on function public.fn_superficie_do_fluxo_imutavel() from public;
+revoke execute on function public.fn_superficie_do_fluxo_imutavel() from anon;
+revoke execute on function public.fn_superficie_do_fluxo_imutavel() from authenticated;
+
+drop trigger if exists trg_superficie_do_fluxo_imutavel on public.followup_flow_pointers;
+create trigger trg_superficie_do_fluxo_imutavel
+  before update of surface on public.followup_flow_pointers
+  for each row
+  execute function public.fn_superficie_do_fluxo_imutavel();
+
+-- ---- o roteiro de atendimento encerra quando um humano assume, no opt-out e no prazo (migration 0397, #1130) ----
+-- Gatilho na virada false→true de `force_human`/`is_blocked` (um lugar para todos
+-- os escritores) e `fn_encerrar_roteiros_vencidos` (prazo em settings.expira_em_horas,
+-- padrão 72 h), chamada pelo relógio do follow-up. Racional na migration 0397.
+-- ⚠️ ANTES da VARREDURA anon, porque cria função. Idempotente.
+create or replace function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_motivo text;
+begin
+  if new.is_blocked = true and coalesce(old.is_blocked, false) = false then
+    v_motivo := 'opt_out';
+  elsif new.force_human = true and coalesce(old.force_human, false) = false then
+    v_motivo := 'humano_assumiu';
+  else
+    return new;
+  end if;
+
+  with encerrados as (
+    update public.followup_enrollments
+       set status = 'cancelled',
+           cancel_reason = case v_motivo when 'opt_out' then 'Contato pediu para parar (opt-out)'
+                                         else 'Humano assumiu o atendimento' end,
+           completed_at = now(),
+           updated_at = now()
+     where organization_id = new.organization_id
+       and contact_id = new.id
+       and status = 'coletando'
+    returning id, organization_id, current_node_id
+  )
+  insert into public.followup_enrollment_events
+    (organization_id, enrollment_id, node_id, event_type, payload, idempotency_key)
+  select organization_id, id, current_node_id, 'roteiro_cancelado',
+         jsonb_build_object('motivo', v_motivo), 'roteiro_cancelado:' || v_motivo
+    from encerrados
+  on conflict do nothing;
+  return new;
+end
+$$;
+
+revoke all on function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out() from public;
+revoke execute on function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out() from anon;
+revoke execute on function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out() from authenticated;
+
+drop trigger if exists trg_contato_encerra_roteiro_com_humano_ou_opt_out on public.contacts;
+create trigger trg_contato_encerra_roteiro_com_humano_ou_opt_out
+  after update of force_human, is_blocked on public.contacts
+  for each row
+  when ((new.force_human = true and coalesce(old.force_human, false) = false)
+     or (new.is_blocked = true and coalesce(old.is_blocked, false) = false))
+  execute function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out();
+
+create or replace function public.fn_encerrar_roteiros_vencidos(p_limite int default 200)
+returns int
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_encerrados int;
+begin
+  with vencidos as (
+    select e.id
+      from public.followup_enrollments e
+      join public.followup_flow_versions v on v.id = e.version_id and v.organization_id = e.organization_id
+     where e.status = 'coletando'
+       and greatest(
+             e.started_at,
+             coalesce((select max(ev.created_at) from public.followup_enrollment_events ev
+                        where ev.enrollment_id = e.id and ev.organization_id = e.organization_id
+                          and ev.event_type = 'roteiro_mensagem'), e.started_at)
+           ) < now() - make_interval(hours => case
+             when (v.graph->'settings'->>'expira_em_horas') ~ '^[0-9]{1,4}$'
+               then greatest(1, (v.graph->'settings'->>'expira_em_horas')::int)
+             else 72 end)
+     order by e.started_at
+     limit greatest(1, least(coalesce(p_limite, 200), 1000))
+     for update of e skip locked
+  ),
+  encerrados as (
+    update public.followup_enrollments e
+       set status = 'cancelled',
+           cancel_reason = 'Roteiro expirou sem resposta',
+           completed_at = now(),
+           updated_at = now()
+      from vencidos
+     where e.id = vencidos.id and e.status = 'coletando'
+    returning e.id, e.organization_id, e.current_node_id
+  ),
+  eventos as (
+    insert into public.followup_enrollment_events
+      (organization_id, enrollment_id, node_id, event_type, payload, idempotency_key)
+    select organization_id, id, current_node_id, 'roteiro_expirado', '{}'::jsonb, 'roteiro_expirado'
+      from encerrados
+    on conflict do nothing
+    returning 1
+  )
+  select count(*)::int into v_encerrados from encerrados;
+  return v_encerrados;
+end
+$$;
+
+revoke all on function public.fn_encerrar_roteiros_vencidos(int) from public;
+revoke execute on function public.fn_encerrar_roteiros_vencidos(int) from anon;
+revoke execute on function public.fn_encerrar_roteiros_vencidos(int) from authenticated;
+grant execute on function public.fn_encerrar_roteiros_vencidos(int) to service_role;
 
 -- Subscription state is written only by trusted billing handlers, never by a tenant.
 create table if not exists public.org_subscriptions (
