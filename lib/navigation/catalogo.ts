@@ -153,13 +153,12 @@ export const NAV_CATALOG = [
     group: "atendimento",
   },
   {
-    href: "/app/growth/instagram",
+    href: "/app/instagram/growth",
     label: "Instagram Growth",
     description: "Responda comentários com DMs e gere leads no Instagram.",
     icon: "Megaphone",
-    group: "crm",
+    group: "canais",
     minRole: "admin",
-    section: "O dia a dia da venda",
   },
   {
     href: "/app/audit/mystery-shopper",

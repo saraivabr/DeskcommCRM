@@ -39,8 +39,9 @@ export function useItems() {
   };
 }
 const sections = [
-  { href: "/app/instagram", label: "Seu Instagram" },
+  { href: "/app/instagram", label: "Visão Geral" },
   { href: "/app/instagram/library", label: "Minhas criações" },
+  { href: "/app/instagram/growth", label: "Automações (Growth)" },
   { href: "/app/instagram/inspirations", label: "Inspirações" },
   { href: "/app/instagram/insights", label: "Meus resultados" },
 ];
