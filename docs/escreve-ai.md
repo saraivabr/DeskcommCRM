@@ -61,7 +61,7 @@ Nomes de pacotes, caminhos, scripts `deskcomm-*`, cookies, cabeçalhos de assina
 
 ## Endereço de produção
 
-Desde 19/09/2026, a instalação existente usa **https://crm.escreve.ai**. As páginas de acesso e navegação de `crm.saraiva.ai` redirecionam temporariamente (307), preservando caminho e parâmetros. APIs e callbacks no endereço antigo permanecem disponíveis para as integrações existentes.
+A instalação em produção usa **https://os.escreve.ai** (com suporte e redirecionamento contínuo para quem acessar pelo endereço legado `crm.escreve.ai`). As páginas de acesso e navegação preservam caminho e parâmetros. APIs e callbacks no endereço anterior permanecem disponíveis para integrações existentes.
 
 O Supabase continua em `db.saraiva.ai`. O login tem a URL principal atualizada e mantém os callbacks antigos permitidos. A mudança de domínio exige entrar novamente no navegador: sessões não são compartilhadas entre os dois domínios.
 

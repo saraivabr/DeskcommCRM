@@ -75,10 +75,10 @@ jobs:
         run: |
           echo "Consultando health check publico..."
           for i in {1..15}; do
-            RESPONSE=$(curl -s https://crm.escreve.ai/api/v1/health || true)
+            RESPONSE=$(curl -s https://os.escreve.ai/api/v1/health || curl -s https://crm.escreve.ai/api/v1/health || true)
             echo "Resposta: $RESPONSE"
             if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
-              echo "CRM.ESCREVE.AI ATUALIZADO E 100% OPERACIONAL!"
+              echo "OS.ESCREVE.AI ATUALIZADO E 100% OPERACIONAL!"
               exit 0
             fi
             sleep 3

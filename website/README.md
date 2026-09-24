@@ -2,7 +2,7 @@
 
 Home editorial centrada nos resultados: atenção ao primeiro contato, continuidade da conversa e tempo para o negócio. Duas imagens conceituais originais, geradas com IA, estão otimizadas em WebP. O filme de 10 segundos criado no Google Flow é reproduzido somente por ação do visitante, em um diálogo com controles nativos.
 
-A página usa HTML, CSS e JavaScript sem framework. A demonstração de três etapas contém dados fictícios, não envia mensagens e não coleta formulários. Login/cadastro seguem em `crm.escreve.ai`; o Conversa permanece acessível no rodapé. Navegação antiga por `#recursos`, `#como-funciona` e `#duvidas` é preservada.
+A página usa HTML, CSS e JavaScript sem framework. A demonstração de três etapas contém dados fictícios, não envia mensagens e não coleta formulários. Login/cadastro seguem em `os.escreve.ai`; o Conversa permanece acessível no rodapé. Navegação antiga por `#recursos`, `#como-funciona` e `#duvidas` é preservada.
 
 ## Desenvolvimento e publicação
 
