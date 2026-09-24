@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/auth/AuthProvider";
 import Image from "next/image";
 import { ArtisanIcon } from "@/components/brand/ArtisanIcon";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { StudioItem } from "@/lib/instagram/schema";
 
 export async function studioApi<T>(path = "", init?: RequestInit): Promise<T> {
@@ -45,6 +46,56 @@ const sections = [
   { href: "/app/instagram/inspirations", label: "Inspirações" },
   { href: "/app/instagram/insights", label: "Meus resultados" },
 ];
+function InstagramAccountButton() {
+  const t = useT();
+  const { activeOrg } = useAuth();
+  const query = useQuery({
+    queryKey: ["instagram-account", activeOrg?.orgId],
+    queryFn: ({ signal }) =>
+      studioApi<{
+        account: { username: string; avatar_url: string | null; active: boolean } | null;
+      }>("/account", { signal }),
+    enabled: !!activeOrg?.orgId,
+    staleTime: 30_000,
+  });
+  if (query.isPending)
+    return (
+      <div
+        aria-label={t("Carregando conta do Instagram")}
+        className="h-12 w-40 animate-pulse rounded-full bg-muted"
+      />
+    );
+  const account = query.data?.account;
+  return (
+    <Link
+      href="/app/connections?aba=sociais"
+      aria-label={
+        account
+          ? `${account.active ? t("Gerenciar conta") : t("Reconectar conta")} @${account.username}`
+          : undefined
+      }
+      className="inline-flex max-w-full items-center gap-2.5 rounded-full border border-border bg-background py-1.5 pr-4 pl-1.5 text-sm font-semibold shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4"
+    >
+      <span className="rounded-full bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600 p-0.5">
+        <Avatar className="h-9 w-9 border-2 border-background">
+          {account?.avatar_url && (
+            <AvatarImage src={account.avatar_url} alt="" className="object-cover" />
+          )}
+          <AvatarFallback>
+            <ArtisanIcon symbol="instagram" className="h-5 w-5" />
+          </AvatarFallback>
+        </Avatar>
+      </span>
+      <span className="max-w-48 truncate">
+        {account
+          ? `@${account.username}`
+          : query.isError
+            ? t("Ver minha conta")
+            : t("Conectar minha conta")}
+      </span>
+    </Link>
+  );
+}
 export function StudioShell({ children }: { children: React.ReactNode }) {
   const t = useT();
   const path = usePathname();
@@ -58,9 +109,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
           <ArtisanIcon symbol="instagram" className="h-7 w-7" />
           {t("Instagram")}
         </Link>
-        <Link href="/app/connections?aba=sociais" className="text-sm underline underline-offset-4">
-          {t("Conectar minha conta")}
-        </Link>
+        <InstagramAccountButton />
       </div>
       <nav
         aria-label={t("Instagram")}

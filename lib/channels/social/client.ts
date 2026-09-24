@@ -45,6 +45,7 @@ const accountSchema = z.object({
   platform: z.string(),
   username: z.string().nullish(),
   displayName: z.string().nullish(),
+  profilePicture: z.string().nullish(),
   isActive: z.boolean(),
   profileId: z.union([z.string(), z.object({ _id: z.string(), name: z.string().optional() })]),
 });
