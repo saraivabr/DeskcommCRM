@@ -4,6 +4,7 @@ import { CreatePost } from "@/app/app/instagram/_create";
 import { Review } from "@/app/app/instagram/_review";
 
 const { api, push } = vi.hoisted(() => ({ api: vi.fn(), push: vi.fn() }));
+vi.mock("@/app/app/instagram/_publish", () => ({ PublishPost: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (s: string) => s }));
 vi.mock("@/app/app/instagram/_shared", () => ({
@@ -77,14 +78,12 @@ it.each(["ready", "failed"])(
       status: "generating",
       image_url: null,
     };
-    api
-      .mockResolvedValueOnce(item)
-      .mockResolvedValueOnce({
-        ...item,
-        status,
-        image_url: status === "ready" ? "https://example.com/cafe.png" : null,
-        error: status === "failed" ? "Falha na geração" : null,
-      });
+    api.mockResolvedValueOnce(item).mockResolvedValueOnce({
+      ...item,
+      status,
+      image_url: status === "ready" ? "https://example.com/cafe.png" : null,
+      error: status === "failed" ? "Falha na geração" : null,
+    });
     render(<Review id="post-1" />);
     await act(async () => {});
     expect(screen.getByRole("status")).toBeVisible();

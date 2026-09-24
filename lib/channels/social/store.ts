@@ -215,3 +215,29 @@ export async function connectSocialInbox(
     throw error;
   }
 }
+
+/** Central platform credential provisions one isolated profile per organization. */
+export function centralSocialAvailable() {
+  return z.string().trim().min(8).safeParse(process.env.ZERNIO_API_KEY).success;
+}
+export async function ensureSocialIntegration(db: SupabaseClient, org: string) {
+  const current = await readSocialIntegration(db, org);
+  if (current) return current;
+  const key = z.string().trim().min(8).safeParse(process.env.ZERNIO_API_KEY);
+  if (!key.success)
+    throw new SocialError("A equipe precisa habilitar a conexão social desta instalação.", 422);
+  // Deterministic naming also reconciles retries beyond the provider's idempotency window.
+  const name = `CRM ${org}`;
+  const profiles = z
+    .object({ profiles: z.array(z.object({ _id: z.string(), name: z.string() })) })
+    .parse(await socialRequest(key.data, "profiles"));
+  let profileId = profiles.profiles.find((p) => p.name === name)?._id;
+  if (!profileId) {
+    const created = z
+      .object({ profile: z.object({ _id: z.string() }) })
+      .parse(await socialRequest(key.data, "profiles", { name }, { requestId: org }));
+    profileId = created.profile._id;
+  }
+  await configureSocialIntegration(db, org, key.data, profileId);
+  return { key: key.data, profileId };
+}

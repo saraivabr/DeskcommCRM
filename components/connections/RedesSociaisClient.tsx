@@ -24,6 +24,7 @@ type Account = {
 type State = {
   label: string;
   configured: boolean;
+  central_available: boolean;
   networks: { id: string; label: string; inbox: boolean }[];
   accounts: Account[];
 };
@@ -119,7 +120,7 @@ export function RedesSociaisClient() {
           {t("Reconfigurar integração")}
         </Button>
       )}
-      {((state && !state.configured) || editing) && (
+      {((state && !state.configured && !state.central_available) || editing) && (
         <Card className="space-y-4 p-5 sm:p-7">
           <h3 className="font-medium">{t("Prepare a conexão da sua empresa")}</h3>
           <p className="max-w-xl text-sm leading-7 text-muted-foreground">
@@ -191,7 +192,7 @@ export function RedesSociaisClient() {
           </details>
         </Card>
       )}
-      {state?.configured && (
+      {(state?.configured || state?.central_available) && (
         <>
           <Card className="flex flex-wrap items-end gap-3 p-4">
             <div className="min-w-48 flex-1 space-y-2">

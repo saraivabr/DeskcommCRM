@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { StudioItem } from "@/lib/instagram/schema";
 import { StudioShell, Intro, Loading, Notice, studioApi } from "./_shared";
+import { PublishPost } from "./_publish";
 import { ImageGeneration } from "./_image-generation";
 export function Review({ id }: { id: string }) {
   const t = useT();
@@ -158,6 +159,7 @@ export function Review({ id }: { id: string }) {
                 {t("Copiar legenda")}
               </Button>
             </div>
+            {item.status === "ready" && <PublishPost item={item} caption={caption} />}
             {saved && <Notice>{t("Legenda salva com sucesso.")}</Notice>}
             {copied && <Notice>{t("Legenda copiada.")}</Notice>}
             <Link

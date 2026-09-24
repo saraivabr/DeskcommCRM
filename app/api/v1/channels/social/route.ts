@@ -20,6 +20,8 @@ import {
 import { listSocialAccounts, socialRequest, SocialError } from "@/lib/channels/social/client";
 import {
   readSocialIntegration,
+  ensureSocialIntegration,
+  centralSocialAvailable,
   configureSocialIntegration,
   socialChannels,
   connectSocialInbox,
@@ -76,6 +78,7 @@ export async function GET() {
       {
         label: SOCIAL_PROVIDER_LABEL,
         configured: !!config,
+        central_available: centralSocialAvailable(),
         profile_id: config?.profileId ?? null,
         networks: SOCIAL_NETWORKS,
         accounts: accounts
@@ -134,7 +137,10 @@ export async function POST(req: Request) {
     } else if (body.action === "inbox") {
       result = await connectSocialInbox(db, auth.org.orgId, body.account_id, publicBase());
     } else {
-      const config = await readSocialIntegration(db, auth.org.orgId);
+      const config =
+        body.action === "authorize"
+          ? await ensureSocialIntegration(db, auth.org.orgId)
+          : await readSocialIntegration(db, auth.org.orgId);
       if (!config) throw new SocialError("Configure a integração primeiro.", 422);
       if (body.action === "health") {
         const accounts = await listSocialAccounts(config.key, config.profileId);
