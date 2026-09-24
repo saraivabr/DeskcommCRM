@@ -34,11 +34,11 @@ export const automationSchema = z.object({
 });
 export const automationLogSchema = z.object({
   id: z.string(),
-  commentText: z.string().optional(),
-  commenterName: z.string().optional(),
+  commentText: z.string().nullish(),
+  commenterName: z.string().nullish(),
   status: z.string(),
   error: z.string().nullish(),
-  commentReplyStatus: z.string().optional(),
+  commentReplyStatus: z.string().nullish(),
   commentReplyError: z.string().nullish(),
   createdAt: z.string(),
 });
