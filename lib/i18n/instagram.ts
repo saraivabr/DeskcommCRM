@@ -1,5 +1,8 @@
 /** Interface do estúdio; conteúdo criado pelo usuário mantém o idioma original. */
 export const INSTAGRAM_ES: Record<string, { es: string }> = {
+  "Sua ideia está ganhando forma. Isso pode levar alguns minutos.": {
+    es: "Tu idea está tomando forma. Esto puede tardar unos minutos.",
+  },
   "Criando para": { es: "Creando para" },
   "Ajustar contexto da empresa": { es: "Ajustar contexto de la empresa" },
   "O que sua empresa faz?": { es: "¿Qué hace tu empresa?" },

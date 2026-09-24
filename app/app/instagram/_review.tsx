@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { StudioItem } from "@/lib/instagram/schema";
 import { StudioShell, Intro, Loading, Notice, studioApi } from "./_shared";
+import { ImageGeneration } from "./_image-generation";
 export function Review({ id }: { id: string }) {
   const t = useT();
   const [item, setItem] = useState<StudioItem | null>(null);
@@ -89,6 +90,8 @@ export function Review({ id }: { id: string }) {
                 alt={item.input.brief}
                 className="max-h-[650px] w-full object-contain"
               />
+            ) : item.status === "generating" && !error ? (
+              <ImageGeneration format={item.input.format} />
             ) : (
               <Notice error={item.status === "failed"}>
                 {item.error ||

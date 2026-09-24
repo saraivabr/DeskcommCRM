@@ -4,6 +4,8 @@ Rotas: `/app/instagram`, `/new`, `/library`, `/posts/[id]`, `/inspirations`, `/i
 
 O cliente descreve nicho, ideia e formato; o servidor usa GPT Image 2.5 Flare e cria legenda. O pedido é persistido antes da chamada externa e seu UUID impede repetição. Imagens privadas usam URLs assinadas com validade de uma hora. Nada publica automaticamente. A revisão permite salvar legenda, copiar e baixar.
 
+A criação exibe `ImageGeneration` durante o pedido; a revisão reutiliza a animação enquanto o status consultado é `generating`. Sucesso mostra a imagem e falha devolve o aviso existente; erro de consulta também interrompe a animação. O indicador não inventa porcentagens e respeita movimento reduzido. É apresentação do módulo existente, sem nova configuração ou mutação: a API mantém auditoria e recuperação pela biblioteca; a pessoa revisa a saída e pode criar outra versão. Entrada: estado do pedido/API; saída: feedback nas telas de criação e revisão, acessíveis pela navegação Instagram.
+
 Referências são perfis informados pelo usuário. Pesquisa usa busca web com citações; sem fonte verificável, falha explicitamente. Não segue pessoas, não envia mensagens, não garante acesso a todos os posts nem afirma viralidade sem evidência. “Adaptar para meu negócio” preenche uma nova criação, sem publicar.
 
 Resultados usam a conexão social já existente, via adapter em `lib/channels/social/instagram-insights.ts`. A conta é validada contra o perfil da organização antes de consultar métricas. Ausência de métrica aparece como indisponível, nunca zero. A integração atual requer análise habilitada no provedor; não se apresenta como uma nova integração direta com a Meta.

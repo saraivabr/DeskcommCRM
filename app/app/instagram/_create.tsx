@@ -9,6 +9,7 @@ import type { CompanyContext } from "@/lib/instagram/brand";
 import { Textarea } from "@/components/ui/textarea";
 import { formats, type StudioItem } from "@/lib/instagram/schema";
 import { StudioShell, Intro, Notice, studioApi } from "./_shared";
+import { ImageGeneration } from "./_image-generation";
 export function CreatePost({
   company,
   initialBrief = "",
@@ -191,19 +192,23 @@ export function CreatePost({
           )}
         </div>
         <aside className="rounded-[2rem] border border-border bg-muted/30 p-7">
-          <div
-            style={{ aspectRatio: formats[format].ratio }}
-            className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-background p-7 text-center"
-          >
-            <div>
-              <p className="font-serif text-3xl">
-                {t("Aqui nasce")}
-                <br />
-                {t("sua próxima ideia.")}
-              </p>
-              <p className="mt-4 text-sm text-muted-foreground">{t(formats[format].label)}</p>
+          {busy ? (
+            <ImageGeneration format={format} />
+          ) : (
+            <div
+              style={{ aspectRatio: formats[format].ratio }}
+              className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-background p-7 text-center"
+            >
+              <div>
+                <p className="font-serif text-3xl">
+                  {t("Aqui nasce")}
+                  <br />
+                  {t("sua próxima ideia.")}
+                </p>
+                <p className="mt-4 text-sm text-muted-foreground">{t(formats[format].label)}</p>
+              </div>
             </div>
-          </div>
+          )}
           <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
             {t("Dica: conte o que quer mostrar, para quem e qual sensação a imagem deve passar.")}
           </p>

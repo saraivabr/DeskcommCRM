@@ -91,6 +91,13 @@
       "col": 1,
       "type": "service",
       "label": "Identidade da empresa e logo no bucket dedicado"
+    },
+    {
+      "id": "generation-feedback",
+      "lane": "ui",
+      "col": 2,
+      "type": "service",
+      "label": "ImageGeneration: animação acessível durante geração"
     }
   ],
   "edges": [
@@ -165,6 +172,18 @@
       "from": "company",
       "to": "ai",
       "label": "contexto e bytes do logo com escopo validado"
+    },
+    {
+      "id": "generation-state",
+      "from": "api",
+      "to": "generation-feedback",
+      "label": "pedido pendente ou status generating"
+    },
+    {
+      "id": "generation-visible",
+      "from": "generation-feedback",
+      "to": "ui",
+      "label": "feedback em criação e revisão; encerra no resultado ou erro"
     }
   ]
 }
