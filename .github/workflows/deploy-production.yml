@@ -1,0 +1,86 @@
+name: Deploy Producao (crm.escreve.ai)
+
+on:
+  push:
+    branches:
+      - feat/saraiva-ai-consolidacao
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build da Imagem e Deploy na Azure
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Definir metadados e tags da imagem
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/saraivabr/deskcomm-app
+          tags: |
+            type=sha,format=short,prefix=
+            type=raw,value=latest
+
+      - name: Build e Push da imagem Docker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Executar Deploy na VM da Azure via SSH
+        env:
+          SSH_HOST: ${{ secrets.AZURE_VM_HOST }}
+          SSH_USER: ${{ secrets.AZURE_VM_USER }}
+          SSH_KEY: ${{ secrets.AZURE_SSH_KEY }}
+          IMAGE_TAG: ${{ steps.meta.outputs.version }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "${SSH_USER}@${SSH_HOST}" \
+            "echo '$GH_TOKEN' | docker login ghcr.io -u '$GH_ACTOR' --password-stdin && /home/azureuser/deploy-live.sh '$IMAGE_TAG'"
+
+      - name: Validar Saude em Producao (Smoke Test)
+        run: |
+          echo "Consultando health check publico..."
+          for i in {1..15}; do
+            RESPONSE=$(curl -s https://crm.escreve.ai/api/v1/health || true)
+            echo "Resposta: $RESPONSE"
+            if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
+              echo "CRM.ESCREVE.AI ATUALIZADO E 100% OPERACIONAL!"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Aviso: Nao foi possivel confirmar o status healthy imediatamente."
