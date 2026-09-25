@@ -35,10 +35,7 @@
  */
 
 import { embedText, SemChaveDeEmbeddingError } from "@/lib/ai/embed";
-import {
-  resolverChaveDeEmbedding,
-  type ChaveDeEmbedding,
-} from "@/lib/ai/embeddings/chave";
+import { resolverChaveDeEmbedding, type ChaveDeEmbedding } from "@/lib/ai/embeddings/chave";
 import { acquireDebounce } from "@/lib/ai/rag/debounce";
 import { chunkText, computeContentHash } from "@/lib/ai/rag/chunker";
 import { canonizarTipoDeFonte } from "@/lib/ai/rag/tipos-de-fonte";
@@ -91,10 +88,7 @@ type Resultado =
 // Leitura
 // ---------------------------------------------------------------------------
 
-async function carregarFonte(
-  organizationId: string,
-  sourceId: string,
-): Promise<FonteRow | null> {
+async function carregarFonte(organizationId: string, sourceId: string): Promise<FonteRow | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("ai_knowledge_sources")
@@ -213,6 +207,22 @@ async function pedacosDeDocumento(fonte: FonteRow): Promise<Pedaco[]> {
     filename?: string;
     ext?: string;
   };
+  const pageId = (fonte.source_metadata as { knowledge_page_id?: string })?.knowledge_page_id;
+  if (pageId) {
+    const { data: page, error } = await createAdminClient()
+      .from("knowledge_pages")
+      .select("markdown,revision,archived")
+      .eq("organization_id", fonte.organization_id)
+      .eq("id", pageId)
+      .single();
+    const expected = (fonte.source_metadata as { page_revision?: number }).page_revision;
+    if (error || !page || page.archived || page.revision !== expected)
+      throw new Error("knowledge_page_changed");
+    return chunkText(page.markdown, { maxChars: 1600, overlapChars: 200 }).map((content) => ({
+      content,
+      metadata: { source_type: "documento", page_id: pageId, revision: page.revision },
+    }));
+  }
   const blobPath = meta.blob_path;
   if (!blobPath) throw new ErroDeExtracao("a fonte não aponta para nenhum arquivo");
 
@@ -291,10 +301,13 @@ async function credenciaisDaLoja(
   const storeId = String(meta["store_id"] ?? meta["id"] ?? "");
   if (!storeId) return null;
 
-  const { data: decrypted, error: decErr } = await admin.rpc("fn_decrypt_oauth" as never, {
-    p_organization_id: organizationId,
-    p_integration_id: (data as { id: string }).id,
-  } as never);
+  const { data: decrypted, error: decErr } = await admin.rpc(
+    "fn_decrypt_oauth" as never,
+    {
+      p_organization_id: organizationId,
+      p_integration_id: (data as { id: string }).id,
+    } as never,
+  );
 
   if (decErr || !decrypted) return null;
   const accessToken = String(decrypted);
@@ -448,11 +461,23 @@ export async function indexarFonte(
   }
 
   await markVersionReady(versionId, fonte.organization_id, gravados);
-  await activateVersion({
-    organizationId: fonte.organization_id,
-    knowledgeSourceId: fonte.id,
-    versionId,
-  });
+  const pageMeta = fonte.source_metadata as { knowledge_page_id?: string; page_revision?: number };
+  if (pageMeta?.knowledge_page_id) {
+    const { data: activated, error } = await admin.rpc("fn_activate_knowledge_page", {
+      p_org: fonte.organization_id,
+      p_page: pageMeta.knowledge_page_id,
+      p_revision: pageMeta.page_revision,
+      p_version: versionId,
+    });
+    if (error) throw new Error("knowledge_activation_failed");
+    if (!activated) return { tipo: "pulado", motivo: "pagina_alterada_durante_indexacao" };
+  } else {
+    await activateVersion({
+      organizationId: fonte.organization_id,
+      knowledgeSourceId: fonte.id,
+      versionId,
+    });
+  }
 
   return { tipo: "ok", versionId, chunks: gravados };
 }
@@ -531,31 +556,71 @@ async function garantirFonteDeCatalogo(organizationId: string): Promise<FonteRow
 export async function processRagIndexer(row: EventRow): Promise<HandlerResult> {
   const consumerKey = "rag-indexer.v1";
 
-  const lagMs = Date.now() - new Date(String(row.payload["created_at"] ?? row.created_at)).getTime();
+  const lagMs =
+    Date.now() - new Date(String(row.payload["created_at"] ?? row.created_at)).getTime();
   if (Number.isFinite(lagMs) && lagMs > LAG_WARN_MS) {
     console.warn(
       `[rag-indexer] atraso de ${Math.round(lagMs / 1000)}s no evento ${row.id} (${row.event_type})`,
     );
   }
 
-  if (row.event_type !== "knowledge_source.updated" && row.event_type !== "nuvemshop.product_synced") {
-    return { consumer_key: consumerKey, status: "skipped", detail: `evento_nao_tratado:${row.event_type}` };
+  if (
+    row.event_type !== "knowledge_source.updated" &&
+    row.event_type !== "nuvemshop.product_synced"
+  ) {
+    return {
+      consumer_key: consumerKey,
+      status: "skipped",
+      detail: `evento_nao_tratado:${row.event_type}`,
+    };
   }
 
   try {
     const { fonte, productId, motivo } = await fonteDoEvento(row);
     if (!fonte) {
-      return { consumer_key: consumerKey, status: "skipped", detail: motivo ?? "fonte_indisponivel" };
+      return {
+        consumer_key: consumerKey,
+        status: "skipped",
+        detail: motivo ?? "fonte_indisponivel",
+      };
     }
     if (!fonte.is_active || fonte.status === "archived") {
       return { consumer_key: consumerKey, status: "skipped", detail: "fonte_arquivada" };
+    }
+
+    const pageId = (fonte.source_metadata as { knowledge_page_id?: string })?.knowledge_page_id;
+    if (pageId) {
+      const { data: page, error } = await createAdminClient()
+        .from("knowledge_pages")
+        .select("revision,indexed_revision,archived,markdown")
+        .eq("id", pageId)
+        .eq("organization_id", row.organization_id)
+        .maybeSingle();
+      if (error) throw new Error("knowledge_page_unavailable");
+      if (
+        !page ||
+        page.archived ||
+        !page.markdown.trim() ||
+        page.indexed_revision === page.revision
+      )
+        return {
+          consumer_key: consumerKey,
+          status: "skipped",
+          detail: "pagina_sem_alteracoes_pendentes",
+        };
     }
 
     // Debounce por FONTE (antes era por agente): duas edições seguidas do mesmo
     // material coalescem, e materiais diferentes não se atrapalham.
     const chaveDebounce = `rag:debounce:${row.organization_id}:${fonte.id}:${row.event_type}`;
     if (!(await acquireDebounce(chaveDebounce, DEBOUNCE_TTL_SEC))) {
-      return { consumer_key: consumerKey, status: "skipped", detail: "debounced" };
+      return {
+        consumer_key: consumerKey,
+        status: (fonte.source_metadata as { knowledge_page_id?: string })?.knowledge_page_id
+          ? "retry"
+          : "skipped",
+        detail: "debounced",
+      };
     }
 
     // A chave é resolvida UMA vez por indexação — não uma vez por trecho.

@@ -15,6 +15,8 @@ import type { Role } from "@/lib/auth/types";
 export interface McpContext {
   /** Somente o runtime in-process fornece o job original, nunca o cliente MCP. */
   meetingBooking?: MeetingBookingContext;
+  connectionId?: string;
+  userId?: string;
   organizationId: string;
   role: Role;
   actor: Actor;
@@ -27,6 +29,7 @@ export interface McpContext {
 export type McpToolCategory = "read" | "write" | "handoff";
 
 export interface McpToolDefinition<TInput extends z.ZodRawShape = z.ZodRawShape> {
+  permission?: { area: import("./permissions").McpArea; operation: import("./permissions").McpOperation; confirmation?: boolean };
   name: string;
   description: string;
   inputSchema: TInput;
