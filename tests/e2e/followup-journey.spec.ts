@@ -383,12 +383,13 @@ test.describe("followup — jornada completa (Task 8.3)", () => {
 
       await page.goto(`/app/ai/agents/${agentId}`);
       await expect(page.getByRole("heading", { name: agentName })).toBeVisible();
+      await page.getByRole("tabpanel", { name: "Configuração", exact: true }).locator("summary").filter({ hasText: "Comportamento e repasses" }).click();
       const followupHeading = page.getByRole("heading", { name: "Follow-up", exact: true });
       await followupHeading.scrollIntoViewIfNeeded();
-      const followupToggle = page.getByLabel("Habilitar gatilhos automáticos de follow-up");
+      const followupToggle = page.getByRole("tabpanel", { name: "Configuração", exact: true }).getByLabel("Habilitar gatilhos automáticos de follow-up");
       await followupToggle.click();
       await expect(followupToggle).toBeChecked();
-      const flowCheckbox = page.getByLabel(flowName, { exact: true });
+      const flowCheckbox = page.getByRole("tabpanel", { name: "Configuração", exact: true }).getByLabel(flowName, { exact: true });
       await flowCheckbox.check();
       await expect(flowCheckbox).toBeChecked();
       await page.screenshot({

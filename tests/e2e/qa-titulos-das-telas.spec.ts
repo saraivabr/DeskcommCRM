@@ -47,7 +47,7 @@ const TELAS: ReadonlyArray<readonly [string, string]> = [
   ["/app/metrics", "Desempenho"],
   ["/app/radar", "Radar"],
   ["/app/audit", "Audit Log"],
-  ["/app/ai", "Agente de IA"],
+  ["/app/ai", "Funcionários"],
   ["/app/analise", "Análise"],
   ["/app/products", "Produtos"],
   ["/app/connections", "Conexões"],

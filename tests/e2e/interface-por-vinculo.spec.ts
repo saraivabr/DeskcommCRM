@@ -68,16 +68,14 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
       if (error) throw error;
       orgs.push(data.id);
     }
-    const membership = await db
-      .from("user_organizations")
-      .insert(
-        users.map((user_id, i) => ({
-          user_id,
-          organization_id: i === 3 ? orgs[1] : orgs[0],
-          role: i === 0 ? "admin" : "agent",
-          accepted_at: new Date().toISOString(),
-        })),
-      );
+    const membership = await db.from("user_organizations").insert(
+      users.map((user_id, i) => ({
+        user_id,
+        organization_id: i === 3 ? orgs[1] : orgs[0],
+        role: i === 0 ? "admin" : "agent",
+        accepted_at: new Date().toISOString(),
+      })),
+    );
     if (membership.error) throw membership.error;
     const member = await memberContext.newPage();
     const other = await otherContext.newPage();
@@ -95,13 +93,13 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
     await member.goto("/app/settings/profile");
     await member.getByLabel("Nome completo").fill("Rascunho não salvo");
     await login(other, emails[2]!);
-    await expect(nav(member).getByRole("link", { name: "Radar", exact: true })).toBeVisible();
+    await expect(nav(member).getByRole("link", { name: "Inbox", exact: true })).toBeVisible();
     const framesBefore = realtime.length;
-    await customize(page, emails[1]!);
+    await customize(page, emails[1]!, "Agenda");
     // Evento real precisa chegar; polling não pode aprovar a observação em tempo real.
     await expect.poll(() => realtime.length, { timeout: 15_000 }).toBeGreaterThan(framesBefore);
-    await expect(nav(member).getByRole("link", { name: "Radar", exact: true })).toHaveCount(0);
-    await expect(nav(other).getByRole("link", { name: "Radar", exact: true })).toBeVisible();
+    await expect(nav(member).getByRole("link", { name: "Inbox", exact: true })).toHaveCount(0);
+    await expect(nav(other).getByRole("link", { name: "Inbox", exact: true })).toBeVisible();
     await expect(member.getByLabel("Nome completo")).toHaveValue("Rascunho não salvo");
     expect(member.url()).toContain("/app/settings/profile");
     await expect(member.getByTestId("alerts-bell")).toHaveCount(0);
@@ -120,8 +118,9 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
     await customize(page, emails[1]!, "Produtos");
     await expect(nav(member).getByRole("link", { name: "Inbox", exact: true })).toHaveCount(0);
     await member.goto("/app");
-    await member.waitForURL("**/app/products");
-    await nav(member).getByRole("link", { name: "Ver tudo em CRM" }).click();
+    await expect(member.getByRole("heading", { name: "O que vamos resolver hoje?" })).toBeVisible();
+    await nav(member).getByRole("link", { name: "Todas as ferramentas" }).click();
+    await member.waitForURL("**/app/ferramentas");
     await expect(member.getByRole("link", { name: /Produtos/ }).last()).toBeVisible();
     await expect(member.getByRole("link", { name: /Contatos/ })).toHaveCount(0);
     await member.keyboard.press("ControlOrMeta+k");
@@ -132,7 +131,7 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
     await member.screenshot({ path: `${evidence}/interface-hub-only.png` });
     await member.setViewportSize({ width: 390, height: 844 });
     await member.getByRole("button", { name: "Abrir navegação" }).click();
-    await expect(member.getByRole("link", { name: "Ver tudo em CRM" }).last()).toBeVisible();
+    await expect(nav(member).getByRole("link", { name: "Todas as ferramentas" })).toBeVisible();
     expect(
       await member.evaluate(
         () => document.body.scrollWidth <= document.documentElement.clientWidth + 1,
@@ -153,9 +152,11 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
     await login(guest, emails[3]!);
     await guest.goto(link);
     await guest.getByRole("button", { name: /aceitar/i }).click();
-    await guest.waitForURL("**/app/tasks");
+    await guest.waitForURL("**/app");
     await expect(nav(guest).getByRole("link", { name: "Inbox", exact: true })).toHaveCount(0);
-    await expect(nav(guest).getByRole("link", { name: "Tarefas", exact: true })).toBeVisible();
+    await nav(guest).getByRole("link", { name: "Todas as ferramentas" }).click();
+    await guest.getByRole("link", { name: /^Tarefas/ }).click();
+    await guest.waitForURL("**/app/tasks");
     await expect(guest.getByRole("heading", { name: "Tarefas", exact: true })).toBeVisible();
     await expect(guest.getByText("Nenhuma tarefa por aqui", { exact: true })).toBeVisible();
     await expect(guest.locator("[aria-busy=true]")).toHaveCount(0);
@@ -174,6 +175,10 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
     await customize(page, emails[3]!, "Produtos");
     await guest.goto(link);
     await guest.getByRole("button", { name: /aceitar/i }).click();
+    await guest.waitForURL("**/app");
+    await nav(guest).getByRole("link", { name: "Todas as ferramentas" }).click();
+    await expect(guest.getByRole("link", { name: /^Tarefas/ })).toHaveCount(0);
+    await guest.getByRole("link", { name: /^Produtos/ }).click();
     await guest.waitForURL("**/app/products");
     // A coluna também descreve a seleção para quem só pode consultar a equipe.
     await customize(page, emails[2]!, "Produtos");
@@ -181,7 +186,12 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
     await page.getByRole("option", { name: "manager", exact: true }).click();
     await expect(page.getByText("Papel atualizado.", { exact: true })).toBeVisible();
     await other.goto("/app/team");
-    await expect(other.getByRole("row").filter({ hasText: emails[2] }).getByText("Personalizada", { exact: true })).toBeVisible();
+    await expect(
+      other
+        .getByRole("row")
+        .filter({ hasText: emails[2] })
+        .getByText("Personalizada", { exact: true }),
+    ).toBeVisible();
   } finally {
     await memberContext.close();
     await otherContext.close();

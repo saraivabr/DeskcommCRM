@@ -119,7 +119,7 @@ async function entrar(page: Page, creds: Creds) {
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.waitForURL(/\/app(\/|$)/, { timeout: 20_000 });
   await page.goto("/app/agenda");
-  await expect(page.getByTestId("tela-agenda")).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByTestId("tela-agenda").filter({ visible: true })).toBeVisible({ timeout: 25_000 });
 }
 
 /** A conexão do Google que o evento externo pendura. Idempotente. */
@@ -210,7 +210,7 @@ test.describe("a ocupação do Google na grade da agenda", () => {
     // 2ª passada: RECARREGA e navega de novo. Depois disto a semente do servidor
     // não cobre mais a semana em tela — o que estiver desenhado veio da rota.
     await page.reload();
-    await expect(page.getByTestId("tela-agenda")).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByTestId("tela-agenda").filter({ visible: true })).toBeVisible({ timeout: 25_000 });
     const diasDepois = await irParaASemanaSeguinte(page);
     expect(diasDepois, "a semana desenhada mudou entre as duas passadas").toContain(alvo);
 
@@ -258,7 +258,16 @@ test.describe("a ocupação do Google na grade da agenda", () => {
     await entrar(page, creds);
 
     const dias = await irParaASemanaSeguinte(page);
-    const alvo = dias[3]!;
+    // A semana pode atravessar dois meses. A visão Mês usa a data-âncora,
+    // não necessariamente a quarta-feira: no fim de setembro, a quarta pode
+    // ser 30/09 enquanto a âncora já é 02/10. Semeie no dia da âncora mostrado
+    // pela própria UI, assim o evento pertence aos dois recortes que medimos.
+    await page.getByTestId("visao-dia").click();
+    const colunaDaAncora = page.locator('[data-testid^="coluna-dia-"]').filter({ visible: true });
+    await expect(colunaDaAncora).toHaveCount(1);
+    const alvo = (await colunaDaAncora.getAttribute("data-testid"))!.slice("coluna-dia-".length);
+    expect(dias).toContain(alvo);
+    await page.getByTestId("visao-semana").click();
     const comeca = await instanteNoDia(page, alvo, 15);
     const termina = await instanteNoDia(page, alvo, 16);
     const conexaoId = await conexaoDoGoogle(creds.org_id, dono.id);
@@ -288,7 +297,7 @@ test.describe("a ocupação do Google na grade da agenda", () => {
     expect(eventoId, "o evento externo não ganhou id").toBeTruthy();
 
     await page.reload();
-    await expect(page.getByTestId("tela-agenda")).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByTestId("tela-agenda").filter({ visible: true })).toBeVisible({ timeout: 25_000 });
     await irParaASemanaSeguinte(page);
     await expect(blocoDoGoogle(page)).toBeVisible({ timeout: 20_000 });
 
@@ -380,7 +389,7 @@ test.describe("a ocupação do Google na grade da agenda", () => {
     const nossoId = (nosso as { id: string }).id;
 
     await page.reload();
-    await expect(page.getByTestId("tela-agenda")).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByTestId("tela-agenda").filter({ visible: true })).toBeVisible({ timeout: 25_000 });
     await irParaASemanaSeguinte(page);
 
     // A ocupação do Google pela ORIGEM; o NOSSO agendamento pelo id, que ele

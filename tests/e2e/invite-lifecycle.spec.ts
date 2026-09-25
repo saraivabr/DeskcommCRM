@@ -3,7 +3,7 @@
  *
  * Cobre o que a pergunta do dono pediu — convidar → aceitar → entrar → ver só o
  * permitido → agir dentro da permissão — e stressa os cantos:
- *   1. Ciclo feliz: admin convida → convidado loga e aceita → vira membership agent → cai no inbox
+ *   1. Ciclo feliz: admin convida → convidado loga e aceita → vira membership agent → abre a Home e acessa o inbox
  *   2. Escopo pós-aceite: o agent vê inbox/kanban, é bloqueado (403) em billing/api-tokens
  *   3. Permissão pós-aceite: o agent NÃO consegue convidar (invite é admin-only → 403)
  *   4. Reuso do token: aceitar o MESMO token 2x é idempotente (sem membership duplicada)
@@ -174,7 +174,7 @@ test.describe("ciclo de vida do convite (ponta a ponta + adversarial)", () => {
     await mctx.close();
   });
 
-  test("1. ciclo feliz: convidar → aceitar → vira agent → cai no inbox", async ({ browser }) => {
+  test("1. ciclo feliz: convidar → aceitar → vira agent → Home e inbox", async ({ browser }) => {
     // admin convida
     const adminCtx = await browser.newContext();
     const adminPage = await adminCtx.newPage();
@@ -205,7 +205,10 @@ test.describe("ciclo de vida do convite (ponta a ponta + adversarial)", () => {
     await page.goto(tokenPath(acceptUrl));
     await expect(page.getByRole("heading", { name: /Aceitar convite/i })).toBeVisible();
     await page.getByRole("button", { name: /Aceitar convite/i }).click();
-    await page.waitForURL(/\/app\/inbox/);
+    await page.waitForURL("**/app");
+    await expect(page.getByRole("heading", { name: "O que vamos resolver hoje?" })).toBeVisible();
+    await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Inbox", exact: true }).click();
+    await page.waitForURL("**/app/inbox");
 
     // depois do aceite: membership agent criada
     expect(await membershipCount()).toBe(1);
@@ -255,11 +258,11 @@ test.describe("ciclo de vida do convite (ponta a ponta + adversarial)", () => {
     // 1º aceite (reaplica)
     await page.goto(`/team/accept-invite/${token}`);
     await page.getByRole("button", { name: /Aceitar convite/i }).click();
-    await page.waitForURL(/\/app\/inbox/);
+    await page.waitForURL("**/app");
     // 2º aceite do MESMO token
     await page.goto(`/team/accept-invite/${token}`);
     await page.getByRole("button", { name: /Aceitar convite/i }).click();
-    await page.waitForURL(/\/app\/inbox/);
+    await page.waitForURL("**/app");
     // sem duplicar membership
     expect(await membershipCount()).toBe(1);
     await ctx.close();

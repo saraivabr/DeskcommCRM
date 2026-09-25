@@ -60,7 +60,7 @@ export function SidebarContent({
             <LogotipoDoProduto nome={name} className="h-10 w-full" />
           )
         ) : logo && !collapsed ? (
-          <div className="rounded-lg dark:bg-white dark:p-1">
+          <div className="rounded-lg dark:bg-white dark:p-1 dark:shadow-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logo} alt={name} className="h-7 max-w-40 object-contain" />
           </div>
@@ -79,7 +79,7 @@ export function SidebarContent({
           title={activeOrg.name}
         >
           {activeOrg.marca?.logoUrl ? (
-            <div className="rounded-md dark:bg-white dark:p-1">
+            <div className="rounded-md dark:bg-white dark:p-1 dark:shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={activeOrg.marca.logoUrl}

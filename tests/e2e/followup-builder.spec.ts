@@ -527,21 +527,12 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await expect(page.locator(`[data-testid="node-error-${waitId}"]`)).toHaveCount(0);
     await page.screenshot({ path: "test-results/followup-6.2-07-published.png", fullPage: true });
 
-    // Normalize the viewport (pan/zoom drifted from the manual connect drags)
-    // so the before/after position comparison isn't comparing two arbitrary
-    // transforms — both sides fit the same 4 nodes to the same container.
-    await page.locator(".react-flow__controls-fitview").click();
-    // fitView's viewport transform settles on the next animation frame(s) —
-    // under load (full suite run) reading positions immediately can catch a
-    // mid-transition frame. Wait for it to settle before the "before" capture.
-    await page.waitForTimeout(400);
-
-    const positionsBefore: Record<string, { x: number; y: number; width: number; height: number }> =
-      {};
+    // Persistência é medida nas coordenadas do grafo, não no viewport.
+    // O canvas pode mudar de altura após publicar/recarregar (barra de status,
+    // painel selecionado e fitView), sem que a posição salva de um nó mude.
+    const positionsBefore: Record<string, { x: number; y: number }> = {};
     for (const id of [triggerId, waitId, actionId, endId]) {
-      const box = await page.locator(`.react-flow__node[data-id="${id}"]`).boundingBox();
-      if (!box) throw new Error(`nó ${id} sem bounding box antes do reload`);
-      positionsBefore[id] = box;
+      positionsBefore[id] = await nodeFlowPosition(page, id);
     }
 
     // 7. Reload — the graph must persist identically.
@@ -555,17 +546,8 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await expect(page.locator(`[data-testid="node-card-${actionId}"]`)).toContainText(
       "Reforce o benefício",
     );
-    // Same settle wait as the "before" capture — the post-reload fitView (on
-    // mount) needs the same grace period before its transform is comparable.
-    await page.waitForTimeout(400);
-
-    const TOLERANCE_PX = 10;
     for (const id of [triggerId, waitId, actionId, endId]) {
-      const box = await page.locator(`.react-flow__node[data-id="${id}"]`).boundingBox();
-      if (!box) throw new Error(`nó ${id} sem bounding box depois do reload`);
-      const before = positionsBefore[id]!;
-      expect(Math.abs(box.x - before.x)).toBeLessThanOrEqual(TOLERANCE_PX);
-      expect(Math.abs(box.y - before.y)).toBeLessThanOrEqual(TOLERANCE_PX);
+      await expect.poll(() => nodeFlowPosition(page, id)).toEqual(positionsBefore[id]);
     }
     await page.screenshot({
       path: "test-results/followup-6.2-08-reloaded-persisted.png",
@@ -983,16 +965,17 @@ test.describe("followup flow selector no editor do agente (Task 7.2)", () => {
     await page.goto(`/app/ai/agents/${agentId}`);
     await expect(page.getByRole("heading", { name: agentName })).toBeVisible();
 
+    await page.getByRole("tabpanel", { name: "Configuração", exact: true }).locator("summary").filter({ hasText: "Comportamento e repasses" }).click();
     const followupHeading = page.getByRole("heading", { name: "Follow-up", exact: true });
     await followupHeading.scrollIntoViewIfNeeded();
     await expect(followupHeading).toBeVisible();
 
-    const followupToggle = page.getByLabel("Habilitar gatilhos automáticos de follow-up");
+    const followupToggle = page.getByRole("tabpanel", { name: "Configuração", exact: true }).getByLabel("Habilitar gatilhos automáticos de follow-up");
     await expect(followupToggle).not.toBeChecked();
     await followupToggle.click();
     await expect(followupToggle).toBeChecked();
 
-    const flowCheckbox = page.getByLabel(flowName, { exact: true });
+    const flowCheckbox = page.getByRole("tabpanel", { name: "Configuração", exact: true }).getByLabel(flowName, { exact: true });
     await expect(flowCheckbox).toBeVisible();
     await flowCheckbox.check();
     await expect(flowCheckbox).toBeChecked();

@@ -280,6 +280,8 @@ test.describe("Configurar o que o agente pode fazer", () => {
     // Desligar a jornada desfaz o que ela ligou — e o envio segue fora, como
     // sempre esteve: declarar que a jornada acabou e ficar com o direito de
     // mandar mensagem seria a pior surpresa possível.
+    // Os pacotes ficam no modo Simples; Avançado mostra apenas as fichas.
+    await page.getByRole("button", { name: "Simples", exact: true }).click();
     await page.getByTestId("switch-pacote-atender").click();
     await page.getByTestId("toggle-avancado").click();
     await expect.poll(() => estaMarcada(page, ENVIO), { timeout: 5_000 }).toBe(false);
