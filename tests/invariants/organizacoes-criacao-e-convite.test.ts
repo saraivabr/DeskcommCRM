@@ -4,7 +4,7 @@ import { sql } from "./gov-helpers";
 const actor = "f2180000-0000-4000-8000-000000000001";
 const guest = "f2180000-0000-4000-8000-000000000002";
 const key = "f2180000-0000-4000-8000-000000000003";
-const body = `' {"display_name":"Nova organização", "slug":"invariante-0218", "plan":"standard"}'::jsonb`;
+const body = `' {"display_name":"Nova organização", "slug":"invariante-0218", "plan":"standard", "owner_email":"guest-0218@invariant.test"}'::jsonb`;
 const call = `public.fn_create_tenant_with_owner('${actor}', '${key}', ${body}, 'abcd')`;
 const seed = `begin;
 insert into auth.users(id,email) values ('${actor}','owner-0218@invariant.test'), ('${guest}','guest-0218@invariant.test');
@@ -18,6 +18,11 @@ describe("organização criada leva acesso e convite seguro", () => {
       if r->>'id' <> repeated->>'id' or (repeated->>'created')::boolean then raise exception 'duplicated'; end if;
       if (select count(*) from public.user_organizations where organization_id=(r->>'id')::uuid and user_id='${actor}' and role='admin' and accepted_at is not null) <> 1 then raise exception 'no owner'; end if;
       if (select count(*) from public.organizations where slug='invariante-0218') <> 1 then raise exception 'duplicate organization'; end if;
+      if (select classification from public.org_commercial_accounts where organization_id=(r->>'id')::uuid) is distinct from 'free_public'
+        or (select free_enabled from public.org_commercial_accounts where organization_id=(r->>'id')::uuid) is distinct from false
+        then raise exception 'invited tenant must start with disabled commercial access'; end if;
+      if (select pending_owner_email from public.org_commercial_accounts where organization_id=(r->>'id')::uuid) is distinct from 'guest-0218@invariant.test'
+        then raise exception 'protected owner identity missing'; end if;
     end $$;`));
 
   it("falha na membership faz rollback da organização", () => prove(`
@@ -27,6 +32,15 @@ describe("organização criada leva acesso e convite seguro", () => {
       begin perform ${call}; raise exception 'should have failed';
       exception when others then if sqlerrm <> 'simulated membership failure' then raise; end if; end;
       if exists(select 1 from public.organizations where slug='invariante-0218') then raise exception 'orphan'; end if;
+    end $$;`));
+
+  it("falha na classificação comercial não deixa empresa vendável sem franquia", () => prove(`
+    create function pg_temp.reject_commercial() returns trigger language plpgsql as $$ begin raise exception 'simulated commercial failure'; end $$;
+    create trigger reject_commercial before insert on public.org_commercial_accounts for each row execute function pg_temp.reject_commercial();
+    do $$ begin
+      begin perform ${call}; raise exception 'should have failed';
+      exception when others then if sqlerrm <> 'simulated commercial failure' then raise; end if; end;
+      if exists(select 1 from public.organizations where slug='invariante-0218') then raise exception 'unclassified tenant survived'; end if;
     end $$;`));
 
   it("mesma chave com payload diferente não altera nem cria outra org", () => prove(`
@@ -105,6 +119,9 @@ describe("organização criada leva acesso e convite seguro", () => {
       if (select provisional_until_handover from public.user_organizations
            where organization_id=org and user_id='${actor}')
         then raise exception 'criou para si e o vinculo nasceu provisorio'; end if;
+      update public.org_commercial_accounts set free_enabled=true, free_seats=3, free_channels=0,
+        free_agents=0, free_ai_credit_cents=100, free_ai_usd_to_brl_rate=6,
+        free_period_start=now(), free_period_end=now()+interval '1 day' where organization_id=org;
       perform public.fn_accept_team_invite('${guest}',org,'admin','${actor}',now()-interval '1 minute',now()-interval '1 minute','{"preset":"completa"}'::jsonb);
       if (select count(*) from public.user_organizations where organization_id=org and user_id='${actor}') <> 1
         then raise exception 'saiu do proprio tenant'; end if;
@@ -123,9 +140,65 @@ describe("organização criada leva acesso e convite seguro", () => {
         then raise exception 'organizacao ficou vazia'; end if;
     end $$;`));
 
+  it("antes da contratação, só a entrega ao responsável passa pelo limite de vagas", () => prove(`
+    do $$ declare r jsonb; org uuid; begin
+      r := ${call}; org := (r->>'id')::uuid;
+      begin
+        perform public.fn_accept_team_invite('${guest}',org,'agent','${actor}',now(),now());
+        raise exception 'unpaid teammate accepted';
+      exception when sqlstate 'P4020' then null; end;
+      perform public.fn_accept_team_invite('${guest}',org,'admin','${actor}',now(),now());
+      if (select count(*) from public.user_organizations where organization_id=org and revoked_at is null) <> 1
+        then raise exception 'owner handover failed'; end if;
+      if exists(select 1 from public.user_organizations where organization_id=org and provisional_until_handover)
+        then raise exception 'provisional creator survived handover'; end if;
+    end $$;`));
+
+  it("marcar vínculo provisório não permite inserir outro admin sem pagar", () => prove(`
+    insert into auth.users(id,email) values ('f2180000-0000-4000-8000-000000000004','other-0218@invariant.test');
+    do $$ declare r jsonb; org uuid; begin
+      r := ${call}; org := (r->>'id')::uuid;
+      update public.user_organizations set provisional_until_handover=true
+        where organization_id=org and user_id='${actor}';
+      begin
+        insert into public.user_organizations(organization_id,user_id,role,invited_by,accepted_at)
+          values(org,'f2180000-0000-4000-8000-000000000004','admin','${actor}',now());
+        raise exception 'forged admin accepted';
+      exception when sqlstate 'P4020' then null; end;
+      if (select count(*) from public.user_organizations where organization_id=org) <> 1
+        then raise exception 'forged admin survived'; end if;
+    end $$;`));
+
+  it("o responsável substitui o provisório mesmo com Free ativo de uma vaga", () => prove(`
+    do $$ declare r jsonb; org uuid; begin
+      r := ${call}; org := (r->>'id')::uuid;
+      update public.org_commercial_accounts set free_enabled=true, free_seats=1, free_channels=0,
+        free_agents=0, free_ai_credit_cents=100, free_ai_usd_to_brl_rate=6,
+        free_period_start=now(), free_period_end=now()+interval '1 day' where organization_id=org;
+      perform public.fn_accept_team_invite('${guest}',org,'admin','${actor}',now(),now());
+      if (select count(*) from public.user_organizations where organization_id=org and revoked_at is null) <> 1
+        then raise exception 'single seat handover failed'; end if;
+    end $$;`));
+
+  it("inserção direta do responsável também substitui o provisório sem criar segunda vaga", () => prove(`
+    do $$ declare r jsonb; org uuid; begin
+      r := ${call}; org := (r->>'id')::uuid;
+      update public.org_commercial_accounts set free_enabled=true, free_seats=1, free_channels=0,
+        free_agents=0, free_ai_credit_cents=100, free_ai_usd_to_brl_rate=6,
+        free_period_start=now(), free_period_end=now()+interval '1 day' where organization_id=org;
+      insert into public.user_organizations(organization_id,user_id,role,invited_by,accepted_at)
+        values(org,'${guest}','admin','${actor}',now());
+      if (select count(*) from public.user_organizations where organization_id=org and revoked_at is null) <> 1
+        or exists(select 1 from public.user_organizations where organization_id=org and provisional_until_handover)
+        then raise exception 'direct handover left extra seat'; end if;
+    end $$;`));
+
   it("papel que não é o do dono não dispara a entrega", () => prove(`
     do $$ declare r jsonb; org uuid; begin
       r := ${call}; org := (r->>'id')::uuid;
+      update public.org_commercial_accounts set free_enabled=true, free_seats=3, free_channels=0,
+        free_agents=0, free_ai_credit_cents=100, free_ai_usd_to_brl_rate=6,
+        free_period_start=now(), free_period_end=now()+interval '1 day' where organization_id=org;
       perform public.fn_accept_team_invite('${guest}',org,'agent','${actor}',now()-interval '1 minute',now()-interval '1 minute','{"preset":"completa"}'::jsonb);
       if (select count(*) from public.user_organizations where organization_id=org and user_id='${actor}') <> 1
         then raise exception 'um colega entrando expulsou o provisorio'; end if;
@@ -133,6 +206,10 @@ describe("organização criada leva acesso e convite seguro", () => {
 
   it("convidado só enxerga organização aceita, com RLS real", () => prove(`
     select ${call};
+    update public.org_commercial_accounts set free_enabled=true, free_seats=3, free_channels=0,
+      free_agents=0, free_ai_credit_cents=100, free_ai_usd_to_brl_rate=6,
+      free_period_start=now(), free_period_end=now()+interval '1 day'
+      where organization_id=(select id from public.organizations where slug='invariante-0218');
     insert into public.organizations(slug,display_name,legal_name) values ('outra-0218','Outra','Outra');
     select public.fn_accept_team_invite('${guest}', (select id from public.organizations where slug='invariante-0218'),'agent','${actor}',now(),now());
     set local role authenticated;

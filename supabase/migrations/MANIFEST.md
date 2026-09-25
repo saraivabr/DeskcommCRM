@@ -440,3 +440,5 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 | `20260925161000` | `0405_ai_usage_kind` | Tipo de operação no ledger: texto, imagem, voz ou outras. Registro imutável depois de definido, restrito ao serviço e à organização. |
 
 | `20260925162000` | `0406_self_service_free_and_renewal` | RPC service-only cria organização, primeiro admin e Free desabilitado na mesma transação para signup/recovery. Backfill único explicita legado sem converter contas existentes; bootstrap/admin/integrações preservados. Renovação aguarda vencimento mesmo sem consumo, em UPDATE e UPSERT. |
+| `20260925163000` | `0408_admin_invite_commercial_account` | Criação administrativa por convite grava Free desabilitado na mesma transação; legado e integrações ficam intactos. |
+| `20260925170000` | `0409_sales_waitlist` | Lista de espera comercial pré-tenant, email normalizado único, RLS sem acesso público direto. Registro não cria usuário nem convite; administração registra convite separado. |

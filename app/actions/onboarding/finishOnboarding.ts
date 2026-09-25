@@ -16,7 +16,7 @@ export type FinishOnboardingResult =
   | { ok: false; error: "auth_required" | "no_active_org" | "db_error"; details?: unknown };
 
 export async function finishOnboarding(
-  destination: "workspace" | "first_post" = "workspace",
+  destination: "workspace" | "first_post" | "billing" = "workspace",
 ): Promise<FinishOnboardingResult> {
   let ctx;
   try {
@@ -64,5 +64,11 @@ export async function finishOnboarding(
     });
   }
 
-  redirect(destination === "first_post" ? "/app/instagram/new?first_post=1" : "/app/inbox");
+  redirect(
+    destination === "first_post"
+      ? "/app/instagram/new?first_post=1"
+      : destination === "billing"
+        ? "/app/settings/billing"
+        : "/app/inbox",
+  );
 }

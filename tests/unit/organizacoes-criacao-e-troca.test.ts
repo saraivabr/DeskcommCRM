@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 const h = vi.hoisted(() => ({
   guard: vi.fn(), mfa: vi.fn(), rpc: vi.fn(), audit: vi.fn(), invite: vi.fn(),
-  user: vi.fn(), query: vi.fn(), cookie: vi.fn(), getCookie: vi.fn(),
+  user: vi.fn(), query: vi.fn(), cookie: vi.fn(), getCookie: vi.fn(), poolQuery: vi.fn(),
 }));
 vi.mock("@/lib/auth/requirePlatformAdmin", () => ({ requirePlatformAdmin: h.guard }));
 vi.mock("@/lib/auth/server", () => ({ mfaEmDivida: h.mfa, loadAuthUser: h.user }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ rpc: h.rpc }) }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ from: h.query }) }));
 vi.mock("@/lib/audit", () => ({ audit: h.audit }));
+vi.mock("@/lib/agent-engine/db/request-pool", () => ({ getRequestPool: () => ({ query: h.poolQuery }) }));
 vi.mock("@/lib/auth/issue-invite", () => ({ issueInvite: h.invite }));
 vi.mock("@/lib/supabase/cookie-secure", () => ({ cookieSecure: () => false }));
 vi.mock("next/headers", () => ({ cookies: async () => ({ set: h.cookie, get: h.getCookie }) }));
@@ -28,6 +29,7 @@ beforeEach(() => {
   h.mfa.mockResolvedValue(false);
   h.rpc.mockResolvedValue({ data: { id: org, display_name: "Minha organização", slug: "minha-org", created: true, invite_id: actor, issued_at: 12345 }, error: null });
   h.invite.mockResolvedValue({ accept_url: "http://localhost/invite", email_dispatched: false });
+  h.poolQuery.mockResolvedValue({ rows: [] });
 });
 describe("criação administrativa", () => {
   it("não cria nem convida em suporte readonly, sem auth ou em dívida MFA", async () => {
@@ -52,6 +54,11 @@ describe("criação administrativa", () => {
     expect((await response.json()).data.owner_invitation.email_dispatched).toBe(false);
     expect(h.rpc.mock.invocationCallOrder[0]).toBeLessThan(h.invite.mock.invocationCallOrder[0]!);
     expect(h.invite).toHaveBeenCalledWith(expect.objectContaining({ organizationId: org, inviterId: actor, role: "admin" }));
+  });
+  it("marca a lista de espera após envio confirmado do convite", async () => {
+    h.invite.mockResolvedValueOnce({ accept_url: "http://localhost/invite", email_dispatched: true });
+    expect((await POST(request("guest@example.test"))).status).toBe(201);
+    expect(h.poolQuery).toHaveBeenCalledWith(expect.stringContaining("update sales_waitlist"), [org, "guest@example.test"]);
   });
   it("recusa chave inválida; falha SQL não convida", async () => {
     expect((await POST(request("guest@example.test", "bad"))).status).toBe(400);
