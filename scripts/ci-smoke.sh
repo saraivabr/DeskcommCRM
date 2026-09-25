@@ -89,18 +89,39 @@ docker run -d --name "$smoke_network-redis-http" --network "$smoke_network" -p 1
   -e SRH_MODE=env -e SRH_TOKEN="$UPSTASH_REDIS_REST_TOKEN" -e SRH_CONNECTION_STRING=redis://redis:6379 \
   hiett/serverless-redis-http@sha256:5b0bb9239fce53abf87b2018a7a0deb9ec7bd900c5360738fe5fbeeb426f9150 >/dev/null
 node <<'JS'
+// Só status/código são registrados: nunca cabeçalhos, tokens ou corpos de resposta.
+async function probe(url, init, expectedResult) {
+  try {
+    const response = await fetch(url, { ...init, signal: AbortSignal.timeout(2000) });
+    const body = await response.json().catch(() => null);
+    const code = typeof body?.code === 'string' && /^[A-Z0-9_]+$/.test(body.code) ? body.code : null;
+    const ready = response.ok && (expectedResult === undefined || body?.result === expectedResult);
+    return { ready, status: response.status, code, result: expectedResult === undefined ? undefined : ready ? 'PONG' : 'unexpected' };
+  } catch (error) {
+    const code = error?.cause?.code ?? error?.name;
+    return { ready: false, status: null, code: typeof code === 'string' && /^[A-Za-z0-9_]+$/.test(code) ? code : 'network_error' };
+  }
+}
 (async () => {
+  let states;
   for (let attempt = 0; attempt < 20; attempt++) {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/organizations?select=id&limit=1`, {
-      headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-    }).catch(() => null);
-    const redis = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/ping`, {
-      headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` },
-    }).catch(() => null);
-    if (response?.ok && redis?.ok) return;
+    const [postgrest, redis] = await Promise.all([
+      probe(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/organizations?select=id&limit=1`, {
+        headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+      }),
+      // Mesmo protocolo do SDK Upstash e da prova E2E completa: POST JSON na raiz.
+      probe(process.env.UPSTASH_REDIS_REST_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(['PING']),
+      }, 'PONG'),
+    ]);
+    states = { postgrest, redis };
+    if (postgrest.ready && redis.ready) return;
+    if (attempt === 0) process.stderr.write(`Smoke readiness: ${JSON.stringify(states)}\n`);
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
-  throw new Error('PostgREST/Redis não ficaram prontos para o smoke');
+  throw new Error(`Dependências do smoke indisponíveis: ${JSON.stringify(states)}`);
 })();
 JS
 unset OPENAI_API_KEY ANTHROPIC_API_KEY GOOGLE_GENERATIVE_AI_API_KEY AI_GATEWAY_API_KEY
