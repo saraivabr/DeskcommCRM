@@ -6,7 +6,12 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useT } from "@/hooks/i18n/useT";
 import { MagnifyingGlass } from "@/lib/ui/icons";
-import { NAV_GROUPS, searchable, type NavDestination, type NavGroupId } from "@/lib/navigation/registry";
+import {
+  NAV_GROUPS,
+  searchable,
+  type NavDestination,
+  type NavGroupId,
+} from "@/lib/navigation/registry";
 import { cn } from "@/lib/utils";
 
 /**
@@ -91,7 +96,9 @@ function Resultados({ aoEscolher }: { aoEscolher: () => void }) {
       const casaCategoria = categoriaAtiva === "todos" || d.group === categoriaAtiva;
       if (!casaCategoria) return false;
       if (!termo) return true;
-      return normalizar(`${d.label} ${d.description} ${ROTULO_GRUPO.get(d.group) ?? ""}`).includes(termo);
+      return normalizar(`${d.label} ${d.description} ${ROTULO_GRUPO.get(d.group) ?? ""}`).includes(
+        termo,
+      );
     });
   }, [busca, visiveis, categoriaAtiva]);
 
@@ -151,7 +158,9 @@ function Resultados({ aoEscolher }: { aoEscolher: () => void }) {
           value={busca}
           onChange={(e) => aoDigitar(e.target.value)}
           onKeyDown={aoTeclar}
-          placeholder={t("Buscar por nome, objetivo ou função (ex: leads, agenda, prompt, whatsapp)...")}
+          placeholder={t(
+            "Buscar por nome, objetivo ou função (ex: leads, agenda, prompt, whatsapp)...",
+          )}
           className="h-13 w-full bg-transparent text-sm outline-hidden placeholder:text-muted-foreground"
         />
         {busca && (
@@ -166,12 +175,12 @@ function Resultados({ aoEscolher }: { aoEscolher: () => void }) {
       </div>
 
       {/* Categorias rápidas para navegação instantânea */}
-      <div className="flex items-center gap-1.5 overflow-x-auto border-b bg-muted/30 px-3 py-2 text-xs scrollbar-none">
+      <div className="flex scrollbar-none items-center gap-1.5 overflow-x-auto border-b bg-muted/30 px-3 py-2 text-xs">
         <button
           type="button"
           onClick={() => mudarCategoria("todos")}
           className={cn(
-            "rounded-md px-2.5 py-1 font-medium transition-colors whitespace-nowrap",
+            "rounded-md px-2.5 py-1 font-medium whitespace-nowrap transition-colors",
             categoriaAtiva === "todos"
               ? "bg-foreground text-background shadow-xs"
               : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -187,7 +196,7 @@ function Resultados({ aoEscolher }: { aoEscolher: () => void }) {
               type="button"
               onClick={() => mudarCategoria(cat.id)}
               className={cn(
-                "rounded-md px-2.5 py-1 font-medium transition-colors whitespace-nowrap",
+                "rounded-md px-2.5 py-1 font-medium whitespace-nowrap transition-colors",
                 categoriaAtiva === cat.id
                   ? "bg-foreground text-background shadow-xs"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -204,7 +213,9 @@ function Resultados({ aoEscolher }: { aoEscolher: () => void }) {
           <p className="font-medium text-foreground">
             {t("Nada encontrado para")} “{busca}”.
           </p>
-          <p className="mt-1 text-xs">{t("Tente buscar por outro termo ou selecione 'Todas' nas categorias.")}</p>
+          <p className="mt-1 text-xs">
+            {t("Tente buscar por outro termo ou selecione 'Todas' nas categorias.")}
+          </p>
         </div>
       ) : emModoCatalogo ? (
         /* Modo Catálogo Visível: agrupado por departamentos/módulos para ver tudo de relance */
@@ -219,7 +230,7 @@ function Resultados({ aoEscolher }: { aoEscolher: () => void }) {
             return (
               <div key={grupoId} className="space-y-2">
                 <div className="flex items-center justify-between border-b pb-1">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                     {t(rotuloGrupo)}
                   </h3>
                   <span className="text-[11px] text-muted-foreground">
@@ -256,7 +267,9 @@ function Resultados({ aoEscolher }: { aoEscolher: () => void }) {
                           <Icon size={16} aria-hidden />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold leading-tight">{t(d.label)}</p>
+                          <p className="truncate text-xs leading-tight font-semibold">
+                            {t(d.label)}
+                          </p>
                           <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
                             {t(d.description)}
                           </p>
@@ -318,7 +331,7 @@ function Resultados({ aoEscolher }: { aoEscolher: () => void }) {
       )}
       <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-2 text-[11px] text-muted-foreground">
         <span>{t("Use as setas ↑↓ e Enter para navegar")}</span>
-        <span>ESC para fechar</span>
+        <span>{t("ESC para fechar")}</span>
       </div>
     </>
   );
