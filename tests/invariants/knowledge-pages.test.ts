@@ -72,6 +72,25 @@ describe("knowledge pages transaction", () => {
     ).toThrow();
     expect(() => save(input({ id: randomUUID(), operation_id: randomUUID() }), viewer)).toThrow();
   });
+  it("isolates revisions and personal favorites with positive controls", () => {
+    sql(
+      `insert into knowledge_page_favorites(organization_id,page_id,user_id) values('${org}','${page}','${user}');`,
+    );
+    for (const table of ["knowledge_page_revisions", "knowledge_page_favorites"]) {
+      const own = sql(
+        `set role authenticated; select set_config('request.jwt.claims','{"sub":"${user}"}',false); select count(*) from ${table} where organization_id='${org}';`,
+      )
+        .split("\n")
+        .at(-1);
+      expect(Number(own)).toBeGreaterThan(0);
+      const other = sql(
+        `set role authenticated; select set_config('request.jwt.claims','{"sub":"${viewer}"}',false); select count(*) from ${table} where organization_id='${org}';`,
+      )
+        .split("\n")
+        .at(-1);
+      expect(other).toBe("0");
+    }
+  });
   it("removes archived pages from retrieval immediately", () => {
     expect(sql(`select count(*) from fn_search_knowledge_pages('${org}','atendimento',10);`)).toBe(
       "1",

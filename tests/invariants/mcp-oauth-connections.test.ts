@@ -64,6 +64,26 @@ describe("OAuth grants", () => {
       `insert into user_organizations(user_id,organization_id,role)values('${user}','${org}','agent');`,
     );
   });
+  it("keeps connection and approval records service-only even for their owner", () => {
+    sql(
+      `insert into mcp_action_approvals(organization_id,connection_id,user_id,tool_name,args,args_hash) values('${org}','${connection}','${user}','knowledge_archive_page','{}','test');`,
+    );
+    for (const table of ["mcp_connections", "mcp_action_approvals"]) {
+      expect(
+        Number(sql(`select count(*) from ${table} where organization_id='${org}';`)),
+      ).toBeGreaterThan(0);
+      expect(() =>
+        sql(
+          `set role authenticated; select set_config('request.jwt.claims','{"sub":"${user}"}',false); select * from ${table} where organization_id='${org}';`,
+        ),
+      ).toThrow();
+    }
+    expect(() =>
+      sql(
+        `set role authenticated; select set_config('request.jwt.claims','{"sub":"${user}"}',false); update mcp_action_approvals set status='approved' where organization_id='${org}';`,
+      ),
+    ).toThrow();
+  });
   it("revokes the whole connection and hides credentials under RLS", () => {
     sql(`update mcp_connections set revoked_at=now() where id='${connection}';`);
     expect(() => exchange("refresh-refresh-code", "refresh")).toThrow();

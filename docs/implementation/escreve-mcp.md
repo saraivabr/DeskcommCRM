@@ -16,7 +16,7 @@ Status: **incomplete; not approved for production rollout**. This branch impleme
 
 ## Evidence obtained locally
 
-- Baseline clean install and strict reapplication on disposable Postgres; 8 new database assertions passed for isolation, stale writes, archive retrieval exclusion, OAuth PKCE, code/refresh replay, membership removal and revocation.
+- Baseline clean install and strict reapplication on disposable Postgres; 96 database assertions (including the complete RLS inventory) passed after merging current main for isolation, stale writes, archive retrieval exclusion, OAuth PKCE, code/refresh replay, membership removal and revocation.
 - 267 selected unit/structural assertions passed, including existing MCP guards and PDF extraction tests.
 - Production build and TypeScript check passed. Targeted ESLint: no errors, four React-hook warnings remain.
 - Three persisted Playwright journeys passed in an isolated local Supabase stack: editor save/reload/network-failure recovery/trash/restore; PDF upload and private-URL rejection; MCP archive approval, denial of bearer self-approval, exact-argument binding, single execution and revocation.
@@ -32,6 +32,6 @@ Status: **incomplete; not approved for production rollout**. This branch impleme
 6. Complete viewer/agent/manager/admin and restricted-conversation browser journeys, simultaneous save conflict journeys, SSRF redirect/DNS-rebinding tests and broader route integration tests.
 7. Complete OAuth/MCP interoperability in ChatGPT and Claude.
 8. Verify WhatsApp in Saraiva (the user authorized that organization, including real data). No real WhatsApp message has been sent by this branch. Select an identifiable internal destination and retain actual delivery evidence.
-9. Run all required CI/build/performance checks, regenerate schema types, review security, reconcile migration numbering with current main, and publish through the existing backup/rollback pipeline. No production migration, merge or deploy has occurred.
+9. Run all required CI/build/performance checks, regenerate schema types, review security, publish through the existing backup/rollback pipeline. Current main was merged into this work branch; migrations were assigned 0411/0412. No merge into main, production migration or deploy has occurred.
 
 The initial `knowledge only` restriction in `lib/mcp/permissions.ts` is deliberate and must not be removed until the relevant domain adapters pass their authorization and visibility tests.

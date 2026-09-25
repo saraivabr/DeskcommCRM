@@ -134,3 +134,6 @@ export function canCallTool(
   const p = permissionFor(tool);
   return p !== null && auth.scopes.includes(p.scope) && tool.name.startsWith("knowledge_");
 }
+
+/** Advertise only the domains whose connection adapters are implemented. */
+export const ACTIVE_CONNECTION_SCOPES = ["knowledge:read", "knowledge:write"] as const;
