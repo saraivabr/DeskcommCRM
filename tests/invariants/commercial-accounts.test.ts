@@ -209,3 +209,51 @@ it.each(["read committed", "repeatable read"])(
   },
   15000,
 );
+
+it("real tenant admin JWTs cannot read or write service-only commercial state across organizations", () => {
+  const a = org(),
+    b = org();
+  const userA = randomUUID(),
+    userB = randomUUID();
+  for (const [organizationId, userId] of [
+    [a, userA],
+    [b, userB],
+  ]) {
+    sql(`insert into auth.users(id,email) values('${userId}','${userId}@invariant.test');
+      insert into user_organizations(user_id,organization_id,role) values('${userId}','${organizationId}','admin')`);
+    activate(organizationId!);
+  }
+  // Positive fixture controls: both rows really exist before testing denial.
+  for (const table of ["org_commercial_accounts", "org_commercial_locks"]) {
+    expect(sql(`select count(*) from ${table} where organization_id in ('${a}','${b}')`)).toBe("2");
+    for (const [userId, ownOrg, otherOrg] of [
+      [userA, a, b],
+      [userB, b, a],
+    ]) {
+      const jwt = `set role authenticated; select set_config('request.jwt.claims','{"sub":"${userId}","role":"authenticated"}',false);`;
+      // A real local admin is denied even locally: configuration is NOT a tenant entitlement editor.
+      expect(() => sql(`${jwt} select * from ${table} where organization_id='${ownOrg}'`)).toThrow(
+        /permission denied/,
+      );
+      expect(() =>
+        sql(`${jwt} select * from ${table} where organization_id='${otherOrg}'`),
+      ).toThrow(/permission denied/);
+      const column =
+        table === "org_commercial_accounts" ? "free_enabled=true" : "revision=revision+1";
+      expect(() =>
+        sql(`${jwt} update ${table} set ${column} where organization_id='${otherOrg}'`),
+      ).toThrow(/permission denied/);
+      expect(() => sql(`${jwt} delete from ${table} where organization_id='${otherOrg}'`)).toThrow(
+        /permission denied/,
+      );
+    }
+  }
+  expect(() =>
+    sql(`set role service_role; select * from org_commercial_locks where organization_id='${a}'`),
+  ).toThrow(/permission denied/);
+  expect(() =>
+    sql(
+      `set role service_role; update org_commercial_locks set revision=revision+1 where organization_id='${a}'`,
+    ),
+  ).toThrow(/permission denied/);
+}, 20000);
