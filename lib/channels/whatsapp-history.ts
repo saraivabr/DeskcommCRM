@@ -78,9 +78,10 @@ async function syncSession(admin: Admin, waha: Waha, session: Session): Promise<
     const store = (remote?.config?.noweb as { store?: { enabled?: boolean } } | undefined)?.store;
     if (!remote || remote.status !== "WORKING") throw new Error("history_session_not_ready");
     if (store?.enabled !== true) {
-      await admin.from("whatsapp_history_syncs" as never).upsert({ ...progress,
+      const { error: unsupportedError } = await admin.from("whatsapp_history_syncs" as never).upsert({ ...progress,
         status: "unsupported", error_code: "store_not_enabled_before_pairing", updated_at: new Date().toISOString(),
       } as never);
+      if (unsupportedError) throw new Error(`history_unsupported_${unsupportedError.code}`);
       return 0;
     }
     if (!progress.started_at) progress = { ...progress, started_at: new Date().toISOString() };
@@ -153,8 +154,11 @@ async function syncSession(admin: Admin, waha: Waha, session: Session): Promise<
       // Cursor persistido a cada página: timeout no próximo chat não refaz trabalho.
       await persistCursor();
     }
-    if (progress.status === "complete") await admin.from("whatsapp_history_syncs" as never)
-      .upsert({ ...progress, finished_at: new Date().toISOString(), error_code: null, updated_at: new Date().toISOString() } as never);
+    if (progress.status === "complete") {
+      const { error: completeError } = await admin.from("whatsapp_history_syncs" as never)
+        .upsert({ ...progress, finished_at: new Date().toISOString(), error_code: null, updated_at: new Date().toISOString() } as never);
+      if (completeError) throw new Error(`history_complete_${completeError.code}`);
+    }
     return inserted;
   } catch (error) {
     const code = error instanceof Error ? error.message.slice(0, 80) : "history_unknown";
