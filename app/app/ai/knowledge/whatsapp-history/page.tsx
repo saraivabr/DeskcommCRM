@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { summarizeWhatsappHistory } from "@/lib/ai/whatsapp-history-panorama";
 import { HistoryRefresh } from "./_refresh";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -39,12 +40,17 @@ export default async function WhatsappHistoryPage({ searchParams }: { searchPara
   const { q: rawQuery = "", contact: selected = "" } = await searchParams;
   const q = rawQuery.trim().slice(0, 80);
   const supabase = await createClient();
+  // Authorization is checked above. History reads use the service client because
+  // the row-level role helper is evaluated for every message in wide samples.
+  // Every read remains scoped to the organization resolved from the session.
+  const historyDb = createAdminClient();
   const { data: openRouterCredentials } = await supabase.from("ai_provider_credentials_safe")
     .select("id").eq("organization_id", org.orgId).eq("provider", "openrouter")
     .eq("is_active", true).not("validated_at", "is", null).limit(1);
   const analysisAvailable = Boolean(openRouterCredentials?.length || process.env.OPENROUTER_API_KEY?.trim());
-  const { data: syncData } = await supabase.from("whatsapp_history_syncs" as never)
+  const { data: syncData, error: syncError } = await historyDb.from("whatsapp_history_syncs" as never)
     .select("status,chats_imported,messages_imported,error_code").eq("organization_id", org.orgId);
+  if (syncError) throw new Error("whatsapp_history_sync_read");
   const syncs = (syncData ?? []) as Sync[];
 
   let contacts: Contact[] = [];
@@ -57,14 +63,16 @@ export default async function WhatsappHistoryPage({ searchParams }: { searchPara
     contacts = [...new Map([...byName.data ?? [], ...byDisplay.data ?? [], ...byPhone.data ?? []]
       .map((c) => [c.id, c as Contact])).values()].slice(0, 30);
     if (contacts.length) {
-      const { data: existing } = await supabase.from("whatsapp_history_contact_overview" as never)
+      const { data: existing, error: overviewError } = await historyDb.from("whatsapp_history_contact_overview" as never)
         .select("contact_id").eq("organization_id", org.orgId).in("contact_id", contacts.map((c) => c.id));
+      if (overviewError) throw new Error("whatsapp_history_overview_read");
       const withHistory = new Set(((existing ?? []) as Array<{ contact_id: string }>).map((r) => r.contact_id));
       contacts = contacts.filter((c) => withHistory.has(c.id));
     }
   } else {
-    const { data: recent } = await supabase.from("whatsapp_history_contact_overview" as never)
+    const { data: recent, error: overviewError } = await historyDb.from("whatsapp_history_contact_overview" as never)
       .select("contact_id").eq("organization_id", org.orgId).order("last_sent_at", { ascending: false }).limit(30);
+    if (overviewError) throw new Error("whatsapp_history_overview_read");
     const ids = ((recent ?? []) as Array<{ contact_id: string }>).map((r) => r.contact_id);
     if (ids.length) {
       const { data } = await supabase.from("contacts").select("id,name,display_name,phone_number")
@@ -80,27 +88,34 @@ export default async function WhatsappHistoryPage({ searchParams }: { searchPara
       .select("id,name,display_name,phone_number").eq("organization_id", org.orgId).eq("id", selected).maybeSingle();
     if (person) {
       chosen = person as Contact;
-      const { data } = await supabase.from("whatsapp_history_messages" as never)
+      const { data, error: messagesError } = await historyDb.from("whatsapp_history_messages" as never)
         .select("id,direction,body,sent_at").eq("organization_id", org.orgId)
         .eq("contact_id", selected).order("sent_at", { ascending: false }).limit(100);
+      if (messagesError) throw new Error("whatsapp_history_contact_read");
       messages = ((data ?? []) as Message[]).reverse();
     }
   }
-  const { data: sample } = await supabase.from("whatsapp_history_messages" as never)
+  const { data: sample, error: sampleError } = await historyDb.from("whatsapp_history_messages" as never)
     .select("direction,body").eq("organization_id", org.orgId)
     .order("sent_at", { ascending: false }).limit(500);
+  if (sampleError) throw new Error("whatsapp_history_sample_read");
   const panorama = summarizeWhatsappHistory((sample ?? []) as Array<{ direction: string; body: string }>);
-  const { data: semanticData } = await supabase.from("whatsapp_history_analysis" as never)
+  const { data: semanticData, error: semanticError } = await historyDb.from("whatsapp_history_analysis" as never)
     .select("intent,objection").eq("organization_id", org.orgId)
     .order("analyzed_at", { ascending: false }).limit(2000);
+  if (semanticError) throw new Error("whatsapp_history_analysis_read");
+  const { count: pendingAnalysisCount, error: pendingError } = await historyDb.from("whatsapp_history_pending_analysis" as never)
+    .select("id", { head: true, count: "exact" }).eq("organization_id", org.orgId);
+  if (pendingError) throw new Error("whatsapp_history_pending_read");
   const semantic = (semanticData ?? []) as Analysis[];
   const intents = counts(semantic, "intent", INTENT_LABELS);
   const objections = counts(semantic, "objection", OBJECTION_LABELS);
   const totalChats = syncs.reduce((n, s) => n + s.chats_imported, 0);
   const totalMessages = syncs.reduce((n, s) => n + s.messages_imported, 0);
+  const onlyUnsupported = syncs.length > 0 && syncs.every((s) => s.status === "unsupported");
 
   return <div className="space-y-6 p-6">
-    <HistoryRefresh active={syncs.length === 0 || syncs.some((s) => s.status === "running" || s.status === "pending" || s.status === "failed")} />
+    <HistoryRefresh active={(pendingAnalysisCount ?? 0) > 0 || syncs.length === 0 || syncs.some((s) => s.status === "running" || s.status === "pending" || s.status === "failed")} />
     <div><Link href="/app/ai/knowledge/sources" className="text-sm text-primary underline">← {t("Conhecimento")}</Link>
       <h1 className="mt-2 text-2xl font-semibold">{t("Histórico do WhatsApp")}</h1>
       <p className="text-sm text-text-muted">{t("Conversas anteriores importadas ao conectar. O agente recebe o contexto do próprio contato no atendimento.")}</p>
@@ -110,7 +125,7 @@ export default async function WhatsappHistoryPage({ searchParams }: { searchPara
       <p className="text-sm text-text-muted">{totalChats} {t("conversas")} · {totalMessages} {t("mensagens de texto importadas")}</p>
       {syncs.length === 0 && <p className="text-sm">{t("Aguardando uma conexão WhatsApp compatível.")}</p>}
       {syncs.some((s) => s.status === "running" || s.status === "pending") && <p className="text-sm">{t("Importando em segundo plano…")}</p>}
-      {syncs.some((s) => s.status === "unsupported") && <p className="text-sm">{t("Esta conexão foi pareada sem armazenamento de histórico. Uma nova conexão com sincronização habilitada é necessária.")}</p>}
+      {onlyUnsupported && <p className="text-sm">{t("Esta conexão foi pareada sem armazenamento de histórico. Uma nova conexão com sincronização habilitada é necessária.")}</p>}
       {syncs.some((s) => s.status === "failed") && <p className="text-sm text-destructive">{t("A importação encontrou uma falha e será tentada novamente.")}</p>}
     </section>
     <section className="rounded-lg border border-border p-4" aria-label={t("Panorama do negócio")}>
@@ -121,6 +136,7 @@ export default async function WhatsappHistoryPage({ searchParams }: { searchPara
         : <p className="mt-2 text-sm text-text-muted">{t("Ainda não há perguntas repetidas suficientes para mostrar um padrão confiável.")}</p>}
       <p className="mt-3 text-xs text-text-muted">{t("Padrões descritivos, não regras aprovadas. Para torná-los orientação geral dos agentes, registre a regra na")} <Link href="/app/ai/memory" className="underline">{t("Memória da IA")}</Link>.</p>
       <h3 className="mt-4 text-sm font-medium">{t("Assuntos identificados nas conversas")}</h3>
+      {(pendingAnalysisCount ?? 0) > 0 && <p className="text-xs text-text-muted">{pendingAnalysisCount} {t("mensagens aguardando análise")}</p>}
       {!analysisAvailable && <p className="mt-2 text-sm text-text-muted">{t("Para analisar os assuntos, cadastre uma chave OpenRouter válida em")} <Link href="/app/ai/credentials" className="underline">{t("Credenciais")}</Link>.</p>}
       {intents.length ? <><p className="text-xs text-text-muted">{t("Amostra das últimas")} {semantic.length} {t("mensagens analisadas")}</p>
         <ul className="mt-2 space-y-1 text-sm">{intents.map(([key, count]) => <li key={key}>{t(INTENT_LABELS[key]!)} · {count}</li>)}</ul></>

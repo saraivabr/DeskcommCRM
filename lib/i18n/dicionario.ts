@@ -62,6 +62,7 @@ export const DICIONARIO: Traducoes = {
   "Panorama do negócio": { es: "Panorama del negocio" },
   "Panorama das conversas": { es: "Panorama de las conversaciones" },
   "Amostra das últimas": { es: "Muestra de los últimos" },
+  "mensagens aguardando análise": { es: "mensajes pendientes de análisis" },
   "de clientes": { es: "de clientes" },
   "da empresa": { es: "de la empresa" },
   "Perguntas que se repetem": { es: "Preguntas frecuentes" },
