@@ -14,6 +14,8 @@ import { useT } from "@/hooks/i18n/useT";
 import { safePublicLink, type CampaignConfig, type Prospect } from "@/lib/prospecting/schema";
 import { ProspectingAgentBuilder, type CreatedProspectingAgent } from "./_create-agent";
 import type { ProspectingAgentSetupInput } from "@/lib/prospecting/agent-setup-schema";
+import { ProspectingScheduleForm } from "./_schedule";
+import type { ProspectingSchedule } from "@/lib/prospecting/schedule";
 
 type Campaign = {
   id: string;
@@ -43,6 +45,7 @@ type ProspectingEmployee = {
 };
 type State = {
   configured: boolean;
+  schedule?: ProspectingSchedule | null;
   campaigns: Campaign[];
   candidates: Candidate[];
   agents: ProspectingEmployee[];
@@ -100,6 +103,7 @@ export function ProspectingClient() {
   const [settings, setSettings] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [niche, setNiche] = useState("");
+  const [source, setSource] = useState<"google_maps" | "instagram">("google_maps");
   const [location, setLocation] = useState("");
   const [limit, setLimit] = useState(20);
   const [budget, setBudget] = useState(1);
@@ -293,6 +297,15 @@ export function ProspectingClient() {
           </form>
         </Card>
       )}
+      {data?.configured && (
+        <ProspectingScheduleForm
+          key={JSON.stringify(data.schedule?.schedule_config)}
+          schedule={data.schedule ?? null}
+          campaigns={data.campaigns}
+          busy={busy}
+          perform={perform}
+        />
+      )}
       <div className="grid items-start gap-6 lg:grid-cols-[320px_1fr]">
         <aside className="flex flex-col gap-5 lg:sticky lg:top-6">
           <Card className="rounded-[1.35rem] border-border/60 p-5 shadow-[0_18px_50px_-46px_rgba(15,23,42,0.7)]">
@@ -301,7 +314,14 @@ export function ProspectingClient() {
               className="mt-4 space-y-4"
               onSubmit={async (e) => {
                 e.preventDefault();
-                const fingerprint = JSON.stringify([niche, location, limit, budget, enrich]);
+                const fingerprint = JSON.stringify([
+                  source,
+                  niche,
+                  location,
+                  limit,
+                  budget,
+                  enrich,
+                ]);
                 if (searchAttempt.current?.fingerprint !== fingerprint)
                   searchAttempt.current = { fingerprint, id: randomId() };
                 const success = await perform(
@@ -309,6 +329,7 @@ export function ProspectingClient() {
                     action: "search",
                     request_id: searchAttempt.current.id,
                     search: {
+                      source,
                       name: `${niche} · ${location}`.slice(0, 120),
                       niche,
                       location,
@@ -325,6 +346,28 @@ export function ProspectingClient() {
                 }
               }}
             >
+              <div>
+                <Label htmlFor="prospecting-source">{t("Onde buscar")}</Label>
+                <select
+                  id="prospecting-source"
+                  className={selectClass}
+                  value={source}
+                  onChange={(e) => setSource(e.target.value as "google_maps" | "instagram")}
+                >
+                  <option value="google_maps">Google Maps</option>
+                  <option value="instagram">Instagram</option>
+                </select>
+                {source === "instagram" && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t(
+                      "Busca perfis públicos por segmento e região, sem garantir localização. A abordagem usa WhatsApp quando há telefone público. O Instagram via Zernio não permite iniciar DM para perfis coletados; respostas e automações de comentários ficam na central do Instagram.",
+                    )}{" "}
+                    <Link href="/app/instagram" className="underline">
+                      {t("Abrir Instagram")}
+                    </Link>
+                  </p>
+                )}
+              </div>
               <div>
                 <Label htmlFor="prospecting-niche">{t("Público ou segmento")}</Label>
                 <Input

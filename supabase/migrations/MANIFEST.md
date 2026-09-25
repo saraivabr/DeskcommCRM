@@ -434,3 +434,5 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 | `20260925130000` | `0403_whatsapp_jev` | Classificação semântica de mensagens históricas pelo Jev em rótulos controlados de intenção e objeção. Resultado por mensagem separado do texto, RLS de manager, FK cascade na anonimização, isolamento de tenant via trigger e view de pendentes acessível somente ao serviço. A RPC formal de LGPD também declara a exclusão do arquivo histórico depois do gatilho que cria a supressão. |
 
 | `20260924083000` | `0399_instagram_publicacoes` | Publicação de imagens, Stories e carrosséis com intenção persistente, isolamento por organização e reconciliação de envios incertos. |
+
+| `20260925161646` | `0407_prospecting_schedules` | Configuração desligada por padrão, frequência, reserva de teto, limite de execuções e retomada idempotente de buscas recorrentes na configuração de prospecção da organização. |

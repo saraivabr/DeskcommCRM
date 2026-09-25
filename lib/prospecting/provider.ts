@@ -69,23 +69,36 @@ export async function providerRequest(key: string, path: string, body?: unknown)
   return response.json();
 }
 export async function startSearch(key: string, input: SearchInput) {
+  const instagram = input.source === "instagram";
+  const actor = instagram ? "apify~instagram-search-scraper" : ACTOR;
   // No retries on POST: an ambiguous timeout must never start another paid run.
   return runSchema.parse(
     await providerRequest(
       key,
-      `acts/${ACTOR}/runs?maxItems=${input.limit}&maxTotalChargeUsd=${input.budget_usd}&timeout=300`,
-      {
-        searchStringsArray: [input.niche],
-        locationQuery: input.location,
-        maxCrawledPlacesPerSearch: input.limit,
-        language: "pt-BR",
-        countryCode: "br",
-        skipClosedPlaces: true,
-        scrapeContacts: input.enrich,
-        maxReviews: 0,
-        maxImages: 0,
-        maximumLeadsEnrichmentRecords: 0,
-      },
+      `acts/${actor}/runs?maxItems=${input.limit}&maxTotalChargeUsd=${input.budget_usd}&timeout=300`,
+      instagram
+        ? {
+            // One keyword: commas would multiply searchLimit per term in this Actor.
+            search: `${input.niche} ${input.location}`
+              .replace(/[^\p{L}\p{N}\s]/gu, " ")
+              .replace(/\s+/g, " ")
+              .trim(),
+            searchType: "user",
+            searchLimit: input.limit,
+            enhanceUserSearchWithFacebookPage: input.enrich,
+          }
+        : {
+            searchStringsArray: [input.niche],
+            locationQuery: input.location,
+            maxCrawledPlacesPerSearch: input.limit,
+            language: "pt-BR",
+            countryCode: "br",
+            skipClosedPlaces: true,
+            scrapeContacts: input.enrich,
+            maxReviews: 0,
+            maxImages: 0,
+            maximumLeadsEnrichmentRecords: 0,
+          },
     ),
   ).data;
 }

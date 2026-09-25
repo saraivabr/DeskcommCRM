@@ -247,6 +247,47 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it("salva recorrência desligada sem iniciar busca nem campanha", async () => {
+  openPage();
+  await builder();
+  fireEvent.change(screen.getByLabelText("Público da recorrência"), { target: { value: "Teste" } });
+  fireEvent.change(screen.getByLabelText("Região da recorrência"), { target: { value: "SP" } });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Salvar recorrência desligada", hidden: true }),
+  );
+  await waitFor(() =>
+    expect(api.post).toHaveBeenCalledWith(
+      "/api/v1/prospecting",
+      expect.objectContaining({ action: "save_schedule" }),
+    ),
+  );
+  expect(
+    api.post.mock.calls.some(([, body]) =>
+      ["search", "start", "enable_schedule"].includes(body.action),
+    ),
+  ).toBe(false);
+});
+
+it("seleciona Instagram e envia a fonte sem ativar campanha", async () => {
+  openPage();
+  await builder();
+  fireEvent.change(screen.getByLabelText("Onde buscar"), { target: { value: "instagram" } });
+  expect(screen.getByText(/não permite iniciar DM para perfis coletados/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Público ou segmento"), { target: { value: "Teste" } });
+  fireEvent.change(screen.getByLabelText("Cidade ou região"), { target: { value: "São Paulo" } });
+  fireEvent.click(screen.getByRole("button", { name: "Buscar empresas" }));
+  await waitFor(() =>
+    expect(api.post).toHaveBeenCalledWith(
+      "/api/v1/prospecting",
+      expect.objectContaining({
+        action: "search",
+        search: expect.objectContaining({ source: "instagram" }),
+      }),
+    ),
+  );
+  expect(api.post.mock.calls.some(([, body]) => body.action === "start")).toBe(false);
+});
+
 describe("conversa principal para configurar o agente", () => {
   it("começa na conversa com resumo incompleto e sugestões, sem criar ou iniciar nada", async () => {
     openPage();
@@ -587,10 +628,7 @@ describe("conversa principal para configurar o agente", () => {
     await screen.findByRole("region", { name: "Funcionário selecionado" });
     expect(
       screen.getByRole("link", { name: "Configurações avançadas do funcionário" }),
-    ).toHaveAttribute(
-      "href",
-      `/app/ai/agents/${NEW_AGENT}`,
-    );
+    ).toHaveAttribute("href", `/app/ai/agents/${NEW_AGENT}`);
     expect(mutationCalls()).toHaveLength(0);
   });
 

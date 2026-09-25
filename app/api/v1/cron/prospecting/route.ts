@@ -5,6 +5,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tickProspecting } from "@/lib/prospecting/worker";
+import { tickSchedules } from "@/lib/prospecting/schedule";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,10 @@ async function handle(req: NextRequest) {
   if (!autorizaCron(req))
     return fail("forbidden", "Credencial de execução inválida.", 403, { requestId });
   try {
-    return ok(await tickProspecting(getRequestPool(), createAdminClient()), { requestId });
+    const pool = getRequestPool();
+    const admin = createAdminClient();
+    const scheduled = await tickSchedules(pool, admin);
+    return ok({ ...(await tickProspecting(pool, admin)), scheduled }, { requestId });
   } catch (err) {
     // O `catch` era SEM PARÂMETRO: o objeto do erro não ficava de fora do log,
     // ele era DESCARTADO — não existia em variável nenhuma. Num cron, que roda

@@ -2866,3 +2866,7 @@ sim. Consertado pela ordem: publicar primeiro, decidir a porta depois.
 ### Home de operação e assistente global
 
 [P0] `tests/e2e/home-operacao.spec.ts`: gestor abre pendências pessoais, alterna visão da equipe, acessa catálogo e assistente global; atendente não recebe opção da equipe. Layout mobile, revisão da pergunta e Shift+Enter também cobertos. Backend isolado em Supabase local aplicado do baseline; geração de IA depende de credencial real e não é comprovada por esta jornada.
+
+## Prospecção recorrente e Instagram (2026-09-25)
+
+A seção Buscas automáticas em `/app/prospecting` salva configurações desligadas, com fonte, público/região, frequência e tetos. Ativação explícita pode reutilizar a configuração de uma campanha para abordar cada lote pela fila existente. Parada também pausa o lote associado; requisição paga já solicitada pode concluir. Não habilita DM fria no Instagram. Testes: `prospecting-instagram.test.ts`, `prospecting-schedule.test.ts`, `prospecting-agent-dialog.test.tsx` e invariantes `prospecting.test.ts`. Instalação e limites: `docs/runbooks/prospeccao.md`.
