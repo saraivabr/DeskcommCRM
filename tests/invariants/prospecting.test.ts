@@ -9,6 +9,27 @@ beforeAll(() =>
 insert into prospecting_campaigns(id,organization_id,request_id,name,search) values ('${campaignA}','${a}',gen_random_uuid(),'A','{}'),('${campaignB}','${b}',gen_random_uuid(),'B','{}');`),
 );
 describe("prospecting tenant boundary and durable deduplication", () => {
+  it("keeps recurring discovery disabled and refuses cross-tenant campaign references", () => {
+    sql(
+      `insert into prospecting_settings(organization_id,credential_encrypted) values ('${a}',decode('00','hex'))`,
+    );
+    expect(
+      sql(
+        `select schedule_enabled::text || ':' || schedule_runs::text || ':' || schedule_reserved_usd::text from prospecting_settings where organization_id='${a}'`,
+      ),
+    ).toBe("false:0:0.00");
+    expect(() =>
+      sql(
+        `update prospecting_settings set schedule_campaign_id='${campaignB}' where organization_id='${a}'`,
+      ),
+    ).toThrow();
+    expect(() =>
+      sql(`update prospecting_settings set schedule_enabled=true where organization_id='${a}'`),
+    ).toThrow();
+    sql(
+      `update prospecting_settings set schedule_campaign_id='${campaignA}' where organization_id='${a}'`,
+    );
+  });
   it("denies every browser role direct access to credentials and campaign commands", () => {
     expect(
       sql(

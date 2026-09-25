@@ -1,4 +1,5 @@
 import type pg from "pg";
+import { normalizeInstagramProspect } from "./instagram";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createContactHandler } from "@/app/api/v1/contacts/_handler";
 import { createLeadHandler } from "@/app/api/v1/leads/_handler";
@@ -120,43 +121,54 @@ export async function createSearch(
   requestId: string,
   search: SearchInput,
 ) {
-  return withProspectingLock(pool, org, async (db) => {
-    const prior = await db.query<Campaign>(
-      "select * from prospecting_campaigns where organization_id=$1 and request_id=$2",
-      [org, requestId],
+  return withProspectingLock(pool, org, (db) =>
+    createSearchWithClient(db, admin, org, requestId, search),
+  );
+}
+
+/** Caller must hold the organization prospecting lock. */
+export async function createSearchWithClient(
+  db: pg.PoolClient,
+  admin: SupabaseClient,
+  org: string,
+  requestId: string,
+  search: SearchInput,
+) {
+  const prior = await db.query<Campaign>(
+    "select * from prospecting_campaigns where organization_id=$1 and request_id=$2",
+    [org, requestId],
+  );
+  if (prior.rows[0]) return prior.rows[0];
+  const key = await credential(db, admin, org);
+  const { rows } = await db.query<Campaign>(
+    "insert into prospecting_campaigns(organization_id,request_id,name,search) values($1,$2,$3,$4) returning *",
+    [org, requestId, search.name, search],
+  );
+  const campaign = rows[0]!;
+  try {
+    const run = await startSearch(key, search);
+    await db.query(
+      "update prospecting_campaigns set run_id=$3,dataset_id=$4,search_status='running',updated_at=now() where organization_id=$1 and id=$2",
+      [org, campaign.id, run.id, run.defaultDatasetId ?? null],
     );
-    if (prior.rows[0]) return prior.rows[0];
-    const key = await credential(db, admin, org);
-    const { rows } = await db.query<Campaign>(
-      "insert into prospecting_campaigns(organization_id,request_id,name,search) values($1,$2,$3,$4) returning *",
-      [org, requestId, search.name, search],
+  } catch (error) {
+    await db.query(
+      "update prospecting_campaigns set search_status='unknown',error=$3,updated_at=now() where organization_id=$1 and id=$2",
+      [
+        org,
+        campaign.id,
+        error instanceof ProspectingError
+          ? error.message
+          : "Não foi possível confirmar a busca. Confira as execuções no provedor antes de repetir.",
+      ],
     );
-    const campaign = rows[0]!;
-    try {
-      const run = await startSearch(key, search);
-      await db.query(
-        "update prospecting_campaigns set run_id=$3,dataset_id=$4,search_status='running',updated_at=now() where organization_id=$1 and id=$2",
-        [org, campaign.id, run.id, run.defaultDatasetId ?? null],
-      );
-    } catch (error) {
-      await db.query(
-        "update prospecting_campaigns set search_status='unknown',error=$3,updated_at=now() where organization_id=$1 and id=$2",
-        [
-          org,
-          campaign.id,
-          error instanceof ProspectingError
-            ? error.message
-            : "Não foi possível confirmar a busca. Confira as execuções no provedor antes de repetir.",
-        ],
-      );
-    }
-    return (
-      await db.query<Campaign>(
-        "select * from prospecting_campaigns where organization_id=$1 and id=$2",
-        [org, campaign.id],
-      )
-    ).rows[0]!;
-  });
+  }
+  return (
+    await db.query<Campaign>(
+      "select * from prospecting_campaigns where organization_id=$1 and id=$2",
+      [org, campaign.id],
+    )
+  ).rows[0]!;
 }
 export async function synchronizeSearch(db: pg.PoolClient, admin: SupabaseClient, c: Campaign) {
   if (!c.run_id) return;
@@ -177,7 +189,10 @@ export async function synchronizeSearch(db: pg.PoolClient, admin: SupabaseClient
   await db.query("begin");
   try {
     for (const item of items) {
-      const p = normalizeProspect(item);
+      const p =
+        c.search.source === "instagram"
+          ? normalizeInstagramProspect(item)
+          : normalizeProspect(item);
       if (!p) continue;
       const result = await db.query(
         "insert into prospecting_candidates(organization_id,campaign_id,place_id,phone,data) values($1,$2,$3,$4,$5) on conflict do nothing",
@@ -268,140 +283,152 @@ export async function activateCampaign(
   id: string,
   input: CampaignConfig,
 ) {
-  return withProspectingLock(pool, org, async (db) => {
-    const config = await validateConfig(db, org, input);
-    const c = (
-      await db.query<Campaign>(
-        "select * from prospecting_campaigns where organization_id=$1 and id=$2",
-        [org, id],
-      )
-    ).rows[0];
-    if (!c) throw new ProspectingError("Campanha não encontrada.", 404);
-    if (c.status !== "draft" || c.search_status !== "succeeded")
-      throw new ProspectingError(
-        "Aguarde a busca terminar; uma campanha já iniciada deve ser retomada.",
-        409,
-      );
-    if (
-      (
-        await db.query(
-          "select id from prospecting_campaigns where organization_id=$1 and status='running'",
-          [org],
-        )
-      ).rows.length
+  return withProspectingLock(pool, org, (db) =>
+    activateCampaignWithClient(db, admin, org, id, input),
+  );
+}
+
+/** Caller must hold the organization prospecting lock. */
+export async function activateCampaignWithClient(
+  db: pg.PoolClient,
+  admin: SupabaseClient,
+  org: string,
+  id: string,
+  input: CampaignConfig,
+  scheduled = false,
+) {
+  const config = await validateConfig(db, org, input);
+  const c = (
+    await db.query<Campaign>(
+      "select * from prospecting_campaigns where organization_id=$1 and id=$2",
+      [org, id],
     )
-      throw new ProspectingError("Pause a campanha atual antes de iniciar outra.", 409);
-    if (c.config && JSON.stringify(campaignConfigSchema.parse(c.config)) !== JSON.stringify(config))
-      throw new ProspectingError(
-        "A preparação já começou. Retome com a mesma configuração da campanha.",
-        409,
-      );
-    await db.query(
-      "update prospecting_campaigns set config=$3 where organization_id=$1 and id=$2",
-      [org, id, config],
+  ).rows[0];
+  if (!c) throw new ProspectingError("Campanha não encontrada.", 404);
+  if (c.status !== "draft" || c.search_status !== "succeeded")
+    throw new ProspectingError(
+      "Aguarde a busca terminar; uma campanha já iniciada deve ser retomada.",
+      409,
     );
-    // Activation is the authorized origin. A later tick only uses this captured boundary.
-    const candidates = (
-      await db.query<Candidate>(
-        "select * from prospecting_candidates where organization_id=$1 and campaign_id=$2 and status='new' order by created_at,id",
-        [org, id],
+  if (
+    (
+      await db.query(
+        "select id from prospecting_campaigns where organization_id=$1 and status='running'",
+        [org],
       )
-    ).rows;
-    for (const p of candidates) {
-      if (!p.phone) {
-        await db.query(
-          "update prospecting_candidates set status='skipped',error='Sem telefone brasileiro válido.' where organization_id=$1 and id=$2",
-          [org, p.id],
-        );
-        continue;
-      }
-      const known = await db.query(
-        "select id from contacts where organization_id=$1 and phone_number=any($2::text[])",
-        [org, phoneLookupVariants(p.phone)],
+    ).rows.length
+  )
+    throw new ProspectingError("Pause a campanha atual antes de iniciar outra.", 409);
+  if (c.config && JSON.stringify(campaignConfigSchema.parse(c.config)) !== JSON.stringify(config))
+    throw new ProspectingError(
+      "A preparação já começou. Retome com a mesma configuração da campanha.",
+      409,
+    );
+  await db.query("update prospecting_campaigns set config=$3 where organization_id=$1 and id=$2", [
+    org,
+    id,
+    config,
+  ]);
+  // Activation is the authorized origin. A later tick only uses this captured boundary.
+  const candidates = (
+    await db.query<Candidate>(
+      "select * from prospecting_candidates where organization_id=$1 and campaign_id=$2 and status='new' order by created_at,id",
+      [org, id],
+    )
+  ).rows;
+  for (const p of candidates) {
+    if (!p.phone) {
+      await db.query(
+        "update prospecting_candidates set status='skipped',error='Sem telefone brasileiro válido.' where organization_id=$1 and id=$2",
+        [org, p.id],
       );
-      if (known.rows.length && !p.contact_id) {
-        const owned = await db.query(
-          "select id from contacts where organization_id=$1 and id=$2 and source='prospecting' and source_metadata->>'campaign_id'=$3 and source_metadata->>'place_id'=$4",
-          [org, known.rows[0].id, id, p.data.key],
-        );
-        if (owned.rows[0]) p.contact_id = owned.rows[0].id;
-      }
-      if (known.rows.length && !p.contact_id) {
-        await db.query(
-          "update prospecting_candidates set status='skipped',error='Contato já existe no CRM; atendimento preservado.' where organization_id=$1 and id=$2",
-          [org, p.id],
-        );
-        continue;
-      }
-      const ctx = {
-        organization_id: org,
-        actor: { type: "webhook_source" as const, id },
-        requestId: `rule:${id}`,
-      };
-      let contactId = p.contact_id;
-      if (!contactId) {
-        const contact = await createContactHandler(admin, ctx, {
-          name: p.data.name,
-          display_name: p.data.name,
-          phone_number: p.phone,
+      continue;
+    }
+    const known = await db.query(
+      "select id from contacts where organization_id=$1 and phone_number=any($2::text[])",
+      [org, phoneLookupVariants(p.phone)],
+    );
+    if (known.rows.length && !p.contact_id) {
+      const owned = await db.query(
+        "select id from contacts where organization_id=$1 and id=$2 and source='prospecting' and source_metadata->>'campaign_id'=$3 and source_metadata->>'place_id'=$4",
+        [org, known.rows[0].id, id, p.data.key],
+      );
+      if (owned.rows[0]) p.contact_id = owned.rows[0].id;
+    }
+    if (known.rows.length && !p.contact_id) {
+      await db.query(
+        "update prospecting_candidates set status='skipped',error='Contato já existe no CRM; atendimento preservado.' where organization_id=$1 and id=$2",
+        [org, p.id],
+      );
+      continue;
+    }
+    const ctx = {
+      organization_id: org,
+      actor: { type: "webhook_source" as const, id },
+      requestId: `rule:${id}`,
+    };
+    let contactId = p.contact_id;
+    if (!contactId) {
+      const contact = await createContactHandler(admin, ctx, {
+        name: p.data.name,
+        display_name: p.data.name,
+        phone_number: p.phone,
+        source: "prospecting",
+        source_metadata: { campaign_id: id, place_id: p.data.key, maps_url: p.data.maps_url },
+        consent: { legitimate_interest: { ref: config.legal_basis_ref } },
+      });
+      contactId = String(contact.contact.id);
+      await db.query(
+        "update prospecting_candidates set contact_id=$3 where organization_id=$1 and id=$2",
+        [org, p.id, contactId],
+      );
+    }
+    let leadId = p.lead_id;
+    if (!leadId) {
+      const existing = await db.query(
+        "select id from crm_leads where organization_id=$1 and source='prospecting' and external_id=$2",
+        [org, p.id],
+      );
+      leadId = existing.rows[0]?.id ?? null;
+    }
+    if (!leadId) {
+      const lead = await createLeadHandler(admin, ctx, {
+        ...createLeadSchema.parse({
+          pipeline_id: config.pipeline_id,
+          stage_id: config.stage_id,
+          title: p.data.name,
+          contact_id: contactId,
+          owner_agent_id: config.agent_id,
           source: "prospecting",
-          source_metadata: { campaign_id: id, place_id: p.data.key, maps_url: p.data.maps_url },
-          consent: { legitimate_interest: { ref: config.legal_basis_ref } },
-        });
-        contactId = String(contact.contact.id);
-        await db.query(
-          "update prospecting_candidates set contact_id=$3 where organization_id=$1 and id=$2",
-          [org, p.id, contactId],
-        );
-      }
-      let leadId = p.lead_id;
-      if (!leadId) {
-        const existing = await db.query(
-          "select id from crm_leads where organization_id=$1 and source='prospecting' and external_id=$2",
-          [org, p.id],
-        );
-        leadId = existing.rows[0]?.id ?? null;
-      }
-      if (!leadId) {
-        const lead = await createLeadHandler(admin, ctx, {
-          ...createLeadSchema.parse({
-            pipeline_id: config.pipeline_id,
-            stage_id: config.stage_id,
-            title: p.data.name,
-            contact_id: contactId,
-            owner_agent_id: config.agent_id,
-            source: "prospecting",
-            description: `Campanha: ${c.name}\nQualificação: ${config.qualification}`.slice(
-              0,
-              2000,
-            ),
-          }),
-          external_id: p.id,
-        });
-        leadId = String(lead.id);
-        await db.query(
-          "update prospecting_candidates set lead_id=$3 where organization_id=$1 and id=$2",
-          [org, p.id, leadId],
-        );
-      }
+          description: `Campanha: ${c.name}\nQualificação: ${config.qualification}`.slice(0, 2000),
+        }),
+        external_id: p.id,
+      });
+      leadId = String(lead.id);
       await db.query(
-        "update prospecting_candidates set contact_id=$3,lead_id=$4 where organization_id=$1 and id=$2",
-        [org, p.id, contactId, leadId],
-      );
-      const boundary = await beginServiceAtOrigin(admin, org, contactId, config.channel_session_id);
-      await db.query(
-        "update conversations set active_ai_agent_id=$3,metadata=coalesce(metadata,'{}'::jsonb) || jsonb_build_object('prospecting_campaign_id',$4::text) where organization_id=$1 and id=$2",
-        [org, boundary.conversation_id, config.agent_id, id],
-      );
-      await db.query(
-        "update prospecting_candidates set status='queued',conversation_id=$3,service_boundary=$4,error=null,updated_at=now() where organization_id=$1 and id=$2",
-        [org, p.id, boundary.conversation_id, boundary],
+        "update prospecting_candidates set lead_id=$3 where organization_id=$1 and id=$2",
+        [org, p.id, leadId],
       );
     }
     await db.query(
-      "update prospecting_campaigns set config=$3,status='running',next_send_at=now()+interval '1 minute',error=null,updated_at=now() where organization_id=$1 and id=$2",
-      [org, id, config],
+      "update prospecting_candidates set contact_id=$3,lead_id=$4 where organization_id=$1 and id=$2",
+      [org, p.id, contactId, leadId],
     );
-    return { started: true };
-  });
+    const boundary = await beginServiceAtOrigin(admin, org, contactId, config.channel_session_id);
+    await db.query(
+      "update conversations set active_ai_agent_id=$3,metadata=coalesce(metadata,'{}'::jsonb) || jsonb_build_object('prospecting_campaign_id',$4::text) where organization_id=$1 and id=$2",
+      [org, boundary.conversation_id, config.agent_id, id],
+    );
+    await db.query(
+      "update prospecting_candidates set status='queued',conversation_id=$3,service_boundary=$4,error=null,updated_at=now() where organization_id=$1 and id=$2",
+      [org, p.id, boundary.conversation_id, boundary],
+    );
+  }
+  const activated = await db.query(
+    "update prospecting_campaigns set config=$3,status='running',next_send_at=now()+interval '1 minute',error=null,updated_at=now() where organization_id=$1 and id=$2 and (not $4::boolean or (status='draft' and exists(select 1 from prospecting_settings s where s.organization_id=$1 and s.schedule_enabled and s.schedule_campaign_id=$2))) returning id",
+    [org, id, config, scheduled],
+  );
+  if (scheduled && !activated.rows.length)
+    throw new ProspectingError("A recorrência foi parada antes da ativação.", 409);
+  return { started: true };
 }

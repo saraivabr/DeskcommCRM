@@ -8,6 +8,7 @@ vi.mock("@/lib/api/client", () => ({ apiClient: api }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (text: string) => text }));
 
 import { ProspectingClient } from "@/app/app/prospecting/_client";
+import { ProspectingScheduleForm } from "@/app/app/prospecting/_schedule";
 import { ApiError } from "@/lib/api/types";
 import type { AgentSessionResponse } from "@/lib/prospecting/agent-session-schema";
 
@@ -246,6 +247,88 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
+
+it("exige salvar alterações antes de ativar a recorrência", () => {
+  const perform = vi.fn();
+  render(
+    <ProspectingScheduleForm
+      busy={false}
+      campaigns={[]}
+      perform={perform}
+      schedule={{
+        schedule_config: {
+          search: {
+            source: "instagram",
+            name: "Teste",
+            niche: "Teste",
+            location: "SP",
+            limit: 20,
+            budget_usd: 1,
+            enrich: true,
+          },
+          interval_hours: 24,
+          max_runs: 5,
+          total_budget_usd: 5,
+          campaign_config: null,
+        },
+        schedule_enabled: false,
+        schedule_runs: 0,
+        schedule_reserved_usd: "0",
+        schedule_next_at: null,
+        schedule_request_id: null,
+        schedule_campaign_id: null,
+        schedule_error: null,
+      }}
+    />,
+  );
+  const activate = screen.getByRole("button", { name: "Ativar buscas automáticas", hidden: true });
+  expect(activate).toBeEnabled();
+  fireEvent.change(screen.getByLabelText("Região da recorrência"), { target: { value: "RJ" } });
+  expect(activate).toBeDisabled();
+  fireEvent.click(activate);
+  expect(perform).not.toHaveBeenCalled();
+});
+
+it("salva recorrência desligada sem iniciar busca nem campanha", async () => {
+  openPage();
+  await builder();
+  fireEvent.change(screen.getByLabelText("Público da recorrência"), { target: { value: "Teste" } });
+  fireEvent.change(screen.getByLabelText("Região da recorrência"), { target: { value: "SP" } });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Salvar recorrência desligada", hidden: true }),
+  );
+  await waitFor(() =>
+    expect(api.post).toHaveBeenCalledWith(
+      "/api/v1/prospecting",
+      expect.objectContaining({ action: "save_schedule" }),
+    ),
+  );
+  expect(
+    api.post.mock.calls.some(([, body]) =>
+      ["search", "start", "enable_schedule"].includes(body.action),
+    ),
+  ).toBe(false);
+});
+
+it("seleciona Instagram e envia a fonte sem ativar campanha", async () => {
+  openPage();
+  await builder();
+  fireEvent.change(screen.getByLabelText("Onde buscar"), { target: { value: "instagram" } });
+  expect(screen.getByText(/não permite iniciar DM para perfis coletados/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Público ou segmento"), { target: { value: "Teste" } });
+  fireEvent.change(screen.getByLabelText("Cidade ou região"), { target: { value: "São Paulo" } });
+  fireEvent.click(screen.getByRole("button", { name: "Buscar empresas" }));
+  await waitFor(() =>
+    expect(api.post).toHaveBeenCalledWith(
+      "/api/v1/prospecting",
+      expect.objectContaining({
+        action: "search",
+        search: expect.objectContaining({ source: "instagram" }),
+      }),
+    ),
+  );
+  expect(api.post.mock.calls.some(([, body]) => body.action === "start")).toBe(false);
+});
 
 describe("conversa principal para configurar o agente", () => {
   it("começa na conversa com resumo incompleto e sugestões, sem criar ou iniciar nada", async () => {
@@ -587,10 +670,7 @@ describe("conversa principal para configurar o agente", () => {
     await screen.findByRole("region", { name: "Funcionário selecionado" });
     expect(
       screen.getByRole("link", { name: "Configurações avançadas do funcionário" }),
-    ).toHaveAttribute(
-      "href",
-      `/app/ai/agents/${NEW_AGENT}`,
-    );
+    ).toHaveAttribute("href", `/app/ai/agents/${NEW_AGENT}`);
     expect(mutationCalls()).toHaveLength(0);
   });
 

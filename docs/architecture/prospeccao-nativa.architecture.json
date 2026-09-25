@@ -43,7 +43,7 @@
       "lane": "app",
       "col": 1,
       "type": "component",
-      "label": "Busca e enriquecimento comercial"
+      "label": "Apify: Google Maps ou perfis públicos do Instagram"
     },
     {
       "id": "candidates",
@@ -64,7 +64,7 @@
       "lane": "app",
       "col": 4,
       "type": "component",
-      "label": "Scheduler e guardas antes do envio"
+      "label": "Scheduler: recorrência limitada e guardas antes do envio"
     },
     {
       "id": "inbox",

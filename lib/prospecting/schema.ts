@@ -17,14 +17,32 @@ export const campaignConfigSchema = z
 export const searchSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
+    source: z.enum(["google_maps", "instagram"]).optional(),
     niche: z.string().trim().min(2).max(120),
     location: z.string().trim().min(2).max(160),
     limit: z.number().int().min(1).max(100).default(20),
-    budget_usd: z.number().min(0.5).max(10).default(1),
+    budget_usd: z.number().min(0.5).max(10).multipleOf(0.01).default(1),
     enrich: z.boolean().default(true),
   })
   .strict();
+export const scheduleConfigSchema = z
+  .object({
+    search: searchSchema,
+    interval_hours: z.number().int().min(24).max(720),
+    max_runs: z.number().int().min(1).max(100),
+    total_budget_usd: z.number().min(0.5).max(100).multipleOf(0.01),
+    campaign_config: campaignConfigSchema.nullable(),
+  })
+  .strict()
+  .refine((v) => v.total_budget_usd >= v.search.budget_usd, {
+    message: "O teto total deve comportar pelo menos uma busca.",
+  });
+export type ScheduleConfig = z.infer<typeof scheduleConfigSchema>;
+
 export const prospectingInputSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("save_schedule"), config: scheduleConfigSchema }).strict(),
+  z.object({ action: z.literal("enable_schedule") }).strict(),
+  z.object({ action: z.literal("stop_schedule") }).strict(),
   z
     .object({ action: z.literal("configure"), api_key: z.string().trim().min(10).max(500) })
     .strict(),

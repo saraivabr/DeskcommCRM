@@ -435,6 +435,7 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 
 | `20260924083000` | `0399_instagram_publicacoes` | Publicação de imagens, Stories e carrosséis com intenção persistente, isolamento por organização e reconciliação de envios incertos. |
 
+| `20260925161646` | `0407_prospecting_schedules` | Configuração desligada por padrão, frequência, reserva de teto, limite de execuções e retomada idempotente de buscas recorrentes na configuração de prospecção da organização. |
 | `20260925160000` | `0404_commercial_accounts` | Classificação explícita sem migrar legado; Free beta configurado pela administração, limites e reserva de IA no ledger existente. Mutex por organização serializa classificação inicial e recursos; assinatura confirmada prevalece. Renovação manual e proteção de snapshots e períodos usados. |
 | `20260925161000` | `0405_ai_usage_kind` | Tipo de operação no ledger: texto, imagem, voz ou outras. Registro imutável depois de definido, restrito ao serviço e à organização. |
 
