@@ -154,6 +154,7 @@ export async function listLeadsHandler(
   supabase: SB,
   ctx: HandlerCtx,
   q: ListLeadsQuery,
+  access?: { userId: string; mode: "own" | "own_and_unassigned" | "all" },
 ): Promise<ListLeadsResult> {
   const limit = Math.min(Math.max(q.limit ?? 50, 1), 100);
   // ⚠️ O filtro de organização é a PRIMEIRA cláusula, e não uma opcional entre
@@ -171,6 +172,10 @@ export async function listLeadsHandler(
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(limit + 1);
+
+  if (access?.mode === "own") query = query.eq("owner_user_id", access.userId);
+  if (access?.mode === "own_and_unassigned")
+    query = query.or(`owner_user_id.eq.${access.userId},owner_user_id.is.null`);
 
   if (q.pipeline_id) query = query.eq("pipeline_id", q.pipeline_id);
   if (q.stage_id) query = query.eq("stage_id", q.stage_id);

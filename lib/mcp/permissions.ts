@@ -124,6 +124,18 @@ export function validConnectionScopes(scopes: string[], role: Role): boolean {
     )
   );
 }
+const VERIFIED_CONNECTION_TOOLS = new Set([
+  "crm_send_whatsapp_message",
+  "crm_list_leads",
+  "crm_get_lead",
+  "crm_list_conversations",
+  "crm_get_conversation",
+  "crm_get_conversation_history",
+  "crm_search_contacts",
+  "crm_get_contact",
+  "crm_list_pipelines",
+]);
+
 export function canCallTool(
   tool: McpToolDefinition,
   auth: { role: Role; scopes: string[]; connectionId?: string },
@@ -132,8 +144,18 @@ export function canCallTool(
   if (!auth.connectionId)
     return !tool.name.startsWith("knowledge_") && auth.scopes.includes(tool.requiresScope);
   const p = permissionFor(tool);
-  return p !== null && auth.scopes.includes(p.scope) && tool.name.startsWith("knowledge_");
+  return (
+    p !== null &&
+    auth.scopes.includes(p.scope) &&
+    (tool.name.startsWith("knowledge_") || VERIFIED_CONNECTION_TOOLS.has(tool.name))
+  );
 }
 
 /** Advertise only the domains whose connection adapters are implemented. */
-export const ACTIVE_CONNECTION_SCOPES = ["knowledge:read", "knowledge:write"] as const;
+export const ACTIVE_CONNECTION_SCOPES = [
+  "knowledge:read",
+  "knowledge:write",
+  "whatsapp:read",
+  "whatsapp:execute",
+  "crm:read",
+] as const;

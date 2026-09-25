@@ -1686,8 +1686,15 @@
       "route": "/api/v1/contacts/[id]",
       "method": "GET",
       "source": "app/api/v1/contacts/[id]/route.ts",
-      "mcp_tools": [],
-      "status": "pending_review"
+      "mcp_tools": [
+        "crm_get_contact"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "crm:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
     },
     {
       "route": "/api/v1/contacts/[id]",
@@ -1735,8 +1742,15 @@
       "route": "/api/v1/contacts",
       "method": "GET",
       "source": "app/api/v1/contacts/route.ts",
-      "mcp_tools": [],
-      "status": "pending_review"
+      "mcp_tools": [
+        "crm_search_contacts"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "crm:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
     },
     {
       "route": "/api/v1/contacts",
@@ -1861,8 +1875,15 @@
       "route": "/api/v1/conversations/[id]",
       "method": "GET",
       "source": "app/api/v1/conversations/[id]/route.ts",
-      "mcp_tools": [],
-      "status": "pending_review"
+      "mcp_tools": [
+        "crm_get_conversation"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "whatsapp:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
     },
     {
       "route": "/api/v1/conversations/[id]",
@@ -1931,8 +1952,15 @@
       "route": "/api/v1/conversations",
       "method": "GET",
       "source": "app/api/v1/conversations/route.ts",
-      "mcp_tools": [],
-      "status": "pending_review"
+      "mcp_tools": [
+        "crm_list_conversations"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "whatsapp:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
     },
     {
       "route": "/api/v1/cron/agenda-expira-pendentes",
@@ -3038,8 +3066,16 @@
       "route": "/api/v1/messages",
       "method": "POST",
       "source": "app/api/v1/messages/route.ts",
-      "mcp_tools": [],
-      "status": "pending_review"
+      "mcp_tools": [
+        "crm_send_whatsapp_message"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "whatsapp:execute",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ],
+      "remaining_evidence": "Successful real dispatch and delivery; local test proves blocked contact and receipt behavior only."
     },
     {
       "route": "/api/v1/metrics/atrito",
@@ -3199,8 +3235,15 @@
       "route": "/api/v1/pipelines",
       "method": "GET",
       "source": "app/api/v1/pipelines/route.ts",
-      "mcp_tools": [],
-      "status": "pending_review"
+      "mcp_tools": [
+        "crm_list_pipelines"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "crm:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
     },
     {
       "route": "/api/v1/pipelines",

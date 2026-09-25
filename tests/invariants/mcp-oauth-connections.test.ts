@@ -47,6 +47,18 @@ insert into mcp_oauth_grants(connection_id,client_id,kind,secret_hash,challenge,
 `);
 });
 describe("OAuth grants", () => {
+  it("reserves each operation once and denies direct user access to receipts", () => {
+    const statement = `insert into mcp_operation_receipts(organization_id,connection_id,tool_name,operation_key,request_hash) values('${org}','${connection}','crm_send_whatsapp_message','one','${"c".repeat(64)}');`;
+    sql(`set role service_role;${statement}`);
+    expect(() => sql(`set role service_role;${statement}`)).toThrow();
+    expect(() => sql(`set role authenticated;select * from mcp_operation_receipts;`)).toThrow();
+    expect(() => sql(`set role authenticated;${statement.replace("'one'", "'two'")}`)).toThrow();
+    expect(() =>
+      sql(
+        `set role service_role;${statement.replace("'one'", "'two'").replace(`'${org}'`, `'${randomUUID()}'`)}`,
+      ),
+    ).toThrow();
+  });
   it("requires exact client and PKCE without consuming rejected grants", () => {
     expect(() => exchange("code", "code", "wrong")).toThrow();
     expect(() => exchange("code", "code", "valid", randomUUID())).toThrow();

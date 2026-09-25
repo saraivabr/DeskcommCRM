@@ -15,6 +15,10 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
   const [organization, setOrganization] = useState("");
   const [role, setRole] = useState("viewer");
   const [name, setName] = useState("Minha IA");
+  const [knowledgeRead, setKnowledgeRead] = useState(true);
+  const [whatsapp, setWhatsapp] = useState(false);
+  const [sendWhatsapp, setSendWhatsapp] = useState(false);
+  const [crm, setCrm] = useState(false);
   const [write, setWrite] = useState(false);
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
@@ -34,7 +38,10 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
   useEffect(() => {
     void reload().catch((e) => setError(e.message));
     const params = Object.fromEntries(new URLSearchParams(window.location.search));
-    if (params.client_id) setOauth(params);
+    if (params.client_id) {
+      setOauth(params);
+      setKnowledgeRead(params.scope?.split(" ").includes("knowledge:read") ?? false);
+    }
   }, []);
   async function connect() {
     setBusy(true);
@@ -45,7 +52,13 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          scopes: ["knowledge:read", ...(write ? ["knowledge:write"] : [])],
+          scopes: [
+            ...(knowledgeRead ? ["knowledge:read"] : []),
+            ...(write ? ["knowledge:write"] : []),
+            ...(whatsapp ? ["whatsapp:read"] : []),
+            ...(sendWhatsapp ? ["whatsapp:execute"] : []),
+            ...(crm ? ["crm:read"] : []),
+          ],
           ...(oauth ? { oauth } : {}),
         }),
       });
@@ -123,8 +136,8 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
         para escolher outra antes de autorizar.
       </p>
       <p>
-        Esta versão em desenvolvimento permite consultar e editar conhecimento. As demais áreas
-        ainda não estão liberadas para novas conexões.
+        Consulte e edite conhecimento, leia conversas do WhatsApp e consulte contatos, leads e
+        funis. As outras operações estão em desenvolvimento.
       </p>
       <p>
         Endereço MCP: <code>{endpoint}</code>
@@ -154,7 +167,42 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             onChange={(e) => setName(e.target.value)}
           />
         </label>
-        <p>✓ Consultar páginas e pesquisar conhecimento</p>
+        {(!oauth || oauth.scope?.split(" ").includes("knowledge:read")) && (
+          <label className="block">
+            <input
+              type="checkbox"
+              checked={knowledgeRead}
+              onChange={(e) => setKnowledgeRead(e.target.checked)}
+            />{" "}
+            Consultar páginas e pesquisar conhecimento
+          </label>
+        )}
+        {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("whatsapp:read")) && (
+          <label className="block">
+            <input
+              type="checkbox"
+              checked={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.checked)}
+            />{" "}
+            Consultar conversas e histórico do WhatsApp
+          </label>
+        )}
+        {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("whatsapp:execute")) && (
+          <label className="block">
+            <input
+              type="checkbox"
+              checked={sendWhatsapp}
+              onChange={(e) => setSendWhatsapp(e.target.checked)}
+            />{" "}
+            Enviar mensagens pelo WhatsApp nas conversas que posso acessar
+          </label>
+        )}
+        {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("crm:read")) && (
+          <label className="block">
+            <input type="checkbox" checked={crm} onChange={(e) => setCrm(e.target.checked)} />{" "}
+            Consultar contatos, leads e funis do CRM
+          </label>
+        )}
         {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("knowledge:write")) && (
           <label className="block">
             <input type="checkbox" checked={write} onChange={(e) => setWrite(e.target.checked)} />{" "}

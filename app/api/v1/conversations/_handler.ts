@@ -11,10 +11,7 @@ import type { Actor, HandlerCtx } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { CONVERSATION_TERMINAL_STATUSES } from "@/lib/schemas";
-import type {
-  ListConversationsQuery,
-  PatchConversationInput,
-} from "@/lib/schemas";
+import type { ListConversationsQuery, PatchConversationInput } from "@/lib/schemas";
 import type { Conversation } from "@/lib/types/messaging";
 import { normalizarTermoDeBusca } from "@/lib/inbox/termo-de-busca";
 import { ORDEM_DA_ESPERA, ehAFila } from "@/lib/inbox/comando-da-conversa";
@@ -28,12 +25,14 @@ import { aplicarMarcador } from "@/lib/inbox/marcador-da-conversa";
  * está em `tests/e2e/`.
  */
 export function termoSeguroParaOr(bruto: string): string {
-  return bruto
-    .trim()
-    // curingas do `ilike` (Postgres)
-    .replace(/[%_]/g, (m) => `\\${m}`)
-    // gramática do `or=` (PostgREST) — viram o próprio curinga
-    .replace(/[,()]/g, "*");
+  return (
+    bruto
+      .trim()
+      // curingas do `ilike` (Postgres)
+      .replace(/[%_]/g, (m) => `\\${m}`)
+      // gramática do `or=` (PostgREST) — viram o próprio curinga
+      .replace(/[,()]/g, "*")
+  );
 }
 
 type SB = SupabaseClient;
@@ -151,6 +150,7 @@ export async function listConversationsHandler(
   supabase: SB,
   ctx: HandlerCtx,
   q: ListConversationsQuery,
+  access?: { userId: string; mode: "own" | "own_and_unassigned" | "all"; contactId?: string },
 ): Promise<ListConversationsResult> {
   // Fila: ordena por TEMPO DE ESPERA — quem espera há mais tempo primeiro. A
   // régua é `awaiting_since` = a mensagem do cliente MAIS ANTIGA sem resposta
@@ -169,7 +169,9 @@ export async function listConversationsHandler(
   // pergunta e a posição responder outra — sem sintoma nenhum, porque as duas
   // telas continuam populadas e plausíveis.
   const sortCol = isQueue ? ORDEM_DA_ESPERA.coluna : "last_message_at";
-  const ordem = isQueue ? ORDEM_DA_ESPERA.opcoes : ({ ascending: false, nullsFirst: false } as const);
+  const ordem = isQueue
+    ? ORDEM_DA_ESPERA.opcoes
+    : ({ ascending: false, nullsFirst: false } as const);
   const asc = isQueue;
 
   let query = supabase
@@ -179,6 +181,12 @@ export async function listConversationsHandler(
     .order(sortCol, ordem)
     .order("id", { ascending: asc })
     .limit(q.limit + 1);
+
+  // Trusted server context, applied before pagination. Never accept this from request JSON.
+  if (access?.mode === "own") query = query.eq("assigned_to_user_id", access.userId);
+  if (access?.mode === "own_and_unassigned")
+    query = query.or(`assigned_to_user_id.eq.${access.userId},assigned_to_user_id.is.null`);
+  if (access?.contactId) query = query.eq("contact_id", access.contactId);
 
   // `.in` e não `.eq`: o filtro agora chega como LISTA (um valor vira lista de um,
   // e o SQL resultante é equivalente). É o que deixa a aba Fila pedir os dois
@@ -344,13 +352,9 @@ export async function listConversationsHandler(
       // ou o formato do id mudarem.
       .limit(TETO_DE_CONTATOS_NA_BUSCA);
 
-    const ids = idsQueCabemNaURL(
-      (contatos ?? []).map((c) => (c as { id: string }).id),
-    );
+    const ids = idsQueCabemNaURL((contatos ?? []).map((c) => (c as { id: string }).id));
     if (ids.length > 0) {
-      query = query.or(
-        `last_message_preview.ilike.*${s}*,contact_id.in.(${ids.join(",")})`,
-      );
+      query = query.or(`last_message_preview.ilike.*${s}*,contact_id.in.(${ids.join(",")})`);
     } else {
       // Sem ids casados, um `contact_id.in.()` vazio é SQL inválido no
       // PostgREST — a busca por conteúdo segue sozinha, como antes.
@@ -371,9 +375,7 @@ export async function listConversationsHandler(
     }
     const op = asc ? "gt" : "lt";
     if (c.sort) {
-      query = query.or(
-        `${sortCol}.${op}.${c.sort},and(${sortCol}.eq.${c.sort},id.${op}.${c.id})`,
-      );
+      query = query.or(`${sortCol}.${op}.${c.sort},and(${sortCol}.eq.${c.sort},id.${op}.${c.id})`);
     } else {
       // Página já na região de sort NULL (nulls last): pagina só por id.
       query = query.is(sortCol, null);
@@ -477,20 +479,34 @@ export async function patchConversationHandler(
   if (input.status !== undefined) {
     const observed = await getConversationHandler(supabase, ctx, conversationId);
     const { error: statusError } = await createAdminClient().rpc("fn_service_status", {
-      p_org: ctx.organization_id, p_conversation: conversationId, p_status: input.status,
+      p_org: ctx.organization_id,
+      p_conversation: conversationId,
+      p_status: input.status,
       p_expected: input.expected_revision ?? observed.service_revision,
     });
-    if (statusError) throw new ApiError(statusError.code === "40001" ? 409 : statusError.code === "P0002" ? 404 : 500,
-      statusError.code === "40001" ? "conflict" : statusError.code === "P0002" ? "not_found" : "internal_error", undefined, ctx.requestId, statusError.message);
+    if (statusError)
+      throw new ApiError(
+        statusError.code === "40001" ? 409 : statusError.code === "P0002" ? 404 : 500,
+        statusError.code === "40001"
+          ? "conflict"
+          : statusError.code === "P0002"
+            ? "not_found"
+            : "internal_error",
+        undefined,
+        ctx.requestId,
+        statusError.message,
+      );
   }
   if (input.tags !== undefined) {
     update.tags = input.tags;
   }
 
-  const query = Object.keys(update).length > 0
-    ? supabase.from("conversations").update(update)
-    : supabase.from("conversations");
-  const { data, error } = await query.select(SELECT_COLS)
+  const query =
+    Object.keys(update).length > 0
+      ? supabase.from("conversations").update(update)
+      : supabase.from("conversations");
+  const { data, error } = await query
+    .select(SELECT_COLS)
     .eq("id", conversationId)
     .eq("organization_id", ctx.organization_id)
     .maybeSingle();

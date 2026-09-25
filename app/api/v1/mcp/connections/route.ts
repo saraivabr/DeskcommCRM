@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ACTIVE_CONNECTION_SCOPES } from "@/lib/mcp/permissions";
 import { randomUUID } from "node:crypto";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
@@ -38,9 +39,9 @@ export async function POST(req: Request) {
       .object({
         name: z.string().trim().min(1).max(100),
         scopes: z
-          .array(z.enum(["knowledge:read", "knowledge:write"]))
+          .array(z.enum(ACTIVE_CONNECTION_SCOPES))
           .min(1)
-          .max(2),
+          .max(ACTIVE_CONNECTION_SCOPES.length),
         oauth: authorizeInput.optional(),
       })
       .strict()
@@ -76,19 +77,17 @@ export async function POST(req: Request) {
     if (input.oauth && clientId) {
       const code = newSecret();
       const oauth = input.oauth;
-      const { error } = await db
-        .from("mcp_oauth_grants")
-        .insert({
-          id: randomUUID(),
-          connection_id: connection.id,
-          client_id: clientId,
-          kind: "code",
-          secret_hash: hashSecret(code),
-          challenge: oauth.code_challenge,
-          redirect_uri: oauth.redirect_uri,
-          resource: oauth.resource,
-          expires_at: new Date(Date.now() + 300_000).toISOString(),
-        });
+      const { error } = await db.from("mcp_oauth_grants").insert({
+        id: randomUUID(),
+        connection_id: connection.id,
+        client_id: clientId,
+        kind: "code",
+        secret_hash: hashSecret(code),
+        challenge: oauth.code_challenge,
+        redirect_uri: oauth.redirect_uri,
+        resource: oauth.resource,
+        expires_at: new Date(Date.now() + 300_000).toISOString(),
+      });
       if (error) {
         await db
           .from("mcp_connections")

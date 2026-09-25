@@ -447,3 +447,4 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 | `20260925211000` | `0412_mcp_connections` | Conexões por usuário, OAuth com rotação atômica e aprovações de ações. |
 | `20260925163000` | `0408_admin_invite_commercial_account` | Criação administrativa por convite grava Free desabilitado na mesma transação; legado e integrações ficam intactos. |
 | `20260925170000` | `0409_sales_waitlist` | Lista de espera comercial pré-tenant, email normalizado único, RLS sem acesso público direto. Registro não cria usuário nem convite; administração registra convite separado. |
+| `20260925212000` | `0413_mcp_operation_receipts` | Recibos exclusivos do servidor para efeitos MCP de conexões pessoais: reserva única antes do envio, hash dos parâmetros e estado incerto sem repetição automática. Nenhum conteúdo de mensagem é copiado. |

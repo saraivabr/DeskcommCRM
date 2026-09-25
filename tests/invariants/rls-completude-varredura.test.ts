@@ -95,6 +95,11 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "mcp-oauth-connections.test.ts: seeded service-only record rejects authenticated owner read.",
   },
   {
+    tabela: "mcp_operation_receipts",
+    razao:
+      "mcp-oauth-connections.test.ts: service-only receipts deny owner reads and writes; duplicate operation and cross-org foreign keys are rejected.",
+  },
+  {
     tabela: "mcp_action_approvals",
     razao:
       "mcp-oauth-connections.test.ts: seeded record denies authenticated read and direct self-approval.",
