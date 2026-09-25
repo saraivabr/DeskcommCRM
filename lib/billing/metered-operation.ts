@@ -36,7 +36,13 @@ export async function runMeteredOperation<T>(
   let result: T;
   let dispatched = false;
   try {
-    await recordSubscriptionAiEvidence(db, identity.organizationId, reservation, identity, null);
+    await recordSubscriptionAiEvidence(
+      db,
+      identity.organizationId,
+      reservation,
+      { ...identity, usageKind: "text" },
+      null,
+    );
     dispatched = true;
     result = await operation();
   } catch (error) {
@@ -48,7 +54,7 @@ export async function runMeteredOperation<T>(
       db,
       identity.organizationId,
       reservation,
-      identity,
+      { ...identity, usageKind: "text" },
       usageEvidence(result),
     );
   } catch {

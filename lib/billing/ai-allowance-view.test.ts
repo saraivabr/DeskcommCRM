@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { allowanceView } from "./ai-allowance-view";
+import { describe, expect, it, vi } from "vitest";
+import { allowanceView, readAiAllowance } from "./ai-allowance-view";
 const now = Date.parse("2026-09-20T12:00:00Z");
 const row = {
   status: "active",
@@ -44,5 +44,86 @@ describe("commercial AI balance", () => {
         "Invalid AI allowance snapshot",
       );
     },
+  );
+});
+
+it("omits an unconfigured disabled Free allowance without claiming a load failure", async () => {
+  const query = vi
+    .fn()
+    .mockResolvedValue({
+      rows: [
+        {
+          ...row,
+          source: "free",
+          status: "pending",
+          budget: null,
+          rate: null,
+          current_period_start: null,
+          current_period_end: null,
+        },
+      ],
+    });
+  await expect(readAiAllowance({ query }, "org-a")).resolves.toBeNull();
+});
+
+it.each([
+  { source: "paid", status: "pending" },
+  { source: "free", status: "active" },
+])("still rejects missing financial data on %j", async (identity) => {
+  const query = vi
+    .fn()
+    .mockResolvedValue({ rows: [{ ...row, ...identity, budget: null, rate: null }] });
+  await expect(readAiAllowance({ query }, "org-a")).rejects.toThrow(
+    "Invalid AI allowance snapshot",
+  );
+});
+
+it("separates supplier USD from commercial BRL and preserves pending operations", async () => {
+  const { readAiUsageBreakdown } = await import("./ai-allowance-view");
+  const { vi } = await import("vitest");
+  const query = vi.fn().mockResolvedValue({
+    rows: [
+      {
+        kind: "image",
+        operations: "3",
+        settled: "1",
+        pending: "2",
+        commercial: "50",
+        reserved: "200",
+        provider_cost: "12.25",
+      },
+    ],
+  });
+  expect(await readAiUsageBreakdown({ query }, "org-a")).toEqual([
+    {
+      kind: "image",
+      operations: 3,
+      settledOperations: 1,
+      pendingOperations: 2,
+      commercialUsedBrlCents: 50,
+      reservedBrlCents: 200,
+      knownProviderCostUsdCents: 12.25,
+    },
+  ]);
+  expect(query.mock.calls[0]?.[1]).toEqual(["org-a"]);
+});
+it("rejects corrupt supplier costs instead of displaying a misleading total", async () => {
+  const { readAiUsageBreakdown } = await import("./ai-allowance-view");
+  const { vi } = await import("vitest");
+  const query = vi.fn().mockResolvedValue({
+    rows: [
+      {
+        kind: "voice",
+        operations: "1",
+        settled: "1",
+        pending: "0",
+        commercial: "0",
+        reserved: "0",
+        provider_cost: "NaN",
+      },
+    ],
+  });
+  await expect(readAiUsageBreakdown({ query }, "org-a")).rejects.toThrow(
+    "Invalid AI usage snapshot",
   );
 });

@@ -168,6 +168,9 @@ export function Review({ id }: { id: string }) {
             >
               {t("Criar outra versão")}
             </Link>
+            <Link className="block text-sm underline" href="/app/instagram/library">
+              {t("Voltar para minhas criações")}
+            </Link>
             <p className="text-sm text-muted-foreground">
               {t("Baixar ou salvar não publica a postagem. Você escolhe quando compartilhar.")}
             </p>

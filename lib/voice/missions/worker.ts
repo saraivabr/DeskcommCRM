@@ -168,7 +168,7 @@ async function executeMission(
       pool,
       m.organization_id,
       reservation,
-      { provider: "openai", model: VOICE_MODEL },
+      { provider: "openai", model: VOICE_MODEL, usageKind: "voice" },
       null,
     );
     await update(
@@ -271,7 +271,7 @@ async function executeMission(
       pool,
       m.organization_id,
       reservation,
-      { provider: "openai", model: VOICE_MODEL },
+      { provider: "openai", model: VOICE_MODEL, usageKind: "voice" },
       {
         version: 1,
         steps: usage.map((u) => ({

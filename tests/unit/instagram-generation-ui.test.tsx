@@ -44,13 +44,13 @@ it("anima enquanto aguarda a API e encerra com erro, permitindo tentar novamente
     />,
   );
   expect(screen.queryByRole("status")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Gerar minha imagem" }));
+  fireEvent.click(screen.getByRole("button", { name: "Gerar imagem e legenda" }));
   expect(screen.getByRole("status")).toHaveAccessibleName("Criando sua imagem…");
-  expect(screen.getByRole("button", { name: "Criando sua imagem…" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Criando sua postagem…" })).toBeDisabled();
   await act(async () => reject(new Error("Falha na geração")));
   expect(screen.queryByRole("status")).toBeNull();
   expect(screen.getByText("Falha na geração")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Gerar minha imagem" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Gerar imagem e legenda" })).toBeEnabled();
 });
 
 it("abre a revisão quando a geração retorna", async () => {
@@ -62,7 +62,7 @@ it("abre a revisão quando a geração retorna", async () => {
       initialBrief="Uma imagem de café artesanal"
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Gerar minha imagem" }));
+  fireEvent.click(screen.getByRole("button", { name: "Gerar imagem e legenda" }));
   await waitFor(() => expect(push).toHaveBeenCalledWith("/app/instagram/posts/post-1"));
   expect(screen.queryByRole("status")).toBeNull();
 });

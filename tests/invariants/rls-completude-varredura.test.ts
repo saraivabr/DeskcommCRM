@@ -76,6 +76,16 @@ interface Excecao {
  */
 const PROVA_PROPRIA: readonly Excecao[] = [
   {
+    tabela: "org_commercial_accounts",
+    razao:
+      "tests/invariants/commercial-accounts.test.ts — JWTs de admins de duas organizações têm leitura própria/cruzada e escrita cruzada negadas na classificação; tabela exclusiva do servidor.",
+  },
+  {
+    tabela: "org_commercial_locks",
+    razao:
+      "tests/invariants/commercial-accounts.test.ts — JWTs de admins de duas organizações têm leitura própria/cruzada e escrita cruzada negadas no mutex; acesso direto negado também a service_role.",
+  },
+  {
     tabela: "instagram_publications",
     razao: "tests/invariants/instagram-publications.test.ts — leitura local com JWT, isolamento entre tenants e escrita vedada ao navegador.",
   },

@@ -60,7 +60,7 @@ export function AiAllowanceCard({ balance, idioma }: { balance: AiAllowanceView;
           )}
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
             {t(
-              "Enquanto a IA atende, parte do saldo fica reservada. Ao concluir, descontamos o consumo e liberamos a diferença.",
+              "Texto, imagens e voz usam este mesmo saldo. Durante uma operação, parte dele fica reservada. Ao concluir, descontamos o consumo e liberamos a diferença.",
             )}
           </p>
           <p className="text-xs leading-5 text-muted-foreground">

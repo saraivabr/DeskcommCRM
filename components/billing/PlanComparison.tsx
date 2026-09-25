@@ -16,6 +16,19 @@ export function PlanComparison({
   const t = (text: string) => traduzir(text, idioma);
   return (
     <section aria-label={t("Planos de assinatura")} className="space-y-8">
+      <div className="max-w-3xl space-y-2">
+        <h2 className="text-xl font-semibold">{t("IA em todos os planos")}</h2>
+        <p className="text-sm text-muted-foreground">
+          {t(
+            "Assistente, funcionários de IA e criação de conteúdo com imagens fazem parte de todos os planos. O que muda é o volume de uso, a equipe e os canais.",
+          )}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {t(
+            "Free beta: acesso por convite, com limites e período definidos para cada conta. A ativação é feita pela administração; seus acessos atuais não mudam automaticamente.",
+          )}
+        </p>
+      </div>
       <div className="grid gap-6 lg:grid-cols-3">
         {SUBSCRIPTION_PLANS.map((plan) => (
           <article key={plan.id} className="flex flex-col rounded-3xl border bg-card p-6 sm:p-8">
@@ -36,7 +49,7 @@ export function PlanComparison({
                 {plan.channels === 1 ? t("canal conectado") : t("canais conectados")}
               </li>
               <li>
-                {plan.agents} {t("Agentes de IA")}
+                {plan.agents} {t("funcionários de IA")}
               </li>
               <li>
                 {formatBRL(plan.ai_credit_cents)} {t("de franquia de IA por mês")}
@@ -60,7 +73,7 @@ export function PlanComparison({
       <div className="max-w-3xl space-y-3 text-sm leading-6 text-muted-foreground">
         <p>
           {t(
-            "Mensalidade em reais. A franquia de IA é compartilhada pelos agentes da empresa e varia conforme o modelo e o volume de texto. Não representa uma quantidade garantida de mensagens.",
+            "Mensalidade em reais. Texto, imagens e voz compartilham a franquia de IA da empresa. O consumo varia conforme o modelo e a operação; não há quantidade garantida de mensagens, imagens ou minutos. Sem cobrança automática de excedente.",
           )}
         </p>
         <p>
