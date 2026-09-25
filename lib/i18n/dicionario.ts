@@ -37,6 +37,18 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "Assuntos identificados nas conversas": { es: "Temas identificados en las conversaciones" },
+  "Para analisar os assuntos, cadastre uma chave OpenRouter válida em": { es: "Para analizar los temas, registra una clave OpenRouter válida en" },
+  "mensagens analisadas": { es: "mensajes analizados" },
+  "A análise de assuntos aparece conforme as mensagens são processadas.": { es: "El análisis de temas aparece a medida que se procesan los mensajes." },
+  "Objeções mencionadas": { es: "Objeciones mencionadas" },
+  "Preços e condições": { es: "Precios y condiciones" },
+  "Dúvidas sobre a oferta": { es: "Dudas sobre la oferta" },
+  "Agendamentos": { es: "Citas" },
+  "Pedidos de ajuda": { es: "Solicitudes de ayuda" },
+  "Reclamações": { es: "Quejas" },
+  "Outros assuntos": { es: "Otros temas" },
+  "Adequação da oferta": { es: "Adecuación de la oferta" },
   "Histórico do WhatsApp": { es: "Historial de WhatsApp" },
   "Veja o andamento da importação, o panorama e as conversas por contato": { es: "Consulta el progreso de la importación, el panorama y las conversaciones por contacto" },
   "Conversas anteriores importadas ao conectar. O agente recebe o contexto do próprio contato no atendimento.": { es: "Conversaciones anteriores importadas al conectar. El agente recibe el contexto del propio contacto durante la atención." },

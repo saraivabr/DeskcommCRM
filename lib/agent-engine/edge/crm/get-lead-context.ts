@@ -253,17 +253,21 @@ export async function getLeadContext(
   let importedHistory = '';
   if (!contact.is_anonymized) {
     try {
-      const { rows } = await db.query<{ direction: string; body: string; sent_at: Date }>(
-        `select h.direction,h.body,h.sent_at from whatsapp_history_messages h
+      const { rows } = await db.query<{ direction: string; body: string; sent_at: Date; intent: string | null; objection: string | null }>(
+        `select h.direction,h.body,h.sent_at,a.intent,a.objection from whatsapp_history_messages h
+         left join whatsapp_history_analysis a on a.message_id=h.id and a.organization_id=h.organization_id
          where h.organization_id=$1 and h.contact_id=$2
            and not exists(select 1 from messages m where m.organization_id=h.organization_id
              and m.channel_session_id=h.channel_session_id and m.external_id=h.external_id)
          order by h.sent_at desc,h.id desc limit 8`,
         [input.tenantId, input.leadId],
       );
-      importedHistory = rows.reverse().map((r) =>
-        `${r.direction === 'inbound' ? 'Cliente' : 'Empresa'}: ${r.body.slice(0, 180)}`,
-      ).join('\n').slice(0, 1200);
+      importedHistory = rows.reverse().map((r) => {
+        const signals = [r.intent && !['incerto', 'ignorado', 'outro'].includes(r.intent) ? `assunto provável: ${r.intent}` : null,
+          r.objection && !['incerto', 'ignorado', 'nenhuma'].includes(r.objection) ? `objeção provável: ${r.objection}` : null]
+          .filter(Boolean).join('; ');
+        return `${r.direction === 'inbound' ? 'Cliente' : 'Empresa'}: ${r.body.slice(0, 180)}${signals ? ` [${signals}; confirme com o cliente]` : ''}`;
+      }).join('\n').slice(0, 1200);
     } catch (error) {
       // Upgrade em andamento: não derrubar o atendimento se a migration ainda
       // não foi aplicada. Outros erros continuam visíveis ao worker.

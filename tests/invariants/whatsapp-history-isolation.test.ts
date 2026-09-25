@@ -12,7 +12,9 @@ beforeAll(() => {
       insert into public.channel_sessions(id,organization_id,waha_session_name,webhook_secret_encrypted) values ('${x.session}','${x.org}','history-${label}','\\x00'::bytea);
       insert into public.contacts(id,organization_id,display_name) values ('${x.contact}','${x.org}','Pessoa ${label}') on conflict do nothing;
       insert into public.whatsapp_history_messages(organization_id,channel_session_id,contact_id,chat_id,external_id,direction,body,sent_at)
-       values ('${x.org}','${x.session}','${x.contact}','5511999999999@c.us','msg-${label}','inbound','segredo ${label}',now());`);
+       values ('${x.org}','${x.session}','${x.contact}','5511999999999@c.us','msg-${label}','inbound','segredo ${label}',now());
+      insert into public.whatsapp_history_analysis(message_id,organization_id,intent,objection,confidence)
+       select id,organization_id,'informacao','nenhuma',0.9 from public.whatsapp_history_messages where external_id='msg-${label}';`);
   }
 });
 
@@ -30,6 +32,10 @@ describe("histórico importado isolado e redigido", () => {
       select set_config('request.jwt.claims','{"sub":"${a.user}"}',false);
       select count(*) from public.whatsapp_history_contact_overview;`).trim().split("\n").at(-1);
     expect(overview).toBe("1");
+    const analysis = sql(`set role authenticated;
+      select set_config('request.jwt.claims','{"sub":"${a.user}"}',false);
+      select count(*) from public.whatsapp_history_analysis;`).trim().split("\n").at(-1);
+    expect(analysis).toBe("1");
   });
 
   it("FK de outra organização é recusada mesmo via service role", () => {
@@ -39,12 +45,19 @@ describe("histórico importado isolado e redigido", () => {
         values ('${a.org}','${b.session}','${a.contact}','5511999999999@c.us','cross','inbound','vazamento',now());`);
     } catch (error) { err = motivoDoErro(error); }
     expect(err).toContain("history_session_tenant_mismatch");
+    let analysisErr = "";
+    try {
+      sql(`insert into public.whatsapp_history_analysis(message_id,organization_id,intent,objection)
+        select id,'${b.org}','preco','nenhuma' from public.whatsapp_history_messages where external_id='msg-a';`);
+    } catch (error) { analysisErr = motivoDoErro(error); }
+    expect(analysisErr).toContain("history_analysis_tenant_mismatch");
   });
 
   it("anonimizar o contato apaga o arquivo sem apagar o vizinho", () => {
     sql(`update public.contacts set is_anonymized=true,anonymized_at=now() where id='${a.contact}' and organization_id='${a.org}';`);
     expect(sql(`select count(*) from public.whatsapp_history_messages where organization_id='${a.org}';`).trim()).toBe("0");
     expect(sql(`select count(*) from public.whatsapp_history_messages where organization_id='${b.org}';`).trim()).toBe("1");
+    expect(sql(`select count(*) from public.whatsapp_history_analysis where organization_id='${a.org}';`).trim()).toBe("0");
     expect(sql(`select public.fn_whatsapp_history_chat_erased('${a.org}','5511999999999@c.us');`).trim()).toBe("t");
     expect(sql(`select public.fn_whatsapp_history_chat_erased('${b.org}','5511999999999@c.us');`).trim()).toBe("f");
   });
