@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 
@@ -121,6 +122,10 @@ export function KnowledgeSourceCard({
       </CardHeader>
 
       <CardContent className="flex-1 space-y-2 text-sm">
+        {tipo === "conversas" && <p className="rounded-md border border-border p-2 text-text-muted">
+          {t("O histórico importado automaticamente, o panorama e a busca por contato estão em")}{" "}
+          <Link href="/app/ai/knowledge/whatsapp-history" className="underline">{t("Histórico do WhatsApp")}</Link>.
+        </p>}
         <div className="flex items-baseline justify-between">
           <span className="text-text-muted">{t("Preparado")}</span>
           <span>{formatRelative(source.last_indexed_at, tagDoIdioma, t)}</span>
@@ -154,7 +159,7 @@ export function KnowledgeSourceCard({
       </CardContent>
 
       <CardFooter className="flex flex-wrap gap-2">
-        <Button
+        {tipo !== "conversas" && <Button
           variant="secondary"
           size="sm"
           disabled={arquivado || isReindexing}
@@ -166,7 +171,7 @@ export function KnowledgeSourceCard({
             aria-hidden
           />
           {isReindexing ? t("Preparando…") : t("Preparar de novo")}
-        </Button>
+        </Button>}
 
         {temTrechos ? (
           <>

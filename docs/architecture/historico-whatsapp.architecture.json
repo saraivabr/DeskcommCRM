@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Histórico do WhatsApp em Conhecimento",
+    "subtitle": "Da conexão à leitura por contato, sem transformar mensagens antigas em atendimentos novos",
+    "output": "historico-whatsapp.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "canal", "label": "Conexão" },
+    { "id": "processamento", "label": "Importação" },
+    { "id": "dados", "label": "Dados" },
+    { "id": "uso", "label": "Uso" }
+  ],
+  "mainPath": ["conexao", "store", "cron", "cursor", "arquivo", "jev", "tela", "agente"],
+  "nodes": [
+    { "id": "conexao", "lane": "canal", "col": 1, "type": "service", "label": "Pareamento do WhatsApp" },
+    { "id": "store", "lane": "canal", "col": 2, "type": "service", "label": "NOWEB store ativado antes do QR" },
+    { "id": "cron", "lane": "processamento", "col": 3, "type": "api", "label": "cron/whatsapp-history" },
+    { "id": "cursor", "lane": "dados", "col": 4, "type": "database", "label": "whatsapp_history_syncs" },
+    { "id": "arquivo", "lane": "dados", "col": 5, "type": "database", "label": "whatsapp_history_messages" },
+    { "id": "jev", "lane": "processamento", "col": 6, "type": "service", "label": "Jev: intenção e objeção" },
+    { "id": "tela", "lane": "uso", "col": 6, "type": "frontend", "label": "Conhecimento › Histórico do WhatsApp" },
+    { "id": "agente", "lane": "uso", "col": 7, "type": "service", "label": "getLeadContext por organização e contato" },
+    { "id": "lgpd", "lane": "dados", "col": 5, "type": "security", "label": "RLS, exportação e anonimização" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "conexao", "to": "store" },
+    { "id": "e2", "from": "store", "to": "cron" },
+    { "id": "e3", "from": "cron", "to": "cursor" },
+    { "id": "e4", "from": "cursor", "to": "arquivo" },
+    { "id": "e5", "from": "arquivo", "to": "tela" },
+    { "id": "e6", "from": "arquivo", "to": "agente" },
+    { "id": "e7", "from": "arquivo", "to": "lgpd" },
+    { "id": "e8", "from": "arquivo", "to": "jev" },
+    { "id": "e9", "from": "jev", "to": "tela" },
+    { "id": "e10", "from": "jev", "to": "agente" }
+  ]
+}

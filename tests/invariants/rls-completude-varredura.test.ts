@@ -330,6 +330,10 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "`describe.each`. Guarda as UTMs de cada clique no botão da landing " +
       "page e o ref curto que as liga à mensagem do WhatsApp.",
   },
+  { tabela: "whatsapp_history_syncs", razao: "tests/invariants/whatsapp-history-isolation.test.ts — manager A com JWT conta somente sua sincronização entre duas organizações." },
+  { tabela: "whatsapp_history_messages", razao: "tests/invariants/whatsapp-history-isolation.test.ts — manager A com JWT lê somente seu texto e conta uma linha entre dois tenants." },
+  { tabela: "whatsapp_history_analysis", razao: "tests/invariants/whatsapp-history-isolation.test.ts — manager A com JWT conta somente sua análise entre dois tenants." },
+  { tabela: "whatsapp_history_erased_chats", razao: "tests/invariants/whatsapp-history-isolation.test.ts — tabela service-only; SELECT sob JWT authenticated retorna permission denied." },
 ];
 
 /**
