@@ -30,13 +30,10 @@ function poolQueGrava(
 ) {
   const inserts: Array<{ sql: string; params: unknown[] }> = [];
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
-    if (sql.startsWith("select provider_subscription_id, c.classification")) {
-      return { rows: allowance === "legacy" ? [] : [{ provider_subscription_id: "sub_paid" }] };
-    }
     if (sql.includes("fn_reserve_subscription_ai")) {
       if (allowance === "exhausted")
         throw Object.assign(new Error("database detail"), { code: "P4021" });
-      return { rows: [{ reservation_id: params[1] }] };
+      return { rows: [{ reservation_id: allowance === "legacy" ? null : params[1] }] };
     }
     if (sql.includes("settings->'llm'")) {
       return {

@@ -15,17 +15,8 @@ export class SubscriptionAiAllowanceError extends Error {
 
 /** Legacy companies remain unchanged; the database serializes paid and explicitly classified Free reservations. */
 export async function reserveSubscriptionAi(db: Database, organizationId: string) {
-  const { rows } = await db.query<{
-    provider_subscription_id: string | null;
-    classification: string | null;
-  }>(
-    `select provider_subscription_id, c.classification
-     from (select $1::uuid as id) o
-     left join org_subscriptions s on s.organization_id=o.id
-     left join org_commercial_accounts c on c.organization_id=o.id`,
-    [organizationId],
-  );
-  if (!rows[0]?.provider_subscription_id && rows[0]?.classification !== "free_public") return null;
+  // Eligibility must be decided behind the same database mutex as Free activation.
+  // A genuine legacy account still returns null from the reservation function.
   const callId = randomUUID();
   try {
     const result = await db.query<{ reservation_id: string | null }>(

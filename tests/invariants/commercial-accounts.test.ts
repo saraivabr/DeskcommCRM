@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -34,12 +35,12 @@ it("shares bounded reservations, blocks exhaustion and prevents resetting period
     sql(
       `update org_commercial_accounts set free_period_start=free_period_start+interval '1 hour' where organization_id='${id}'`,
     ),
-  ).toThrow(/sobrepor/);
+  ).toThrow(/período atual/);
   expect(() =>
     sql(
       `update org_commercial_accounts set free_period_end=free_period_end+interval '1 hour' where organization_id='${id}'`,
     ),
-  ).toThrow(/duração/);
+  ).toThrow(/período atual/);
 });
 it("preserves paid allowance precedence even for explicitly disabled Free classification", () => {
   const id = org();
@@ -257,3 +258,130 @@ it("real tenant admin JWTs cannot read or write service-only commercial state ac
     ),
   ).toThrow(/permission denied/);
 }, 20000);
+
+it("self-service provisions its owner atomically with Free disabled and replays without a new tenant", () => {
+  const owner = randomUUID();
+  sql(`insert into auth.users(id,email) values('${owner}','${owner}@invariant.test')`);
+  const id = sql(`set role service_role;
+    select organization_id from fn_provision_self_service_tenant('signup-${owner}','Signup','${owner}')`)
+    .split("\n")
+    .at(-1)!;
+  expect(
+    sql(
+      `select classification||':'||free_enabled from org_commercial_accounts where organization_id='${id}'`,
+    ),
+  ).toBe("free_public:false");
+  expect(
+    sql(
+      `select count(*) from user_organizations where organization_id='${id}' and user_id='${owner}' and role='admin' and revoked_at is null`,
+    ),
+  ).toBe("1");
+  expect(() => reserve(id)).toThrow(/Free beta indisponível/);
+  expect(
+    sql(
+      `select organization_id||':'||provisioned from fn_provision_self_service_tenant('retry-${owner}','Retry','${owner}')`,
+    ),
+  ).toBe(`${id}:false`);
+  expect(sql(`select count(*) from organizations where created_by='${owner}'`)).toBe("1");
+  expect(() =>
+    sql(`insert into channel_sessions(organization_id,waha_session_name,status,webhook_secret_encrypted)
+    values('${id}',gen_random_uuid()::text,'STOPPED',decode('00','hex'))`),
+  ).toThrow(/Free beta indisponível/);
+});
+
+it("self-service RPC rejects tenant callers and rolls all provisioning back if classification fails", () => {
+  const owner = randomUUID();
+  sql(`insert into auth.users(id,email) values('${owner}','${owner}@invariant.test')`);
+  for (const role of ["anon", "authenticated"])
+    expect(() =>
+      sql(
+        `set role ${role}; select * from fn_provision_self_service_tenant('denied-${owner}','Denied','${owner}')`,
+      ),
+    ).toThrow(/permission denied/);
+  // Failure AFTER the org and owner inserts must roll both back.
+  expect(() =>
+    sql(`begin;
+    create function public.test_reject_free_signup() returns trigger language plpgsql as $$begin raise exception 'classification unavailable'; end$$;
+    create trigger test_reject_free_signup before insert on org_commercial_accounts for each row execute function public.test_reject_free_signup();
+    select * from fn_provision_self_service_tenant('failed-${owner}','Failed','${owner}');
+    commit;`),
+  ).toThrow(/classification unavailable/);
+  expect(sql(`select count(*) from organizations where created_by='${owner}'`)).toBe("0");
+  expect(sql(`select count(*) from user_organizations where user_id='${owner}'`)).toBe("0");
+});
+
+it.each([false, true])(
+  "rejects early renewal even when consumed=%s and keeps the active period",
+  (consumed) => {
+    const id = org();
+    activate(id);
+    if (consumed) reserve(id);
+    const before = sql(
+      `select free_period_start||'/'||free_period_end from org_commercial_accounts where organization_id='${id}'`,
+    );
+    expect(() =>
+      sql(`update org_commercial_accounts
+    set free_period_start=free_period_end,free_period_end=free_period_end+interval '1 month'
+    where organization_id='${id}'`),
+    ).toThrow(/período atual/);
+    // The admin endpoint uses UPSERT, whose INSERT trigger must enforce the same guard.
+    expect(() =>
+      sql(`insert into org_commercial_accounts(organization_id,classification,free_enabled,free_seats,free_channels,free_agents,free_ai_credit_cents,free_ai_usd_to_brl_rate,free_period_start,free_period_end)
+    select organization_id,classification,free_enabled,free_seats,free_channels,free_agents,free_ai_credit_cents,free_ai_usd_to_brl_rate,free_period_end,free_period_end+interval '1 month'
+    from org_commercial_accounts where organization_id='${id}'
+    on conflict(organization_id) do update set free_period_start=excluded.free_period_start,free_period_end=excluded.free_period_end`),
+    ).toThrow(/período atual/);
+    expect(
+      sql(
+        `select free_period_start||'/'||free_period_end from org_commercial_accounts where organization_id='${id}'`,
+      ),
+    ).toBe(before);
+  },
+);
+
+it("renews an expired beta and allows initial activation without changing legacy provisioning", () => {
+  const id = org();
+  sql(`insert into org_commercial_accounts(organization_id,classification,free_enabled,free_seats,free_channels,free_agents,free_ai_credit_cents,free_ai_usd_to_brl_rate,free_period_start,free_period_end)
+    values('${id}','free_public',false,1,0,0,100,6,now()-interval '2 days',now()-interval '1 day');
+    update org_commercial_accounts set free_enabled=true,free_period_start=now(),free_period_end=now()+interval '1 day' where organization_id='${id}'`);
+  expect(reserve(id)).toMatch(/^[a-f0-9-]{36}$/);
+  const legacy = org();
+  expect(reserve(legacy)).toBe("");
+});
+
+it("the first forward fix labels existing legacy accounts once and preserves every commercial choice", () => {
+  const legacy = org(),
+    free = org(),
+    internal = org(),
+    laterAdmin = randomUUID();
+  activate(free);
+  sql(
+    `insert into org_commercial_accounts(organization_id,classification) values('${internal}','internal')`,
+  );
+  const before = sql(
+    `select row_to_json(a) from org_commercial_accounts a where organization_id='${free}'`,
+  );
+  const migration = readFileSync(
+    new URL(
+      "../../supabase/migrations/20260925162000_0406_self_service_free_and_renewal.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  // Simulate first install over pre-0406 data, then reapply over a later admin
+  // tenant. Everything runs in one rolled-back transaction in the isolated DB.
+  const result = sql(`begin;
+    drop function public.fn_provision_self_service_tenant(text,text,uuid);
+    ${migration}
+    select 'legacy='||classification from org_commercial_accounts where organization_id='${legacy}';
+    select 'internal='||classification from org_commercial_accounts where organization_id='${internal}';
+    select 'free='||row_to_json(a)::text from org_commercial_accounts a where organization_id='${free}';
+    insert into organizations(id,slug,legal_name,display_name) values('${laterAdmin}','later-${laterAdmin}','Later','Later');
+    ${migration}
+    select 'later='||count(*) from org_commercial_accounts where organization_id='${laterAdmin}';
+    rollback;`);
+  expect(result).toContain("legacy=legacy_unclassified");
+  expect(result).toContain("internal=internal");
+  expect(result).toContain(`free=${before}`);
+  expect(result).toContain("later=0");
+});

@@ -73,6 +73,8 @@ export async function PATCH(req: NextRequest, { params }: Context) {
         admin.user.id,
       ],
     );
+    // Canonical policy: audit() reports persistence failures to Sentry without
+    // undoing an already committed mutation (CLAUDE.md, Audit log).
     void audit({
       action: "platform_admin.commercial_account_updated",
       actorUserId: admin.user.id,
@@ -88,7 +90,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   } catch {
     return fail(
       "state_conflict",
-      "Não foi possível salvar. Confira a empresa e mantenha o período atual até encerrar os consumos pendentes.",
+      "Não foi possível salvar. Confira a empresa e os limites. Para renovar o Free, aguarde o fim do período atual.",
       409,
       { requestId },
     );
