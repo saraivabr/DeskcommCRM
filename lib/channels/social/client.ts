@@ -4,18 +4,30 @@ export class SocialError extends Error {
   constructor(
     message: string,
     public status = 502,
+    public upstreamStatus?: number,
   ) {
     super(message);
   }
 }
 /** Fixed provider origin. Credentials never follow a redirect to another host. */
-export async function socialRequest(key: string, path: string, body?: unknown): Promise<unknown> {
+export async function socialRequest(
+  key: string,
+  path: string,
+  body?: unknown,
+  options: { method?: "POST" | "PATCH"; requestId?: string } = {},
+): Promise<unknown> {
   const response = await fetch(`${zernioBaseUrl()}/v1/${path}`, {
-    method: body === undefined ? "GET" : "POST",
+    method: options.method ?? (body === undefined ? "GET" : "POST"),
     redirect: "error",
     cache: "no-store",
     signal: AbortSignal.timeout(15_000),
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      ...(options.requestId
+        ? { "x-request-id": options.requestId, "Idempotency-Key": options.requestId }
+        : {}),
+    },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   if (!response.ok)
@@ -24,6 +36,7 @@ export async function socialRequest(key: string, path: string, body?: unknown): 
         ? "Acesso recusado. Confira a chave e as permissões no provedor."
         : `O provedor não concluiu a operação (HTTP ${response.status}).`,
       response.status === 429 ? 429 : 502,
+      response.status,
     );
   return response.json();
 }
@@ -32,6 +45,7 @@ const accountSchema = z.object({
   platform: z.string(),
   username: z.string().nullish(),
   displayName: z.string().nullish(),
+  profilePicture: z.string().nullish(),
   isActive: z.boolean(),
   profileId: z.union([z.string(), z.object({ _id: z.string(), name: z.string().optional() })]),
 });

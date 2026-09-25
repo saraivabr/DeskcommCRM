@@ -19,6 +19,11 @@ export const interfaceSettingsSchema = z
 export type InterfaceSettings = z.infer<typeof interfaceSettingsSchema>;
 export const INTERFACE_COMPLETA: InterfaceSettings = { preset: "completa" };
 const SIMPLIFICADA: readonly NavDestinationId[] = [
+  "/app/instagram",
+  "/app/instagram/new",
+  "/app/instagram/library",
+  "/app/instagram/inspirations",
+  "/app/instagram/insights",
   "/app/inbox",
   "/app/agenda",
   "/app/kanban",
@@ -51,9 +56,7 @@ export const PORTAS_ESSENCIAIS = [
 const ESSENCIAIS_DE_ADMIN: readonly string[] = ["/app/team", "/app/settings/tenant"];
 
 export function essencial(d: NavMetadata, role: Role | null, platform = false): boolean {
-  // Por PERTENCIMENTO à lista, nunca por índice: a versão anterior enumerava
-  // `[0]`, `[1]` e `[2]`, então acrescentar uma quarta porta não teria efeito
-  // nenhum e a lista passaria a mentir sobre o que ela garante.
+  if (d.href === "/app" || d.href === "/app/ferramentas") return true;
   if (!(PORTAS_ESSENCIAIS as readonly string[]).includes(d.href)) return false;
   return ESSENCIAIS_DE_ADMIN.includes(d.href) ? platform || role === "admin" : true;
 }
@@ -123,6 +126,7 @@ export function interfaceTemDestino(
 export function homeDaInterface(raw: unknown, platform: boolean, role: Role | null): string {
   const visible = destinosDaInterface(raw, platform, role);
   return (
+    visible.find((d) => d.href === "/app")?.href ??
     visible.find((d) => d.href === "/app/inbox")?.href ??
     visible.find((d) => !essencial(d, role, platform))?.href ??
     "/app/settings/profile"
@@ -172,7 +176,8 @@ export function combinarInterfaces(daEmpresa: unknown, doVinculo: unknown): Inte
   const vinculo = conjuntoEscolhido(lerInterface(doVinculo).settings);
   if (!empresa && !vinculo) return INTERFACE_COMPLETA;
   const soUm = empresa ?? vinculo;
-  if (!empresa || !vinculo) return { preset: "completa", destinos: [...(soUm as readonly NavDestinationId[])] };
+  if (!empresa || !vinculo)
+    return { preset: "completa", destinos: [...(soUm as readonly NavDestinationId[])] };
   const comuns = empresa.filter((id) => vinculo.includes(id));
   return { preset: "completa", destinos: [...(comuns.length > 0 ? comuns : SO_O_ESSENCIAL)] };
 }

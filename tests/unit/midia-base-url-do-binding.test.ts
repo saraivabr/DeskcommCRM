@@ -17,6 +17,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * factory. Sem a correção, o primeiro caso fica vermelho.
  */
 
+vi.mock("@/lib/billing/metered-operation", async (original) => ({
+  ...await original<typeof import("@/lib/billing/metered-operation")>(),
+  runMeteredOperation: async (_identity: unknown, operation: () => Promise<unknown>) => operation(),
+}));
+
 const downloadMock = vi.fn();
 const updateEqMock = vi.fn();
 const inboxInsertMock = vi.fn();

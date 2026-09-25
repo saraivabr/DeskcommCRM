@@ -3,10 +3,13 @@
  * Match precedence: array order. First match wins.
  */
 export const PUBLIC_PATHS: RegExp[] = [
+  /^\/api\/v1\/billing\/webhook$/, // Stripe signature checked in the handler.
   /^\/$/,
   /^\/login(\/.*)?$/,
   /^\/signup$/,
   /^\/auth\/confirm$/,
+  // Public landing only; reconnects navigation, never grants access or links an account.
+  /^\/auth\/social-return$/,
   // A VOLTA DA ENTRADA COM GOOGLE (issue #1388). Quem chega aqui é o NAVEGADOR
   // que o Google devolveu, via 302 do GoTrue — navegação vinda de outro site,
   // onde o cookie de sessão (`sameSite: "strict"`) não viaja por definição.
@@ -21,6 +24,9 @@ export const PUBLIC_PATHS: RegExp[] = [
   // `createClientDeEntradaComGoogle`. Âncora `$` de propósito: nenhum sub-path
   // futuro nasce público de carona.
   /^\/auth\/callback$/,
+  // Retorno de OAuth social: documento público sem efeitos que reconecta a
+  // navegação interna para manter os cookies de sessão sob SameSite=Strict.
+  /^\/auth\/social-return$/,
   /^\/403$/,
   /^\/admin\/forbidden$/,
   /^\/404$/,

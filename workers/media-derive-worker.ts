@@ -4,6 +4,7 @@
  * messages.media_derived_text. Camada UNIVERSAL da Onda 3 — o texto alimenta
  * qualquer modelo de chat. Retry/backoff delegados ao drain (padrão do repo).
  */
+import { runMeteredOperation, measuredGeneration } from "@/lib/billing/metered-operation";
 import { generateText } from "ai";
 import type pg from "pg";
 
@@ -419,19 +420,23 @@ function buildDeriveDeps(
       await avisarMidiaNaoLida(orgId, "imagem", `o provedor ${llm.provider} não está disponível nesta instalação`);
       return MARCADOR_NAO_LIDA;
     }
-    const res = await generateText({
-      model: factory(llm.apiKey, llm.defaultModel ?? "", baseUrlDaVisao ?? undefined),
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Descreva objetivamente esta imagem em 1-2 frases, em português, para um atendente de vendas entender o que o cliente enviou." },
-            // AI SDK v7: file part com mediaType (o antigo image part é deprecated).
-            { type: "file", data: buffer, mediaType: mime.split(";")[0]! },
-          ],
-        },
-      ],
-    });
+    const res = await runMeteredOperation(
+      { organizationId: orgId, provider: llm.provider, model: llm.defaultModel ?? "" },
+      () => generateText({
+        model: factory(llm.apiKey, llm.defaultModel ?? "", baseUrlDaVisao ?? undefined),
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Descreva objetivamente esta imagem em 1-2 frases, em português, para um atendente de vendas entender o que o cliente enviou." },
+              // AI SDK v7: file part com mediaType (o antigo image part é deprecated).
+              { type: "file", data: buffer, mediaType: mime.split(";")[0]! },
+            ],
+          },
+        ],
+      }),
+      (response) => measuredGeneration(response),
+    );
     return res.text;
   };
   // Sem chave OpenAI não há como transcrever: devolver string vazia é honesto

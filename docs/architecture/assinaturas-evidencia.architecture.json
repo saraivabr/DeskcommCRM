@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Franquia de IA — evidências e conferência administrativa",
+    "subtitle": "Referências por chamada sem conteúdo de conversas",
+    "output": "assinaturas-evidencia.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "runtime",
+      "label": "Execução"
+    },
+    {
+      "id": "storage",
+      "label": "Persistência"
+    },
+    {
+      "id": "ui",
+      "label": "Operação"
+    }
+  ],
+  "mainPath": [
+    "calls",
+    "evidence",
+    "reservations",
+    "settle",
+    "balance"
+  ],
+  "nodes": [
+    {
+      "id": "calls",
+      "lane": "runtime",
+      "col": 0,
+      "type": "service",
+      "label": "runModelCall / runMeteredOperation",
+      "sublabel": "Chamadas compartilhadas e SDK direto"
+    },
+    {
+      "id": "evidence",
+      "lane": "runtime",
+      "col": 1,
+      "type": "service",
+      "label": "recordSubscriptionAiEvidence",
+      "sublabel": "Identidade antes da chamada; snapshot após a resposta"
+    },
+    {
+      "id": "reservations",
+      "lane": "storage",
+      "col": 2,
+      "type": "service",
+      "label": "subscription_ai_reservations",
+      "sublabel": "Empresa + reserva; evidência imutável após preenchimento"
+    },
+    {
+      "id": "settle",
+      "lane": "runtime",
+      "col": 3,
+      "type": "service",
+      "label": "settleSubscriptionAi",
+      "sublabel": "Concilia custo apurado ou mantém conferência"
+    },
+    {
+      "id": "balance",
+      "lane": "ui",
+      "col": 4,
+      "type": "service",
+      "label": "Planos e assinatura",
+      "sublabel": "AiAllowanceCard mostra saldo e valores em conferência"
+    },
+    {
+      "id": "review",
+      "lane": "ui",
+      "col": 6,
+      "type": "service",
+      "label": "Administração → Uso & Custo",
+      "sublabel": "AiReconciliation; administrador confirma custo e referência"
+    },
+    {
+      "id": "resolve",
+      "lane": "runtime",
+      "col": 7,
+      "type": "service",
+      "label": "fn_reconcile_subscription_ai",
+      "sublabel": "Ciclo original; full; idempotência; só unknown identificado"
+    },
+    {
+      "id": "audit",
+      "lane": "storage",
+      "col": 8,
+      "type": "service",
+      "label": "api_audit_log → Administração → Audit",
+      "sublabel": "billing.ai_reconciled; transação atômica com o saldo"
+    },
+    {
+      "id": "cakto",
+      "lane": "runtime",
+      "col": 0,
+      "type": "service",
+      "label": "Cakto: checkout e estado canônico",
+      "sublabel": "Oferta validada e pedido com tentativa aleatória"
+    },
+    {
+      "id": "billing-inbox",
+      "lane": "storage",
+      "col": 1,
+      "type": "service",
+      "label": "cakto_billing_inbox",
+      "sublabel": "HMAC; IDs sem dados do comprador; retry persistido"
+    },
+    {
+      "id": "billing-sync",
+      "lane": "runtime",
+      "col": 2,
+      "type": "service",
+      "label": "billing-sync → org_subscriptions",
+      "sublabel": "Lock por empresa; pagamento e ciclo confirmados"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "from": "calls",
+      "to": "evidence",
+      "label": "identidade real e resultado"
+    },
+    {
+      "id": "e1",
+      "from": "evidence",
+      "to": "reservations",
+      "label": "RPC com filtro de empresa e proteção de sobrescrita"
+    },
+    {
+      "id": "e2",
+      "from": "calls",
+      "to": "settle",
+      "label": "custo medido ou desconhecido"
+    },
+    {
+      "id": "e3",
+      "from": "settle",
+      "to": "reservations",
+      "label": "liquidação contra o ciclo original"
+    },
+    {
+      "id": "e4",
+      "from": "reservations",
+      "to": "balance",
+      "label": "consulta agregada do saldo"
+    },
+    {
+      "id": "e6",
+      "from": "reservations",
+      "to": "review",
+      "label": "GET administrativo paginado"
+    },
+    {
+      "id": "e7",
+      "from": "review",
+      "to": "resolve",
+      "label": "POST autenticado; custo e confirmação explícita"
+    },
+    {
+      "id": "e8",
+      "from": "resolve",
+      "to": "settle",
+      "label": "Respeita saldo e ciclo originais"
+    },
+    {
+      "id": "e9",
+      "from": "resolve",
+      "to": "audit",
+      "label": "Auditoria na mesma transação"
+    },
+    {
+      "id": "e10",
+      "from": "audit",
+      "to": "review",
+      "label": "Confirmação leva à auditoria; erros mantêm campos"
+    },
+    {
+      "id": "cakto-in",
+      "from": "cakto",
+      "to": "billing-inbox",
+      "label": "webhook autenticado"
+    },
+    {
+      "id": "cakto-job",
+      "from": "billing-inbox",
+      "to": "billing-sync",
+      "label": "scheduler tenta até confirmar"
+    },
+    {
+      "id": "cakto-state",
+      "from": "billing-sync",
+      "to": "cakto",
+      "label": "consulta estado atual"
+    },
+    {
+      "id": "cakto-visible",
+      "from": "billing-sync",
+      "to": "balance",
+      "label": "status e franquia por período"
+    },
+    {
+      "id": "cakto-audit",
+      "from": "billing-sync",
+      "to": "audit",
+      "label": "billing.subscription_synced"
+    }
+  ]
+}

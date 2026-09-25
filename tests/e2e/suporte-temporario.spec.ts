@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { test, expect, type BrowserContext, type Page, type Request } from "@playwright/test";
@@ -23,10 +23,21 @@ async function end(page:Page){await page.getByRole("button",{name:"Sair do acomp
 test("suporte mantém identidade, opera B e encerra sem misturar A; readonly/expiração/revogação são reais",async({page,browser})=>{
  test.setTimeout(240000);
  page.setDefaultTimeout(20000);
+ // Identifica a action pelo build em execução; o hash muda a cada build.
+ // getHomeOverview autentica e consulta via SELECT (app/app/_home-action.ts).
+ // Seu POST RSC pode ser cancelado ao navegar sem representar escrita em voo.
+ const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as
+  Record<string, Record<string, { filename?: string; exportedName?: string }>>;
+ const homeReadActions = new Set(Object.entries({ ...manifest.node, ...manifest.edge })
+  .filter(([, action]) => action.filename === "app/app/_home-action.ts"
+   && action.exportedName === "getHomeOverview")
+  .map(([id]) => id));
+ expect(homeReadActions.size, "O build deve identificar a action somente leitura da Home").toBeGreaterThan(0);
  const pendingMutations = new Set<Request>();
  const blockedBeforeSend = new WeakSet<Request>();
  const knownServerActions = new Set<Request>();
  const mutatesFixture = (request: Request) => {
+  if (request.method() === "POST" && homeReadActions.has(request.headers()["next-action"] ?? "")) return false;
   if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) return true;
   // Estes GETs sincronizam saúde no banco; polls somente de leitura ficam fora.
   const path = new URL(request.url()).pathname;

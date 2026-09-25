@@ -8,6 +8,8 @@ import { useT } from "@/hooks/i18n/useT";
 import type { AgentRow } from "@/hooks/ai/useAgent";
 import { AgentStatusBadge, deriveAgentStatus } from "./AgentStatusBadge";
 import { AgentRowMenu } from "./AgentRowMenu";
+import { employeeRoleFromConfig } from "@/lib/ai/agents/employee-roles";
+import { ArtisanIcon } from "@/components/brand/ArtisanIcon";
 
 interface Props {
   agent: AgentRow;
@@ -55,24 +57,21 @@ export function modeloEmVigor(agent: AgentRow): string {
 export function AgentCard({ agent, canWrite }: Props) {
   const t = useT();
   const status = deriveAgentStatus(agent);
+  const employeeRole = employeeRoleFromConfig(agent.config);
 
   return (
-    <Card className="flex h-full flex-col gap-3 p-4">
-      <div className="flex items-start justify-between gap-2">
+    <Card className="agent-directory-item relative flex h-full flex-col gap-3 rounded-none border-0 bg-transparent px-2 py-6 shadow-none sm:pl-20">
+      <span className="absolute top-6 left-2 hidden h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated sm:flex">
+        <ArtisanIcon symbol="agent" />
+      </span>
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="truncate font-medium" title={agent.name}>
-            {agent.name}
+          <h3 className="text-lg font-medium break-words" title={agent.name}>
+            <Link href={`/app/ai/agents/${agent.id}`} className="hover:underline">
+              {agent.name}
+            </Link>
           </h3>
-          <p
-            className="truncate text-xs text-muted-foreground"
-            title={
-              origemDoModelo(agent) === "versao_publicada"
-                ? t("Modelo da versão publicada — é o que atende o cliente.")
-                : t("Modelo do cadastro; nenhuma versão publicada ainda.")
-            }
-          >
-            {modeloEmVigor(agent)}
-          </p>
+          {employeeRole && <p className="text-sm text-muted-foreground">{employeeRole.title}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {agent.is_default && (
@@ -85,24 +84,39 @@ export function AgentCard({ agent, canWrite }: Props) {
         </div>
       </div>
       {agent.description && (
-        <p className="line-clamp-2 text-xs text-muted-foreground">{agent.description}</p>
+        <p className="text-sm break-words text-muted-foreground">{agent.description}</p>
       )}
-      <dl className="grid grid-cols-2 gap-2 pt-1 text-xs">
-        <div>
-          <dt className="text-muted-foreground">{t("Tipo")}</dt>
-          <dd className="font-mono">{agent.kind ?? "rag_bot"}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">{t("Prioridade")}</dt>
-          <dd className="font-mono">{agent.priority ?? "—"}</dd>
-        </div>
-      </dl>
+      <details className="rounded-md pt-1">
+        <summary className="cursor-pointer text-sm text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring">
+          {t("Detalhes técnicos")}
+        </summary>
+        <p
+          className="truncate text-xs text-muted-foreground"
+          title={
+            origemDoModelo(agent) === "versao_publicada"
+              ? t("Modelo da versão publicada — é o que atende o cliente.")
+              : t("Modelo do cadastro; nenhuma versão publicada ainda.")
+          }
+        >
+          {modeloEmVigor(agent)}
+        </p>
+        <dl className="grid grid-cols-2 gap-2 pt-1 text-xs">
+          <div>
+            <dt className="text-muted-foreground">{t("Tipo")}</dt>
+            <dd className="font-mono">{agent.kind ?? "rag_bot"}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">{t("Prioridade")}</dt>
+            <dd className="font-mono">{agent.priority ?? "—"}</dd>
+          </div>
+        </dl>
+      </details>
       <div className="mt-auto pt-2">
-        <Link href={`/app/ai/agents/${agent.id}`}>
-          <Button variant="outline" size="sm" className="w-full">
+        <Button asChild variant="ghost" size="sm" className="px-0">
+          <Link href={`/app/ai/agents/${agent.id}`}>
             {canWrite ? t("Editar") : t("Visualizar")}
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
     </Card>
   );

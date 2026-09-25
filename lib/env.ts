@@ -28,9 +28,7 @@ const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
  * pra permitir setup parcial (ex: dev sem WAHA quando trabalhando só na UI).
  */
 const required = (name: string) =>
-  isProd
-    ? z.string().min(1, `${name} é obrigatória em produção`)
-    : z.string().default("");
+  isProd ? z.string().min(1, `${name} é obrigatória em produção`) : z.string().default("");
 
 const requiredAlways = (name: string) => z.string().min(1, `${name} é obrigatória`);
 
@@ -306,6 +304,9 @@ const schema = z.object({
    */
   RESEND_API_KEY: z.string().optional().default(""),
   RESEND_FROM_EMAIL: z.string().optional().default(""),
+  // Brevo takes precedence when configured; auth SMTP is configured separately in GoTrue.
+  BREVO_API_KEY: z.string().optional().default(""),
+  BREVO_FROM_EMAIL: z.string().optional().default(""),
 
   /**
    * SMTP — o SEGUNDO transporte de e-mail, ao lado da Resend, nunca no lugar
@@ -423,15 +424,30 @@ const schema = z.object({
     .default("false")
     .transform((v) => v === "true"),
 
+  // Billing remains disabled until provider setup and payment QA are complete.
+  BILLING_ENABLED: z
+    .enum(["true", "false"])
+    .optional()
+    .default("false")
+    .transform((v) => v === "true"),
+  BILLING_PROVIDER: z.enum(["stripe", "cakto"]).optional().default("stripe"),
+  CAKTO_CLIENT_ID: z.string().optional().default(""),
+  CAKTO_CLIENT_SECRET: z.string().optional().default(""),
+  CAKTO_WEBHOOK_SECRET: z.string().optional().default(""),
+  CAKTO_CATALOG: z.string().optional().default(""),
+  STRIPE_SECRET_KEY: z.string().optional().default(""),
+  STRIPE_WEBHOOK_SECRET: z.string().optional().default(""),
+  STRIPE_PORTAL_CONFIGURATION: z.string().optional().default(""),
+
   // App URLs
-  NEXT_PUBLIC_APP_URL: z
-    .string()
-    .url()
-    .default("http://localhost:3000"),
-  NEXT_PUBLIC_ADMIN_URL: z
-    .string()
-    .url()
-    .default("http://localhost:3000"),
+  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_ADMIN_URL: z.string().url().default("http://localhost:3000"),
+  /**
+   * URL pública opcional para os webhooks da Meta (WhatsApp Cloud API / canais oficiais).
+   * Quando definida, é usada no lugar de NEXT_PUBLIC_APP_URL para compor a URL de callback
+   * dos webhooks da Meta (#1426), permitindo isolar a interface interna/VPN da URL pública.
+   */
+  META_WEBHOOK_BASE_URL: z.string().optional().default(""),
 
   // Marca da instalação (white-label) — ver lib/branding.ts.
   // Sem prefixo NEXT_PUBLIC_ de propósito: essas seriam queimadas no bundle

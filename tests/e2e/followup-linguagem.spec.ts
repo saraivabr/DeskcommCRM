@@ -47,7 +47,7 @@ async function login(page: Page, email: string, senha: string): Promise<void> {
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(senha);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.waitForURL(/\/app\//, { timeout: PRAZO_SOB_CARGA });
+  await page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: PRAZO_SOB_CARGA });
 }
 
 /**

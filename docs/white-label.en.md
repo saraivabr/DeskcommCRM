@@ -1,10 +1,10 @@
-<!-- traduzido-de: docs/white-label.md@e1d374bb48e0 -->
+<!-- traduzido-de: docs/white-label.md@6890f02c864c -->
 
 [🇧🇷 Português](white-label.md) · 🇺🇸 English · [🇪🇸 Español](white-label.es.md)
 
 # Installing for clients (agencies and resellers)
 
-A guide for whoever installs DeskcommCRM **for other companies** — agency, consultancy, reseller — and charges for it.
+A guide for whoever installs escreve.ai **for other companies** — agency, consultancy, reseller — and charges for it.
 
 The license is MIT: you may modify it, host it for third parties, resell it and charge whatever you want. There is no royalty, no clause forbidding commercial hosting, and there is no paid edition that locks features away from your client.
 

@@ -886,6 +886,38 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint padrão do canal parceiro que espelha a Cloud API (recorte do #1130), com override por DATAFY_API_BASE_URL. É o destino das chamadas de envio e de validação do token — e o canal só existe numa instalação que o liga (DATAFY_ENABLED).",
   },
+  "api.stripe.com": {
+    categoria: "FORNECEDOR",
+    motivo: "API oficial do Stripe para gestão de checkout, cobrança e assinaturas.",
+  },
+  "checkout.stripe.com": {
+    categoria: "FORNECEDOR",
+    motivo: "Página de checkout hospedada do Stripe para finalização de assinaturas.",
+  },
+  "billing.stripe.com": {
+    categoria: "FORNECEDOR",
+    motivo: "Portal de autoatendimento para gestão de assinaturas e faturas do Stripe.",
+  },
+  "api.cakto.com.br": {
+    categoria: "FORNECEDOR",
+    motivo: "API oficial da Cakto para cobrança, notificações e gestão de assinaturas.",
+  },
+  "pay.cakto.com.br": {
+    categoria: "FORNECEDOR",
+    motivo: "Página de checkout hospedada da plataforma Cakto para pagamento.",
+  },
+  "ajuda.cakto.com.br": {
+    categoria: "FORNECEDOR",
+    motivo: "Artigo de documentação oficial da Cakto explicando o cancelamento de planos.",
+  },
+  "api.brevo.com": {
+    categoria: "FORNECEDOR",
+    motivo: "API do serviço Brevo para envio de e-mails transacionais e notificações.",
+  },
+  "www.instagram.com": {
+    categoria: "FORNECEDOR",
+    motivo: "Rede social Instagram utilizada para postagens, engajamento e referências.",
+  },
   // ── painel do fornecedor: texto de tela apontando para o endereço DELE ────
   "platform.openai.com": {
     categoria: "CONSOLE",

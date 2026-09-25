@@ -253,10 +253,14 @@ async function temaDaPagina(page: Page): Promise<string | null> {
  * funcionar tem de reprovar aqui, não consumir o timeout do caso.
  */
 async function escolherTemaPelaTela(page: Page, alvo: "dark" | "light"): Promise<void> {
-  const botao = page.getByRole("button", { name: /^Tema:/ });
+  await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
+  const botao = page.getByRole("menuitem", { name: /^Tema:/ });
   await expect(botao, "o controle de tema não está na tela").toBeVisible({ timeout: 15_000 });
   for (let i = 0; i < 4; i++) {
-    if ((await temaDaPagina(page)) === alvo) return;
+    if ((await temaDaPagina(page)) === alvo) {
+      await page.keyboard.press("Escape");
+      return;
+    }
     await botao.click();
     // O `setTheme` escreve o atributo no mesmo tick do clique; a espera curta é
     // para o repaint, não para a lógica.
@@ -286,7 +290,7 @@ async function loginComTotp(page: Page, email: string, secret: string): Promise<
     await page.keyboard.type(generateTotp(secret), { delay: 40 });
 
     const desfecho = await Promise.race([
-      page.waitForURL(/\/app\//, { timeout: 60_000 }).then(
+      page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: 60_000 }).then(
         () => "entrou" as const,
         () => "sem-desfecho" as const,
       ),
@@ -346,9 +350,9 @@ function anotar(nome: string, dado: unknown): void {
   fs.writeFileSync(evidencia(nome), JSON.stringify(dado, null, 2) + "\n", "utf8");
 }
 
-/** O cabeçalho da barra lateral: o primeiro filho do `<aside>` (`h-14`, `border-b`). */
+/** O cabeçalho da barra lateral é o link da marca, acima do seletor da empresa. */
 function cabecalhoDaBarra(page: Page): Locator {
-  return page.locator("aside > div").first();
+  return page.locator('aside > a[href="/app"]').first();
 }
 
 async function medirCaixa(alvo: Locator): Promise<Caixa> {
@@ -578,9 +582,8 @@ test.describe("a moldura do logo no tema escuro", () => {
       `o cabeçalho da barra MUDOU de retângulo entre os temas numa instalação SEM logo ` +
         `enviado — claro=${JSON.stringify(claro)} escuro=${JSON.stringify(escuro)}`,
     ).toEqual(claro);
-    // E ele continua sendo o `h-14` de sempre, no topo: a igualdade acima passaria
-    // se os DOIS tivessem mudado junto.
-    expect(escuro.altura, "o cabeçalho deixou de ser `h-14` (56px)").toBe(56);
+    // A altura aprovada da nova sidebar é 92px em ambos os temas.
+    expect(escuro.altura, "o cabeçalho deixou a altura aprovada (92px)").toBe(92);
     expect(escuro.y, "o cabeçalho saiu do topo da barra").toBe(0);
   });
 

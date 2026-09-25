@@ -1,0 +1,35 @@
+# Instagram — criação, referências e resultados
+
+Rotas: `/app/instagram`, `/new`, `/library`, `/posts/[id]`, `/inspirations`, `/insights` dentro de Instagram. Prospecção mantém `/app/prospecting`, agora com a entrada **Conquiste novos clientes**.
+
+O cliente descreve nicho, ideia e formato; o servidor usa GPT Image 2.5 Flare e cria legenda. O pedido é persistido antes da chamada externa e seu UUID impede repetição. Imagens privadas usam URLs assinadas com validade de uma hora. Nada publica automaticamente. A revisão permite salvar legenda, copiar e baixar.
+
+A criação exibe `ImageGeneration` durante o pedido; a revisão reutiliza a animação enquanto o status consultado é `generating`. Sucesso mostra a imagem e falha devolve o aviso existente; erro de consulta também interrompe a animação. O indicador não inventa porcentagens e respeita movimento reduzido. É apresentação do módulo existente, sem nova configuração ou mutação: a API mantém auditoria e recuperação pela biblioteca; a pessoa revisa a saída e pode criar outra versão. Entrada: estado do pedido/API; saída: feedback nas telas de criação e revisão, acessíveis pela navegação Instagram.
+
+Referências são perfis informados pelo usuário. Pesquisa usa busca web com citações; sem fonte verificável, falha explicitamente. Não segue pessoas, não envia mensagens, não garante acesso a todos os posts nem afirma viralidade sem evidência. “Adaptar para meu negócio” preenche uma nova criação, sem publicar.
+
+Resultados usam a conexão social já existente, via adapter em `lib/channels/social/instagram-insights.ts`. A conta é validada contra o perfil da organização antes de consultar métricas. Ausência de métrica aparece como indisponível, nunca zero. A integração atual requer análise habilitada no provedor; não se apresenta como uma nova integração direta com a Meta.
+
+Backend: `/api/v1/instagram` lista e cria; `/:id` consulta, edita legenda e remove somente referências; `/insights` consulta contas e métricas. Viewer lê; agent cria e edita; configurações de canais preservam admin. O modo de suporte é respeitado.
+
+Dados: `instagram_studio_items`, isolada por organização, RLS para leitura, mutações somente por backend com guarda. A migration 0321 acompanha baseline e MANIFEST. Ações `instagram.*` alimentam auditoria. Falhas ficam no histórico para recuperação; pedidos interrompidos há mais de dez minutos são apresentados como falha, sem reenvio automático.
+
+Credencial central existente `OPENAI_API_KEY`, nunca enviada ao navegador. Consumo usa reservas da assinatura. Imagem mede tokens reais com a tarifa publicada do modelo. Texto e pesquisa usam GPT 5.6 Luna, medem tokens, cache e tier retornados, e acrescentam a tarifa da busca web por chamada concluída. Quando faltam medições, a reserva fica para conciliação, sem declarar consumo gratuito. Limite adicional de 20 pedidos por organização por dia.
+
+Fontes consultadas em 20/09/2026: https://developers.openai.com/api/docs/models/gpt-image-2.5-flare e https://docs.zernio.com/analytics/get-instagram-account-insights.mdx.
+
+O retorno OAuth passa por `/auth/social-return`, um documento público sem efeitos, que inicia uma navegação interna para Conexões. O cookie de sessão continua SameSite=Strict. Parâmetros do provedor são descartados; a tela consulta a integração autenticada para descobrir o estado real. O proxy encaminha retornos antigos de Conexões à mesma transição.
+
+A criação pré-carrega `organizations.display_name`, a descrição da última postagem (ou, na ausência, a descrição do agente ativo) e apenas o logo/cor cadastrados em `settings.branding` da organização. Não lê prompts internos ou conteúdo privado de conversas. O contexto é visível e ajustável; a descrição enviada fica no pedido e preenche a próxima criação. O logo é validado pelo prefixo da organização e pelos bytes PNG/JPG, baixado do bucket dedicado e enviado via multipart à API de edição de imagens. Falha no logo interrompe antes das chamadas pagas, permitindo tentar novamente ou desmarcar seu uso. Custos de imagem incluem tokens de texto e referência; medições incompletas ficam para conciliação.
+
+## Publicar e automatizar (24/09/2026)
+
+A revisão inclui publicação explícita em uma conta conectada: imagem, Story ou carrossel de 2–10 criações, na ordem de seleção. A geração e sua animação permanecem independentes. O backend prepara JPEGs privados, assina acesso temporário e registra a intenção em `instagram_publications` antes do envio. UUID por operação e reconciliação por `studio_publication_id` impedem repetição cega após timeout. A tela distingue publicado, processando, falhou e aguardando confirmação; somente o recibo da plataforma confirma publicação. Stories não levam legenda. Publicar exige manager, MFA quando cadastrada, limite de chamadas e guarda de suporte.
+
+`/app/instagram/growth` consulta as automações nativas existentes pelo perfil da organização. Permite selecionar postagem, definir palavras e modo de correspondência, enviar Direct e opcionalmente responder publicamente, editar, ativar/pausar e consultar os últimos 50 resultados. O executor é o serviço social, não os workers locais: os logs reais informam enviado, falhou, aguardando e erros da plataforma. Não inventa leads no CRM nem converte envio em leitura/conversão. As antigas linhas de `growth_instagram_triggers` são preservadas, mas não são apresentadas como regras executadas.
+
+OAuth central: quando `ZERNIO_API_KEY` está configurada pelo operador, autorizar uma organização sem integração provisiona um perfil exclusivo, com nome determinístico e chave cifrada em `channel_integrations`; nenhuma chave é pedida ao cliente final. Organizações já vinculadas conservam seu perfil. Sem credencial central, continua disponível a configuração anterior pelo administrador. Limites de perfis/plano e recusas OAuth são erros explícitos.
+
+Destino: núcleo, como conclusão do Instagram já distribuído. Entrada: biblioteca + conexão social. Saídas: post no Instagram e regra no executor do provedor. Auditoria: `instagram.completed/failed` para publicação e `channel.social_configured` para regras. Laço de retorno: consultar resultado, corrigir conexão/conteúdo ou editar/pausar regra; publicação incerta bloqueia repetição na revisão. Mapa: `docs/architecture/instagram-publicacao.md`.
+
+Contratos verificados: https://docs.zernio.com/posts/create-post.mdx, https://docs.zernio.com/comment-automations/create-comment-automation.mdx, https://docs.zernio.com/accounts/get-account-posts.mdx. Nenhuma publicação nem mensagem real é necessária para o QA local; autorização específica continua necessária para testes com terceiros.

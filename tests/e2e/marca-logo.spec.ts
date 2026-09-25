@@ -17,7 +17,7 @@
  *      aparece na barra lateral E no `/login` de quem não entrou — a P0 de
  *      primeira impressão.
  *   2. **A camada da organização NÃO vaza para a fachada.** O logo do cliente
- *      final troca a barra lateral dele e o `/login` continua sendo o do
+ *      final identifica o espaço na barra dele e o `/login` continua sendo o do
  *      revendedor. É a propriedade que separa "marca própria" de "qualquer um
  *      repinta a instalação".
  *   3. **O que não é imagem não entra.** Um SVG renomeado para `.png` é recusado
@@ -223,7 +223,7 @@ async function loginComTotp(page: Page, email: string, secret: string): Promise<
     await page.keyboard.type(generateTotp(secret), { delay: 40 });
 
     const desfecho = await Promise.race([
-      page.waitForURL(/\/app\//, { timeout: 60_000 }).then(
+      page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: 60_000 }).then(
         () => "entrou" as const,
         () => "sem-desfecho" as const,
       ),
@@ -246,11 +246,15 @@ async function loginComTotp(page: Page, email: string, secret: string): Promise<
 
 type Escopo = "instalacao" | "organizacao";
 
-async function subir(page: Page, escopo: Escopo, arquivo: {
-  nome: string;
-  mime: string;
-  bytes: Buffer;
-}): Promise<void> {
+async function subir(
+  page: Page,
+  escopo: Escopo,
+  arquivo: {
+    nome: string;
+    mime: string;
+    bytes: Buffer;
+  },
+): Promise<void> {
   // A hidratação, e não a visibilidade. `setInputFiles` espera o elemento estar
   // ANEXADO, e o input existe no HTML do SSR antes de o React atar o `onChange`
   // — arquivo posto nessa janela não dispara requisição nenhuma, e o caso morre
@@ -364,7 +368,10 @@ async function medirImagem(img: Locator): Promise<LogoNaTela> {
  * Nenhuma asserção ficou mais frouxa: o caso continua vermelho se o logo sumir
  * de verdade — só passa a dizer QUAL das coisas aconteceu.
  */
-async function logoDaBarra(page: Page): Promise<LogoNaTela | null> {
+async function logoDaBarra(
+  page: Page,
+  camada: "platform" | "organization" = "platform",
+): Promise<LogoNaTela | null> {
   await expect(
     page,
     `saiu de /app — ${page.url()}. A barra não sumiu: a PÁGINA é outra ` +
@@ -377,7 +384,7 @@ async function logoDaBarra(page: Page): Promise<LogoNaTela | null> {
     `a casca do app não montou em /app — ${page.url()}. Sem <aside> não há o que medir.`,
   ).toBeAttached({ timeout: 15_000 });
 
-  const img = casca.locator("img").first();
+  const img = casca.locator(`img[data-brand-layer="${camada}"]`);
   // `count()` é a ÚNICA leitura sem auto-espera do helper, e por isso era ela
   // que media durante a troca de documento: `goto("/app")` cai num
   // `redirect("/app/inbox")` (app/app/page.tsx tem 3 linhas), o Next serve /app
@@ -529,22 +536,24 @@ async function subirLogoDaCamada(page: Page, escopo: Escopo): Promise<void> {
  * caso diferente a cada execução. `toHaveAttribute` POLLA o valor (a cada 100ms,
  * até o teto): a espera é pelo estado da tela, não por um relógio.
  *
- * O que se espera é o endereço da camada CERTA, e não "uma imagem qualquer": com
- * `activeOrg?.marca?.logoUrl || brand.logoUrl` (`Sidebar.tsx`), "a barra tem logo"
- * fica verde com o logo da camada de BAIXO — que é o caso em que a precondição
- * teria de reprovar.
+ * Cada camada tem uma posição própria: instalação no cabeçalho e empresa no
+ * seletor de espaço. A medição escolhe a camada, verifica visibilidade e bitmap;
+ * o logo da instalação não pode satisfazer a precondição do logo da empresa.
  */
 async function barraMostraLogoDe(
   page: Page,
   caminhoNoBucket: string,
   onde: string,
 ): Promise<LogoNaTela> {
+  const camada = caminhoNoBucket === "platform/" ? "platform" : "organization";
+  const imagem = page.locator("aside").first().locator(`img[data-brand-layer="${camada}"]`);
+  await expect(imagem).toBeVisible();
   await expect(
-    page.locator("aside").first().locator("img").first(),
+    imagem,
     `${onde}: a barra lateral não passou a mostrar o logo da camada — esperava um src ` +
       `com "brand-logos/${caminhoNoBucket}" e há outro (ou nenhum)`,
   ).toHaveAttribute("src", new RegExp(`brand-logos/${caminhoNoBucket}`), { timeout: 15_000 });
-  const logo = await logoDaBarra(page);
+  const logo = await logoDaBarra(page, camada);
   expect(logo, `${onde}: a barra tem o src certo no HTML mas nenhum <img> medível`).not.toBeNull();
   baixou(logo!, onde);
   return logo!;
@@ -653,7 +662,10 @@ test.describe("o logo subido pela tela chega à tela", () => {
     // outros casos usam o helper justamente porque, para eles, a subida é
     // precondição, e não objeto de medida (issue #306).
     const secret = creds.dono_totp?.secret;
-    expect(secret, "sem `dono_totp` no .e2e-creds.json — rode seed-e2e-credentials.ts").toBeTruthy();
+    expect(
+      secret,
+      "sem `dono_totp` no .e2e-creds.json — rode seed-e2e-credentials.ts",
+    ).toBeTruthy();
     await loginComTotp(page, creds.users.dono!.email, secret!);
 
     await page.goto("/admin/marca");
@@ -822,13 +834,8 @@ test.describe("o logo subido pela tela chega à tela", () => {
 
     await page.goto("/app/inbox");
     // O estado de partida é o logo que ESTE caso subiu, e a espera é no VALOR —
-    // `barraMostraLogoDe` POLLA o endereço da camada CERTA. `Sidebar.tsx` faz
-    // `activeOrg?.marca?.logoUrl || brand.logoUrl`: se a camada da organização
-    // ainda não tivesse chegado à barra, o que estaria lá é o logo da INSTALAÇÃO,
-    // a comparação lá embaixo (`depois === antes`) viraria tautologia — comparando
-    // o logo da instalação consigo mesmo — e o caso se chama "o logo da empresa
-    // sobrevive à recusa". Então é o da empresa que a precondição tem de provar,
-    // e é isso que o poll garante.
+    // `barraMostraLogoDe` mede especificamente o logo da organização no seletor
+    // de espaço, para nunca comparar o logo da instalação consigo mesmo.
     const antes = await barraMostraLogoDe(page, `${creds.org_id}/`, "precondição do caso (4)");
     expect(antes.src, "a barra lateral mostrou outro logo, não o da empresa").toContain(
       `${PREFIXO_PUBLICO}${creds.org_id}/`,
@@ -859,7 +866,7 @@ test.describe("o logo subido pela tela chega à tela", () => {
     await page.screenshot({ path: evidencia("5-svg-recusado.png"), fullPage: true });
 
     await page.goto("/app/inbox");
-    const depois = await logoDaBarra(page);
+    const depois = await logoDaBarra(page, "organization");
     // ⚠️ As mensagens NÃO acusam mais a gravação. A versão anterior dizia "a
     // recusa apagou o logo — a gravação não foi atômica", e isso é impossível
     // por construção: a recusa por bytes sai da rota com 415 em
@@ -878,10 +885,10 @@ test.describe("o logo subido pela tela chega à tela", () => {
     // NOTA DO TETO no caso (1).
   });
 
-  test("(5) remover devolve o logo da camada de baixo", async ({ page, browser }) => {
+  test("(5) remover retira o logo da empresa e preserva o da instalação", async ({ page, browser }) => {
     // ── AS DUAS PRECONDIÇÕES DESTE CASO, MONTADAS AQUI (issue #306) ───────────
-    // "Devolve o logo da camada de baixo" precisa das DUAS camadas: a de cima,
-    // para haver o que remover, e a de baixo, para haver o que aparecer no lugar.
+    // As DUAS camadas começam visíveis: a empresa para haver o que remover,
+    // e a instalação para comprovar que sua marca permanece.
     // A de baixo era o que o caso (1) tivesse deixado — e é a razão de este caso
     // poder reprovar junto com ele.
     const ctxInstalacao = await browser.newContext();
@@ -895,8 +902,7 @@ test.describe("o logo subido pela tela chega à tela", () => {
 
       // A barra já mostra o DA EMPRESA antes de a remoção começar, e a espera é no
       // VALOR (ver `barraMostraLogoDe`): sem ela, "sobrou o da instalação" e "a
-      // barra nunca chegou a pintar o da empresa" seriam o mesmo verde — a barra
-      // cai no logo da instalação pelo mesmo `||` que faz o caso passar.
+      // barra nunca chegou a pintar o da empresa" seriam o mesmo verde.
       await page.goto("/app/inbox");
       await barraMostraLogoDe(page, `${creds.org_id}/`, "precondição do caso (5)");
 
@@ -921,7 +927,11 @@ test.describe("o logo subido pela tela chega à tela", () => {
         "platform/",
         "barra lateral depois de remover o logo da empresa",
       );
-      expect(barra.src, "a barra lateral não voltou para o logo da instalação").toContain(
+      await expect(
+        page.locator('aside img[data-brand-layer="organization"]'),
+        "remover o logo da empresa deve retirá-lo do seletor de espaço",
+      ).toHaveCount(0);
+      expect(barra.src, "a barra lateral não preservou o logo da instalação").toContain(
         `${PREFIXO_PUBLICO}platform/`,
       );
       await page.screenshot({ path: evidencia("6-volta-ao-da-instalacao.png") });

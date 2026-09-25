@@ -94,9 +94,9 @@ describe("costCents — o TTL do cache é o que o knob LLM_CACHE_TTL diz", () =>
     expect(gravacaoDeCache("claude-sonnet-5", "1h")).toBeCloseTo(400, 6);
   });
 
-  it("sem TTL informado, vale a doutrina do repo: 1h", () => {
+  it("sem TTL informado, não inventa a tarifa da gravação", () => {
     const comGravacao: TokenUsage = { ...NADA, inputTokens: 1_000_000, cacheWriteTokens: 1_000_000 };
-    expect(costCents("claude-sonnet-5", comGravacao)).toBeCloseTo(400, 6);
+    expect(costCents("claude-sonnet-5", comGravacao)).toBeNull();
   });
 });
 

@@ -1,3 +1,4 @@
+import { isSubscriptionResourceLimit, subscriptionResourceLimitResponse } from "@/lib/billing/resource-limit";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 /**
  * GET  /api/v1/ai/agents  — list agents da org ativa (manager+).
@@ -127,6 +128,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       .insert(records.agent)
       .select(AGENT_COLUMNS)
       .single();
+    if (isSubscriptionResourceLimit(agentError)) return subscriptionResourceLimitResponse(requestId, authUser.idioma);
     if (agentError || !agentRow)
       return fail("internal_error", "Erro ao criar agent.", 500, { requestId });
     const { data: versionRow, error: versionError } = await admin
@@ -150,7 +152,12 @@ export async function POST(req: NextRequest): Promise<Response> {
       resourceType: "ai_agent",
       resourceId: agentRow.id,
       requestId,
-      metadata: { kind: "mcp_agent", first_version_id: versionRow.id, priority: input.priority },
+      metadata: {
+        kind: "mcp_agent",
+        first_version_id: versionRow.id,
+        priority: input.priority,
+        employee_role: input.employee_role ?? null,
+      },
     });
 
     return ok({ agent: agentRow, version: versionRow }, { status: 201, requestId });
@@ -181,6 +188,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .select(AGENT_COLUMNS)
     .single();
 
+  if (isSubscriptionResourceLimit(error)) return subscriptionResourceLimitResponse(requestId, authUser.idioma);
   if (error || !data) {
     return fail("internal_error", "Erro ao criar agent.", 500, { requestId });
   }

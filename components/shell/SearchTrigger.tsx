@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { MagnifyingGlass } from "@/lib/ui/icons";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/hooks/i18n/useT";
 import { CommandPalette } from "@/components/shell/CommandPalette";
@@ -19,12 +19,14 @@ export function SearchTrigger() {
       <Button
         variant="outline"
         size="sm"
-        className="gap-2 text-muted-foreground"
+        aria-label={t("Buscar telas")}
+        className="h-9 gap-2 rounded-lg border-0 bg-transparent px-2 text-muted-foreground shadow-none hover:bg-muted"
         onClick={() => setOpen(true)}
       >
-        <MagnifyingGlass size={14} aria-hidden />
-        <span className="hidden md:inline">{t("Buscar...")}</span>
-        <kbd className="ml-2 hidden md:inline rounded-md border bg-muted px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+        <Search size={14} aria-hidden />
+        <kbd className="hidden rounded-sm border border-border bg-transparent px-1 py-0.5 text-[9px] md:inline">
+          ⌘K
+        </kbd>
       </Button>
       <CommandPalette open={open} onOpenChange={setOpen} />
     </>

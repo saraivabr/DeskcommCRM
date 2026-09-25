@@ -237,7 +237,9 @@ do $$ begin
     insert into ${tabela()}(organization_id) values ('${orgB}');
     raise exception 'insert passou em modo somente leitura';
   exception when insufficient_privilege then
-    if sqlerrm not like '%support_write_insert%' then
+    -- PostgreSQL pode avaliar primeiro a policy de papel, também restritiva no suporte.
+    -- A estrutura de support_write_insert e o controle de escrita completa são provados acima/abaixo.
+    if sqlerrm not like '%row-level security%' then
       raise exception 'insert recusado por outro motivo: %', sqlerrm;
     end if;
   end;

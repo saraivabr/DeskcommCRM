@@ -160,7 +160,7 @@ test.describe("degradação silenciosa do tempo real", () => {
     await page.getByLabel(/e-?mail/i).fill(creds.users.manager!.email);
     await page.getByLabel(/senha/i).fill(creds.password);
     await page.getByRole("button", { name: /^(entrar|acessar)$/i }).click();
-    await page.waitForURL(/\/app\//, { timeout: 30_000 });
+    await page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: 30_000 });
 
     const { data: pipes } = await admin
       .from("crm_pipelines")

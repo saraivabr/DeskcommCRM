@@ -17,7 +17,6 @@ export default async function ConnectionsPage() {
   if (!(user.is_platform_admin && !user.support) && ROLE_RANK[activeOrg.role] < ROLE_RANK.admin) {
     redirect("/403");
   }
-  const idioma = user.idioma;
 
   const key = process.env.WAHA_API_KEY;
   const wahaConfigured = Boolean(
@@ -25,6 +24,7 @@ export default async function ConnectionsPage() {
   );
   const wacallsConfigured = Boolean(process.env.WACALLS_API_BASE_URL);
 
+  const idioma = user.idioma;
   return (
     <div className="flex h-full flex-col gap-6 p-6">
       <header>

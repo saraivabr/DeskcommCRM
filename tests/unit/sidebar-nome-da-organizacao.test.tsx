@@ -6,22 +6,8 @@ import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
 import type { Branding } from "@/lib/branding";
 import { MarcaDaInstalacaoProvider } from "@/lib/branding/contexto";
 
-/**
- * O CONSUMIDOR do nome por organização — provado por comportamento, não por
- * símbolo.
- *
- * POR QUE ESTE ARQUIVO EXISTE: medido antes de escrever a feature, o nome da
- * organização não aparecia em lugar nenhum da casca para o cliente típico de um
- * revendedor — o único leitor era o `TenantSwitcher`, que devolve `null` com uma
- * organização só. Gravar `settings.branding.app_name` sem um leitor real teria
- * criado o campo decorativo clássico: a tela oferece, o código ignora, e o
- * cliente conclui que o produto está quebrado.
- *
- * Conferir que a Sidebar MENCIONA `activeOrg.marca` não bastaria — é evidência
- * de símbolo presente, não de comportamento presente. Os dois casos abaixo
- * medem o texto que a barra renderiza, com e sem a marca, e o segundo afirma
- * também a AUSÊNCIA do nome da instalação: sem isso, um componente que
- * mostrasse os dois passaria.
+/** A identidade do produto e a do espaço são exibidas separadamente.
+ * Branding da organização continua visível, inclusive com uma organização só.
  */
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/app/inbox" }));
@@ -90,22 +76,20 @@ describe("o nome da marca na barra lateral", () => {
     expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
   });
 
-  it("com marca da organização, o nome dela SUBSTITUI o da instalação", () => {
+  it("com marca da organização, identifica o espaço sem substituir o produto", () => {
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
     renderSidebar({ collapsed: false });
     expect(screen.getByText("Loja da Ana")).toBeTruthy();
-    // A ausência importa tanto quanto a presença: uma barra que mostrasse os
-    // dois nomes passaria na asserção de cima e estaria errada.
-    expect(screen.queryByText("Sistema do Revendedor")).toBeNull();
+    expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
+    expect(screen.getByText("Espaço de trabalho")).toBeTruthy();
   });
 
   it("recolhida, a inicial acompanha o nome que a barra mostra", () => {
-    // Sem isto, recolher o menu trocaria a marca: o nome viria da organização e
-    // a inicial continuaria vindo da INSTALAÇÃO — "L" expandido, "S" recolhido.
+    // As duas identidades continuam distintas quando o menu está recolhido.
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
     renderSidebar({ collapsed: true });
     expect(screen.getByText("L")).toBeTruthy();
-    expect(screen.queryByText("S")).toBeNull();
+    expect(screen.getByText("S")).toBeTruthy();
   });
 });
 
@@ -145,7 +129,7 @@ describe("o logo na barra lateral", () => {
     expect(screen.queryByText("Sistema do Revendedor")).toBeNull();
   });
 
-  it("o logo da organização SUBSTITUI o da instalação", () => {
+  it("o logo da organização identifica o espaço e preserva o da instalação", () => {
     marcaDaInstalacao = { ...marcaDaInstalacao, logoUrl: LOGO_DA_INSTALACAO };
     contexto = {
       user: usuario,
@@ -153,10 +137,11 @@ describe("o logo na barra lateral", () => {
     };
     renderSidebar({ collapsed: false });
 
-    expect(imagem().getAttribute("src")).toBe(LOGO_DA_ORG);
-    // O `alt` acompanha a imagem que está ali: com o logo da org, legendar com o
-    // nome do revendedor descreveria a marca errada para quem usa leitor de tela.
-    expect(imagem().getAttribute("alt")).toBe("Loja da Ana");
+    expect(screen.getByRole("img", { name: "Loja da Ana" })).toHaveAttribute("src", LOGO_DA_ORG);
+    expect(screen.getByRole("img", { name: "Sistema do Revendedor" })).toHaveAttribute(
+      "src",
+      LOGO_DA_INSTALACAO,
+    );
   });
 
   it("logo VAZIO na organização cai para o da instalação, não apaga a marca", () => {

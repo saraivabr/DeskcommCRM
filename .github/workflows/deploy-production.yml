@@ -1,0 +1,95 @@
+name: Deploy Producao (os.escreve.ai)
+
+on:
+  push:
+    branches:
+      - feat/saraiva-ai-consolidacao
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build da Imagem e Deploy no IRB
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+
+    steps:
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+
+      - name: Exigir verificações da revisão antes de publicar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/require-production-checks.mjs
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Definir metadados e tags da imagem
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/saraivabr/deskcomm-app
+          tags: |
+            type=sha,format=short,prefix=,priority=1000
+            type=raw,value=latest
+
+      - name: Build e Push da imagem Docker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Executar Deploy no IRB via SSH
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+          IMAGE_TAG: ${{ steps.meta.outputs.version }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "$IMAGE_TAG"
+
+      - name: Validar Saude em Producao (Smoke Test)
+        env:
+          IMAGE_TAG: ${{ steps.meta.outputs.version }}
+        run: |
+          echo "Consultando health check publico..."
+          for i in {1..15}; do
+            RESPONSE=$(curl --fail --silent --show-error --max-time 15 https://os.escreve.ai/api/v1/health || true)
+            echo "Resposta: $RESPONSE"
+            if echo "$RESPONSE" | jq -e --arg version "$IMAGE_TAG" '.data.status == "healthy" and .data.version == $version' >/dev/null; then
+              echo "Saúde da revisão publicada confirmada."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Aviso: Nao foi possivel confirmar o status healthy imediatamente."
+          exit 1

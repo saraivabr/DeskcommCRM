@@ -4,7 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
 import { Sidebar } from "@/components/shell/Sidebar";
-import { CLASSES_DE_COR, LogotipoDoProduto, SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
+import {
+  CLASSES_DE_COR,
+  LogotipoDoProduto,
+  SimboloDoProduto,
+} from "@/components/branding/MarcaDoProduto";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
 import { DEFAULT_APP_NAME, marcaEhADoProduto, type Branding } from "@/lib/branding";
 import { MarcaDaInstalacaoProvider } from "@/lib/branding/contexto";
@@ -73,10 +77,13 @@ describe("marcaEhADoProduto", () => {
 });
 
 describe("o desenho na barra lateral", () => {
-  it("aberta e sem marca própria, mostra o logotipo do produto (SVG, não <img>)", () => {
+  it("aberta e sem marca própria, mostra a assinatura escreve.ai", () => {
+    contexto = { user: usuario, activeOrg: null };
     renderSidebar(PADRAO, false);
-    const logotipo = screen.getByRole("img", { name: DEFAULT_APP_NAME });
-    expect(logotipo.tagName.toLowerCase()).toBe("svg");
+    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME })).toHaveAttribute(
+      "viewBox",
+      "140 155 1870 410",
+    );
     // O e2e `marca-logo.spec.ts` lê "barra sem <img>" como "sem logo do
     // revendedor"; um <img> do produto aqui faria a spec medir a coisa errada.
     expect(document.querySelector("img")).toBeNull();
@@ -84,9 +91,13 @@ describe("o desenho na barra lateral", () => {
     expect(screen.queryByText(DEFAULT_APP_NAME)).toBeNull();
   });
 
-  it("recolhida, mostra só o símbolo — e não a inicial em texto", () => {
+  it("recolhida, mostra a assinatura curta escreve.ai", () => {
+    contexto = { user: usuario, activeOrg: null };
     renderSidebar(PADRAO, true);
-    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME }).tagName.toLowerCase()).toBe("svg");
+    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME })).toHaveAttribute(
+      "viewBox",
+      "140 155 410 410",
+    );
     expect(screen.queryByText("D")).toBeNull();
   });
 
@@ -96,11 +107,11 @@ describe("o desenho na barra lateral", () => {
     expect(document.querySelector("svg[role=img]")).toBeNull();
   });
 
-  it("com nome da ORGANIZAÇÃO sobre a instalação padrão, o nome dela vence o desenho", () => {
+  it("com nome da organização, preserva o desenho da instalação e identifica o espaço", () => {
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
     renderSidebar(PADRAO, false);
     expect(screen.getByText("Loja da Ana")).toBeTruthy();
-    expect(document.querySelector("svg[role=img]")).toBeNull();
+    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME })).toBeTruthy();
   });
 
   it("com logo da instalação, a imagem vence o desenho", () => {
@@ -113,8 +124,14 @@ describe("as cores do desenho", () => {
   it("as classes do componente cobrem exatamente a paleta declarada, nos dois temas", () => {
     // O Tailwind só gera utilitário para hex LITERAL no fonte, então o
     // componente repete os valores. Isto é o que impede os dois de divergirem.
-    const nasClasses = Object.values(CLASSES_DE_COR).join(" ").match(/#[0-9a-f]{6}/g) ?? [];
-    const naPaleta = [...Object.values(CORES_DA_MARCA.claro), ...Object.values(CORES_DA_MARCA.escuro)];
+    const nasClasses =
+      Object.values(CLASSES_DE_COR)
+        .join(" ")
+        .match(/#[0-9a-f]{6}/g) ?? [];
+    const naPaleta = [
+      ...Object.values(CORES_DA_MARCA.claro),
+      ...Object.values(CORES_DA_MARCA.escuro),
+    ];
     expect([...nasClasses].sort()).toEqual([...naPaleta].sort());
   });
 
@@ -124,6 +141,17 @@ describe("as cores do desenho", () => {
       expect(classes).toContain(`fill-[${CORES_DA_MARCA.claro[chave]}]`);
       expect(classes).toContain(`dark:fill-[${CORES_DA_MARCA.escuro[chave]}]`);
     }
+  });
+
+  it("a arte própria ganha contraste no escuro sem moldura nem mudança de geometria", () => {
+    render(<LogotipoDoProduto nome="Marca X" />);
+    const classes = screen.getByRole("img", { name: "Marca X" }).getAttribute("class");
+    expect(classes).toContain("dark:brightness-0");
+    expect(classes).toContain("dark:invert");
+    expect(classes).not.toMatch(/dark:(?:bg-|p-)/);
+    cleanup();
+    render(<SimboloDoProduto nome="Marca X" />);
+    expect(screen.getByRole("img", { name: "Marca X" }).getAttribute("class")).toContain("dark:invert");
   });
 
   it("decorativo esconde do leitor de tela; sem isso, nomeia a marca", () => {
@@ -140,7 +168,7 @@ describe("o favicon segue a mesma regra", () => {
 
   it("desenha o símbolo quando a marca é a do produto, e a inicial quando não é", () => {
     expect(icone).toMatch(/marcaEhADoProduto\(\{ name: marca\.nome, logoUrl: marca\.logoUrl \}\)/);
-    expect(icone).toMatch(/<path d=\{SIMBOLO\.d\}/);
+    expect(icone).toContain("public/brand/escreve-ai.png");
     expect(icone).toMatch(/letraDoIcone\(marca\.nome\)/);
   });
 });

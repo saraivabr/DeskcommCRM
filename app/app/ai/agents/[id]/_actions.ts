@@ -17,6 +17,8 @@
  * aqui chamamos os handlers internos para reusar a lógica.
  */
 import { randomUUID } from "node:crypto";
+import { isSubscriptionResourceLimit, subscriptionResourceLimitMessage } from "@/lib/billing/resource-limit";
+import { ApiErrorCodes } from "@/lib/api/errors";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
@@ -705,10 +707,14 @@ export async function createMcpAgentAction(
       is_active: false,
       is_default: false,
       created_by: authUser.id,
+      config: parsed.data.employee_role ? { employee_role: parsed.data.employee_role } : {},
     })
     .select("id")
     .single();
 
+  if (isSubscriptionResourceLimit(agentErr)) {
+    return { ok: false, error: ApiErrorCodes.subscription_resource_limit, message: subscriptionResourceLimitMessage(authUser.idioma) };
+  }
   if (agentErr || !agentRow) {
     return { ok: false, error: "internal_error", message: agentErr?.message };
   }
@@ -764,7 +770,7 @@ export async function createMcpAgentAction(
     resourceType: "ai_agent",
     resourceId: agentRow.id,
     requestId,
-    metadata: { kind: "mcp_agent" },
+    metadata: { kind: "mcp_agent", employee_role: parsed.data.employee_role ?? null },
   });
 
   revalidatePath("/app/ai/agents");

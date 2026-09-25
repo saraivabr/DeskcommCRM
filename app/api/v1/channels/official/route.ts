@@ -1,3 +1,7 @@
+import {
+  isSubscriptionResourceLimit,
+  subscriptionResourceLimitResponse,
+} from "@/lib/billing/resource-limit";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 /**
  * GET  /api/v1/channels/official — estado da conexão oficial + o que colar na Meta.
@@ -40,7 +44,7 @@ import { reactivateChannelSession } from "@/lib/channels/reactivate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { metadataInicialDoCanal } from "@/lib/ai/elegibilidade/pre-go-live";
 import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
-import { basePublicaDaInstalacao } from "@/lib/webhooks/url-publica";
+import { basePublicaDoWebhookMeta } from "@/lib/webhooks/url-publica";
 import { traduzir } from "@/lib/i18n/dicionario";
 
 export const dynamic = "force-dynamic";
@@ -131,7 +135,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const consultar = () =>
     admin
       .from("channel_sessions")
-      .select("id, meta_phone_number_id, meta_waba_id, meta_token_encrypted, phone_number, display_name, webhook_path_token, status")
+      .select(
+        "id, meta_phone_number_id, meta_waba_id, meta_token_encrypted, phone_number, display_name, webhook_path_token, status",
+      )
       .eq("organization_id", orgId)
       .eq("provider", CHANNEL_PROVIDER_META);
   const { data } = await queryTolerantToMissingArchived(
@@ -139,7 +145,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     () => consultar().maybeSingle(),
   );
 
-  const base = basePublicaDaInstalacao(req);
+  const base = basePublicaDoWebhookMeta(req);
   const desfecho = data?.id ? await lerDesfechoDoWebhook(admin, data.id) : null;
   return ok({
     connected: Boolean(data),
@@ -225,7 +231,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // recusar. O operador precisa saber que falta uma configuração de servidor.
     return fail(
       "invalid_request",
-      t("cifra indisponível nesta instalação (GUC app.nuvemshop_oauth_key ausente) — o token não foi gravado"),
+      t(
+        "cifra indisponível nesta instalação (GUC app.nuvemshop_oauth_key ausente) — o token não foi gravado",
+      ),
       422,
       { requestId },
     );
@@ -258,7 +266,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     meta_phone_number_id: phone_number_id,
     meta_waba_id: waba_id,
     meta_token_encrypted: cifrado,
-    phone_number: validacao.displayPhoneNumber ? `+${validacao.displayPhoneNumber.replace(/\D/g, "")}` : null,
+    phone_number: validacao.displayPhoneNumber
+      ? `+${validacao.displayPhoneNumber.replace(/\D/g, "")}`
+      : null,
     display_name: validacao.verifiedName ?? "Canal oficial",
     status: "WORKING",
   };
@@ -315,6 +325,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     webhookPathToken = inserida.data?.webhook_path_token ?? null;
   }
 
+  if (isSubscriptionResourceLimit(error))
+    return subscriptionResourceLimitResponse(requestId, authz.user.idioma);
   if (error) {
     return fail("internal_error", error.message ?? "channel_session_write_failed", 500, {
       requestId,
@@ -338,7 +350,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           wabaId: waba_id,
           tokenCifrado: cifrado,
           webhookPathToken,
-          base: basePublicaDaInstalacao(req),
+          base: basePublicaDoWebhookMeta(req),
           requestId,
         })
       : null;

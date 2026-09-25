@@ -87,7 +87,7 @@ test.describe("as telas do épico abrem para uma pessoa", () => {
     await page.waitForTimeout(msUntilNextTotpWindow() + 200);
     await page.locator('input[aria-label="Dígito 1"]').click();
     await page.keyboard.type(generateTotp(creds.admin_totp!.secret), { delay: 60 });
-    await page.waitForURL(/\/app\//, { timeout: 30_000 });
+    await page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: 30_000 });
 
     const quebradas: string[] = [];
 

@@ -34,6 +34,273 @@ export type Database = {
   }
   public: {
     Tables: {
+      subscription_ai_reservations: {
+        Row: {
+          charged_brl_cents: number | null
+          cost_usd_cents: number | null
+          created_at: string
+          id: string
+          organization_id: string
+          period_id: string
+          reserved_brl_cents: number
+          settled_at: string | null
+          provider: string | null
+          model: string | null
+          usage_evidence: Json | null
+          status: string
+        }
+        Insert: {
+          charged_brl_cents?: number | null
+          cost_usd_cents?: number | null
+          created_at?: string
+          id: string
+          organization_id: string
+          period_id: string
+          reserved_brl_cents: number
+          settled_at?: string | null
+          provider?: string | null
+          model?: string | null
+          usage_evidence?: Json | null
+          status?: string
+        }
+        Update: {
+          charged_brl_cents?: number | null
+          cost_usd_cents?: number | null
+          created_at?: string
+          id?: string
+          organization_id?: string
+          period_id?: string
+          reserved_brl_cents?: number
+          settled_at?: string | null
+          provider?: string | null
+          model?: string | null
+          usage_evidence?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_ai_reservations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_ai_reservations_period_id_organization_id_fkey"
+            columns: ["period_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_ai_periods"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      subscription_ai_periods: {
+        Row: {
+          budget_brl_cents: number
+          created_at: string
+          id: string
+          organization_id: string
+          period_end: string
+          period_start: string
+          provider_subscription_id: string
+          revision: number
+          usd_to_brl_rate: number
+        }
+        Insert: {
+          budget_brl_cents: number
+          created_at?: string
+          id?: string
+          organization_id: string
+          period_end: string
+          period_start: string
+          provider_subscription_id: string
+          revision?: number
+          usd_to_brl_rate: number
+        }
+        Update: {
+          budget_brl_cents?: number
+          created_at?: string
+          id?: string
+          organization_id?: string
+          period_end?: string
+          period_start?: string
+          provider_subscription_id?: string
+          revision?: number
+          usd_to_brl_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_ai_periods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cakto_billing_inbox: {
+        Row: {
+          id: string
+          order_id: string
+          event_type: string
+          received_at: string
+          retry_at: string
+          attempts: number
+          last_error: string | null
+          processed_at: string | null
+        }
+        Insert: {
+          id: string
+          order_id: string
+          event_type: string
+          received_at?: string
+          retry_at?: string
+          attempts?: number
+          last_error?: string | null
+          processed_at?: string | null
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          event_type?: string
+          received_at?: string
+          retry_at?: string
+          attempts?: number
+          last_error?: string | null
+          processed_at?: string | null
+        }
+        Relationships: []
+      }
+      org_subscriptions: {
+        Row: {
+          cakto_paid_order_id: string | null
+          cakto_paid_period: number | null
+          cancel_at_period_end: boolean
+          checkout_attempt_id: string
+          checkout_expires_at: string | null
+          checkout_session_id: string | null
+          checkout_url: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          organization_id: string
+          plan_id: string | null
+          provider: string
+          provider_customer_id: string | null
+          provider_subscription_id: string | null
+          quota_revision: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cakto_paid_order_id?: string | null
+          cakto_paid_period?: number | null
+          cancel_at_period_end?: boolean
+          checkout_attempt_id?: string
+          checkout_expires_at?: string | null
+          checkout_session_id?: string | null
+          checkout_url?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          organization_id: string
+          plan_id?: string | null
+          provider?: string
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          quota_revision?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cakto_paid_order_id?: string | null
+          cakto_paid_period?: number | null
+          cancel_at_period_end?: boolean
+          checkout_attempt_id?: string
+          checkout_expires_at?: string | null
+          checkout_session_id?: string | null
+          checkout_url?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          organization_id?: string
+          plan_id?: string | null
+          provider?: string
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          quota_revision?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          organization_id: string
+          processed_at: string
+          provider: string
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          organization_id: string
+          processed_at?: string
+          provider: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          organization_id?: string
+          processed_at?: string
+          provider?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_webhook_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plan_limits: {
+        Row: {
+          agents: number
+          ai_credit_cents: number | null
+          ai_usd_to_brl_rate: number | null
+          channels: number
+          plan_id: string
+          seats: number
+        }
+        Insert: {
+          agents: number
+          ai_credit_cents?: number | null
+          ai_usd_to_brl_rate?: number | null
+          channels: number
+          plan_id: string
+          seats: number
+        }
+        Update: {
+          agents?: number
+          ai_credit_cents?: number | null
+          ai_usd_to_brl_rate?: number | null
+          channels?: number
+          plan_id?: string
+          seats?: number
+        }
+        Relationships: []
+      }
       channel_integrations: {
         Row: { organization_id: string; profile_id: string; credential_encrypted: string; created_at: string; updated_at: string }
         Insert: { organization_id: string; profile_id: string; credential_encrypted: string; created_at?: string; updated_at?: string }
@@ -2368,6 +2635,7 @@ export type Database = {
           agent_id: string
           created_at: string
           examples: string[]
+          flow_pointer_id: string | null
           id: string
           intent_description: string
           intent_name: string
@@ -2380,6 +2648,7 @@ export type Database = {
           agent_id: string
           created_at?: string
           examples?: string[]
+          flow_pointer_id?: string | null
           id?: string
           intent_description: string
           intent_name: string
@@ -2392,6 +2661,7 @@ export type Database = {
           agent_id?: string
           created_at?: string
           examples?: string[]
+          flow_pointer_id?: string | null
           id?: string
           intent_description?: string
           intent_name?: string
@@ -2407,6 +2677,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ai_agents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_router_members_flow_pointer_mesma_org"
+            columns: ["organization_id", "flow_pointer_id"]
+            isOneToOne: false
+            referencedRelation: "followup_flow_pointers"
+            referencedColumns: ["organization_id", "id"]
           },
           {
             foreignKeyName: "ai_router_members_organization_id_fkey"
@@ -8453,6 +8730,96 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_missions: {
+        Row: {
+          id: string
+          organization_id: string
+          conversation_id: string
+          created_by: string
+          objective: string
+          agent_id: string | null
+          channel_id: string | null
+          test_contact_id: string | null
+          test: boolean
+          status: string
+          cancel_requested: boolean
+          call_id: string | null
+          provider_conversation_id: string | null
+          context_snapshot: string | null
+          result: Json | null
+          error: string | null
+          heartbeat_at: string | null
+          started_at: string | null
+          ended_at: string | null
+          created_at: string
+          updated_at: string
+          transport_status: string | null
+          transport_ended: boolean
+          session_id: string | null
+          reservation_id: string | null
+          usage_evidence: Json | null
+          redacted: boolean
+        }
+        Insert: {
+          id: string
+          organization_id: string
+          conversation_id: string
+          created_by: string
+          objective?: string
+          agent_id?: string | null
+          channel_id?: string | null
+          test_contact_id?: string | null
+          test?: boolean
+          status?: string
+          cancel_requested?: boolean
+          call_id?: string | null
+          provider_conversation_id?: string | null
+          context_snapshot?: string | null
+          result?: Json | null
+          error?: string | null
+          heartbeat_at?: string | null
+          started_at?: string | null
+          ended_at?: string | null
+          created_at?: string
+          updated_at?: string
+          transport_status?: string | null
+          transport_ended?: boolean
+          session_id?: string | null
+          reservation_id?: string | null
+          usage_evidence?: Json | null
+          redacted?: boolean
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          conversation_id?: string
+          created_by?: string
+          objective?: string
+          agent_id?: string | null
+          channel_id?: string | null
+          test_contact_id?: string | null
+          test?: boolean
+          status?: string
+          cancel_requested?: boolean
+          call_id?: string | null
+          provider_conversation_id?: string | null
+          context_snapshot?: string | null
+          result?: Json | null
+          error?: string | null
+          heartbeat_at?: string | null
+          started_at?: string | null
+          ended_at?: string | null
+          created_at?: string
+          updated_at?: string
+          transport_status?: string | null
+          transport_ended?: boolean
+          session_id?: string | null
+          reservation_id?: string | null
+          usage_evidence?: Json | null
+          redacted?: boolean
+        }
+        Relationships: []
+      }
       voice_calls: {
         Row: {
           answered_at: string | null
@@ -8867,6 +9234,22 @@ export type Database = {
       }
     }
     Functions: {
+      fn_reconcile_subscription_ai: {
+        Args: { p_org: string; p_call: string; p_actor: string; p_cost_usd_cents: number; p_reference: string; p_request_id: string }
+        Returns: number
+      }
+      fn_record_subscription_ai_evidence: {
+        Args: { p_org: string; p_call: string; p_provider: string; p_model: string; p_evidence: Json }
+        Returns: undefined
+      }
+      fn_settle_subscription_ai: {
+        Args: { p_call: string; p_cost_usd_cents: number; p_org: string }
+        Returns: number
+      }
+      fn_reserve_subscription_ai: {
+        Args: { p_call: string; p_org: string }
+        Returns: string
+      }
       fn_channel_routing_claim: {
         Args: {
           p_channel: string

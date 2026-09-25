@@ -2,6 +2,8 @@ import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
 import { type Role } from "@/lib/auth/types";
 import {
+  Sparkle,
+  InstagramLogo,
   Bell,
   BookOpen,
   Brain,
@@ -56,6 +58,8 @@ import { destinosDaInterface, type InterfaceSettings } from "./interface";
 export { NAV_GROUPS, GRUPO_NO_RODAPE } from "./catalogo";
 export type { NavGroup, NavGroupId } from "./catalogo";
 const ICONS = {
+  Sparkle,
+  InstagramLogo,
   Bell,
   BookOpen,
   Brain,
@@ -125,7 +129,10 @@ export function sidebarGroups(
   return NAV_GROUPS.map((group) => ({
     group,
     items: NAV_DESTINATIONS.filter(
-      (d) => d.group === group.id && (d.sidebar || (!group.hub && !!settings?.destinos)) && visible.has(d.href),
+      (d) =>
+        d.group === group.id &&
+        (d.sidebar || (!group.hub && !!settings?.destinos)) &&
+        visible.has(d.href),
     ),
   })).filter(
     (g) =>
@@ -173,4 +180,82 @@ export function searchable(
     destinosDaInterface(settings, isPlatformAdmin, role, modulos).map((d) => d.href),
   );
   return NAV_DESTINATIONS.filter((d) => visible.has(d.href));
+}
+
+/** Menu diário extraído do mesmo catálogo que alimenta busca e configurações. */
+export function workspaceGroups(destinations: readonly NavDestination[]) {
+  return (
+    [
+      { id: "trabalhar", label: "Trabalhar" },
+      { id: "criar", label: "Criar" },
+      { id: "organizar", label: "Organizar" },
+    ] as const
+  )
+    .map((group) => ({
+      ...group,
+      items: destinations
+        .filter((d) => d.workspace?.section === group.id)
+        .sort((a, b) => (a.workspace?.order ?? 0) - (b.workspace?.order ?? 0)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+export const TOOL_GROUPS = [
+  { id: "atendimento", label: "Atendimento" },
+  { id: "vendas", label: "Vendas" },
+  { id: "marketing", label: "Marketing" },
+  { id: "ia", label: "Inteligência artificial" },
+  { id: "operacao", label: "Operação" },
+  { id: "plataforma", label: "Plataforma" },
+] as const;
+export type ToolGroupId = (typeof TOOL_GROUPS)[number]["id"];
+
+/** Agrupamento de descoberta; não altera os grupos dos hubs existentes. */
+export function toolGroup(destination: NavDestination): ToolGroupId {
+  const { href, group } = destination;
+  if (
+    href.startsWith("/app/instagram") ||
+    href.startsWith("/app/ads/") ||
+    href === "/app/campaigns"
+  )
+    return "marketing";
+  if (
+    ["/app/tasks", "/app/activities", "/app/metrics", "/app/faturamento", "/app/comandas"].includes(
+      href,
+    )
+  )
+    return "operacao";
+  if (group === "ia" || href === "/app/ai/evolution") return "ia";
+  if (group === "crm") return "vendas";
+  if (group === "atendimento") return "atendimento";
+  if (group === "analise") return "operacao";
+  return "plataforma";
+}
+
+/** Recebe somente a projeção já autorizada. Nenhum catálogo paralelo de URLs. */
+export function toolSections(
+  destinations: readonly NavDestination[],
+  query = "",
+  category?: ToolGroupId,
+) {
+  const normalize = (text: string) =>
+    text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase();
+  const term = normalize(query.trim());
+  return TOOL_GROUPS.filter((group) => !category || group.id === category)
+    .map((group) => ({
+      ...group,
+      items: destinations.filter(
+        (destination) =>
+          destination.href !== "/app" &&
+          destination.href !== "/app/ferramentas" &&
+          toolGroup(destination) === group.id &&
+          normalize(
+            `${destination.workspace?.label ?? ""} ${destination.label} ${destination.description} ${group.label}`,
+          ).includes(term),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
 }

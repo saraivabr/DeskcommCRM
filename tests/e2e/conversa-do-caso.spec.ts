@@ -337,7 +337,7 @@ test.describe("conversar com a IA que abriu o caso", () => {
     // A fonte e a cor são as do PRODUTO, não as do sistema: um botão em
     // Helvetica cinza é o sintoma de tema não carregado, e ele passa
     // despercebido em screenshot.
-    expect(m.botao.fonte).toMatch(/Atkinson/i);
+    expect(m.botao.fonte).toMatch(/Manrope/i);
     expect(m.botao.fundo).toMatch(/^rgba?\(/);
     expect(m.botao.fundo).not.toBe("rgba(0, 0, 0, 0)");
 

@@ -31,7 +31,7 @@ import {
   lerInterface,
   type InterfaceSettings,
 } from "@/lib/navigation/interface";
-import { GRUPO_NO_RODAPE, sidebarGroups } from "@/lib/navigation/registry";
+import { searchable, workspaceGroups } from "@/lib/navigation/registry";
 
 const completa = { preset: "completa" } as const;
 const simplificada = { preset: "simplificada" } as const;
@@ -44,9 +44,11 @@ const hrefs = (settings: unknown, role: "agent" | "admin" = "admin") =>
  * só os grupos que aparecem na dobra, sem o grupo do rodapé.
  */
 const itensNoMenuLateral = (settings: unknown, role: "agent" | "admin" = "admin") =>
-  sidebarGroups(false, role, settings as InterfaceSettings | undefined)
-    .filter((grupo) => grupo.group.id !== GRUPO_NO_RODAPE)
-    .reduce((total, grupo) => total + grupo.items.length, 0);
+  2 +
+  workspaceGroups(searchable(false, role, settings as InterfaceSettings | undefined)).reduce(
+    (total, grupo) => total + grupo.items.length,
+    0,
+  );
 
 const essenciais = (role: "agent" | "admin" = "admin") =>
   NAV_CATALOG.filter((d) => essencial(d, role)).map((d) => d.href);
@@ -136,8 +138,14 @@ describe("a organização não consegue se trancar do lado de fora", () => {
     const hostis: unknown[] = [
       { preset: "simplificada" },
       { preset: "completa", destinos: ["/app/inbox"] },
-      combinarInterfaces({ preset: "completa", destinos: ["/app/inbox"] }, { preset: "completa", destinos: ["/app/kanban"] }),
-      combinarInterfaces({ preset: "simplificada" }, { preset: "completa", destinos: ["/app/tasks"] }),
+      combinarInterfaces(
+        { preset: "completa", destinos: ["/app/inbox"] },
+        { preset: "completa", destinos: ["/app/kanban"] },
+      ),
+      combinarInterfaces(
+        { preset: "simplificada" },
+        { preset: "completa", destinos: ["/app/tasks"] },
+      ),
     ];
     for (const escolha of hostis) {
       expect(
@@ -158,7 +166,9 @@ describe("a organização não consegue se trancar do lado de fora", () => {
       // sobre uma porta que não existe mais.
       const d = NAV_CATALOG.find((item) => item.href === porta);
       expect(d, `${porta} está em PORTAS_ESSENCIAIS e não existe no catálogo`).toBeDefined();
-      expect(essencial(d!, "admin"), `${porta} está na lista e não é tratada como essencial`).toBe(true);
+      expect(essencial(d!, "admin"), `${porta} está na lista e não é tratada como essencial`).toBe(
+        true,
+      );
     }
   });
 
@@ -174,55 +184,39 @@ describe("a organização não consegue se trancar do lado de fora", () => {
 
   it("controle: uma porta comum continua ocultável — senão a garantia seria vacuidade", () => {
     // Se TUDO fosse essencial, os casos acima passariam sem medir nada.
-    expect(hrefs({ preset: "completa", destinos: ["/app/inbox"] }, "admin")).not.toContain("/app/kanban");
+    expect(hrefs({ preset: "completa", destinos: ["/app/inbox"] }, "admin")).not.toContain(
+      "/app/kanban",
+    );
   });
 });
 
-describe("medição da folga (pergunta de aceite da issue #1341)", () => {
-  /**
-   * Baseline: a configuração de HOJE — nenhuma escolha, nem da empresa nem do
-   * vínculo. É o número que o issue publica (15 itens: atendimento 4, CRM 3,
-   * IA 3, canais 2, análise 3), medido aqui pelo módulo que alimenta o menu.
-   */
-  it("hoje: 15 itens no menu lateral, folga 0 (é o teto da dobra a 1280x900)", () => {
-    expect(itensNoMenuLateral(INTERFACE_COMPLETA)).toBe(15);
-    // `undefined` é o caminho de quem não tem escolha nenhuma gravada
-    expect(itensNoMenuLateral(undefined)).toBe(15);
+describe("densidade do menu diário", () => {
+  it("menu completo tem sete destinos diários, Início e catálogo", () => {
+    expect(itensNoMenuLateral(INTERFACE_COMPLETA)).toBe(9);
+    expect(itensNoMenuLateral(undefined)).toBe(9);
+    expect(itensNoMenuLateral(combinarInterfaces(completa, completa))).toBe(9);
   });
 
-  /**
-   * Depois: a folga deixa de ser um número único e passa a ser escolhida.
-   * A escolha da empresa é interseção, então o menu só ENCOLHE — a mudança não
-   * tem como empurrar o instrumento de tela para o vermelho.
-   */
-  it("configuração COMPLETA (ninguém escolheu): 15 itens, folga 0 — igual a hoje", () => {
-    expect(itensNoMenuLateral(combinarInterfaces(completa, completa))).toBe(15);
+  it("interface simplificada remove destinos avançados do menu diário", () => {
+    expect(itensNoMenuLateral(combinarInterfaces(simplificada, completa))).toBe(7);
   });
 
-  it("configuração SIMPLIFICADA (empresa escolhe o preset): 6 itens, folga 9", () => {
-    const itens = itensNoMenuLateral(combinarInterfaces(simplificada, completa));
-    expect(itens).toBe(6);
-    expect(15 - itens).toBe(9);
-  });
-
-  it("configuração MÍNIMA (empresa escolhe 1 porta): 1 item, folga 14", () => {
+  it("interface mínima mantém Inbox, Início e o catálogo de portas permitidas", () => {
     const minima = combinarInterfaces({ preset: "completa", destinos: ["/app/inbox"] }, completa);
-    expect(interfaceTemDestino(minima, "admin")).toBe(true); // a guarda exige ≥1 porta
-    const itens = itensNoMenuLateral(minima);
-    expect(itens).toBe(1);
-    expect(15 - itens).toBe(14);
+    expect(interfaceTemDestino(minima, "admin")).toBe(true);
+    expect(itensNoMenuLateral(minima)).toBe(3);
   });
 
-  it("nenhuma escolha da empresa pode AUMENTAR o menu (é interseção, não soma)", () => {
-    const casos: unknown[] = [
+  it("nenhuma escolha da empresa aumenta o menu", () => {
+    for (const daEmpresa of [
       simplificada,
       { preset: "completa", destinos: ["/app/inbox"] },
-      { preset: "completa", destinos: ["/app/inbox", "/app/contacts", "/app/products"] },
       { preset: "completa", destinos: essenciais() },
-    ];
-    for (const daEmpresa of casos) {
+    ]) {
       for (const doVinculo of [completa, simplificada, undefined]) {
-        expect(itensNoMenuLateral(combinarInterfaces(daEmpresa, doVinculo))).toBeLessThanOrEqual(15);
+        expect(itensNoMenuLateral(combinarInterfaces(daEmpresa, doVinculo))).toBeLessThanOrEqual(
+          itensNoMenuLateral(INTERFACE_COMPLETA),
+        );
       }
     }
   });

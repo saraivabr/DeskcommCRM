@@ -19,7 +19,8 @@ import { env } from "@/lib/env";
 
 /** Endpoint da OpenRouter. Compatível com a API da OpenAI, então o provider
  *  `@ai-sdk/openai` fala com ela sem dependência nova. */
-export const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL?.trim() || "https://openrouter.ai/api/v1";
+export const OPENROUTER_BASE_URL =
+  process.env.OPENROUTER_BASE_URL?.trim() || "https://openrouter.ai/api/v1";
 
 export type ModelId =
   | "anthropic/claude-sonnet-5"
@@ -39,6 +40,11 @@ export function isAiGatewayConfigured(): boolean {
     Boolean(env.OPENROUTER_API_KEY) ||
     Boolean(env.ANTHROPIC_API_KEY)
   );
+}
+
+export interface ResolvedLanguageModel {
+  model: LanguageModel;
+  provider: string;
 }
 
 /**
@@ -67,27 +73,33 @@ export function isAiGatewayConfigured(): boolean {
  * claro em vez de estourar com erro de rede lá dentro.
  */
 export function resolveLanguageModel(model: ModelId): LanguageModel | null {
+  return resolveLanguageModelWithProvider(model)?.model ?? null;
+}
+
+/** Keep the actual billing provider with the model selected by this resolver. */
+export function resolveLanguageModelWithProvider(model: ModelId): ResolvedLanguageModel | null {
   const id = String(model);
-
-  if (gatewayConfig()) return id as LanguageModel;
-
-  if (env.OPENROUTER_API_KEY) {
-    return createOpenAI({
-      apiKey: env.OPENROUTER_API_KEY,
-      baseURL: env.OPENROUTER_BASE_URL || OPENROUTER_BASE_URL,
-    }).chat(id); // chat/completions, como o registry do worker (providers.ts)
-  }
-
+  if (gatewayConfig()) return { model: id as LanguageModel, provider: "vercel" };
+  if (env.OPENROUTER_API_KEY)
+    return {
+      model: createOpenAI({
+        apiKey: env.OPENROUTER_API_KEY,
+        baseURL: env.OPENROUTER_BASE_URL || OPENROUTER_BASE_URL,
+      }).chat(id),
+      provider: "openrouter",
+    };
   if (id.startsWith("anthropic/") && env.ANTHROPIC_API_KEY) {
-    return createAnthropic({ apiKey: env.ANTHROPIC_API_KEY })(
-      id.slice("anthropic/".length),
-    );
+    return {
+      model: createAnthropic({ apiKey: env.ANTHROPIC_API_KEY })(id.slice("anthropic/".length)),
+      provider: "anthropic",
+    };
   }
-
   if (id.startsWith("openai/") && env.OPENAI_API_KEY) {
-    return createOpenAI({ apiKey: env.OPENAI_API_KEY })(id.slice("openai/".length));
+    return {
+      model: createOpenAI({ apiKey: env.OPENAI_API_KEY })(id.slice("openai/".length)),
+      provider: "openai",
+    };
   }
-
   return null;
 }
 

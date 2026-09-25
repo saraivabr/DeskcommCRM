@@ -45,7 +45,7 @@ async function login(page: Page, email: string): Promise<void> {
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(creds.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.waitForURL(/\/app\//);
+  await page.waitForURL(/\/app(?:\/|$|\?)/);
 }
 
 /** O estado marcado vem do atributo que o próprio componente escreve. */

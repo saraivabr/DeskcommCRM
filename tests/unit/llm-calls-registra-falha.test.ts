@@ -17,14 +17,27 @@
  * com quem instalou (chave, saldo, indisponibilidade).
  */
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
 import { runModelCall } from "@/lib/agent-engine/edge/llm/run-model-call";
 
 const ORG = "22222222-2222-4222-8222-222222222222";
 
-function poolQueGrava(paramsDaOrg: Record<string, unknown> = {}) {
+function poolQueGrava(
+  paramsDaOrg: Record<string, unknown> = {},
+  catalogue: Record<string, unknown>[] = [],
+  allowance: "legacy" | "paid" | "exhausted" = "legacy",
+) {
   const inserts: Array<{ sql: string; params: unknown[] }> = [];
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
+    if (sql.startsWith("select provider_subscription_id from org_subscriptions")) {
+      return { rows: allowance === "legacy" ? [] : [{ provider_subscription_id: "sub_paid" }] };
+    }
+    if (sql.includes("fn_reserve_subscription_ai")) {
+      if (allowance === "exhausted")
+        throw Object.assign(new Error("database detail"), { code: "P4021" });
+      return { rows: [{ reservation_id: params[1] }] };
+    }
     if (sql.includes("settings->'llm'")) {
       return {
         rows: [
@@ -40,6 +53,7 @@ function poolQueGrava(paramsDaOrg: Record<string, unknown> = {}) {
         ],
       };
     }
+    if (sql.includes("from ai_models where provider")) return { rows: catalogue };
     if (sql.includes("from ai_purpose_bindings")) return { rows: [] };
     if (sql.includes("from ai_provider_credentials")) return { rows: [] };
     if (sql.includes("insert into llm_calls")) {
@@ -48,7 +62,7 @@ function poolQueGrava(paramsDaOrg: Record<string, unknown> = {}) {
     }
     return { rows: [] };
   });
-  return { pool: { query } as never, inserts };
+  return { pool: { query } as never, inserts, query };
 }
 
 /** Registry cuja fábrica devolve um modelo que SEMPRE falha do jeito pedido. */
@@ -355,3 +369,272 @@ describe("cancelamento de chamada auxiliar", () => {
     expect(inserts).toHaveLength(1);
   });
 });
+
+it("o seam grava o custo e concilia a franquia da empresa com a resposta preservada", async () => {
+  const { pool, inserts, query } = poolQueGrava(
+    {},
+    [{ input_price_per_million_cents: 250, output_price_per_million_cents: 1000 }],
+    "paid",
+  );
+  const registry = {
+    anthropic: () =>
+      ({
+        specificationVersion: "v3",
+        provider: "anthropic",
+        modelId: "claude-padrao",
+        doGenerate: async () => ({
+          content: [{ type: "text", text: "Resposta preservada" }],
+          finishReason: { unified: "stop", raw: undefined },
+          usage: {
+            inputTokens: { total: 1000, noCache: 1000, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 200, text: 200, reasoning: 0 },
+          },
+          response: { id: "resp_seam_evidence" },
+          warnings: [],
+        }),
+      }) as never,
+  };
+  const result = await runModelCall(
+    pool,
+    cfg,
+    { tenantId: ORG, messages: [{ role: "user", content: "oi" }] },
+    { registry },
+  );
+  expect(query).toHaveBeenCalledWith("select fn_settle_subscription_ai($1,$2,$3)", [
+    ORG,
+    expect.any(String),
+    0.45,
+  ]);
+  const evidenceRecords = query.mock.calls.filter(([sql]) =>
+    sql.includes("fn_record_subscription_ai_evidence"),
+  );
+  expect(evidenceRecords).toHaveLength(2);
+  expect(evidenceRecords[0]![1]).toEqual([
+    ORG,
+    expect.any(String),
+    "anthropic",
+    "claude-padrao",
+    null,
+  ]);
+  expect(JSON.parse(evidenceRecords[1]?.[1]?.[4] as string)).toMatchObject({
+    steps: [{ responseId: "resp_seam_evidence", inputTokens: 1000, outputTokens: 200 }],
+  });
+  expect(result.costCents).toBeCloseTo(0.45);
+  expect(result.result.text).toBe("Resposta preservada");
+  expect(inserts).toHaveLength(1);
+  expect(inserts[0]!.params[11]).toBeCloseTo(0.45);
+});
+
+it.each(["input", "output", "both"])(
+  "uso %s ausente não concilia custo parcial ou zero",
+  async (missing) => {
+    const { pool, query } = poolQueGrava({}, [], "paid");
+    const registry = {
+      anthropic: () =>
+        ({
+          specificationVersion: "v3",
+          provider: "anthropic",
+          modelId: "claude-sonnet-4-6",
+          doGenerate: async () => ({
+            content: [{ type: "text", text: "Resposta preservada" }],
+            finishReason: { unified: "stop", raw: undefined },
+            usage: {
+              inputTokens: { total: missing === "output" ? 1000 : undefined },
+              outputTokens: { total: missing === "input" ? 200 : undefined },
+            },
+            warnings: [],
+          }),
+        }) as never,
+    };
+    const result = await runModelCall(
+      pool,
+      cfg,
+      {
+        tenantId: ORG,
+        model: "claude-sonnet-4-6",
+        messages: [{ role: "user", content: "oi" }],
+      },
+      { registry },
+    );
+    expect(result.result.text).toBe("Resposta preservada");
+    expect(result.costCents).toBeNull();
+    expect(query).toHaveBeenCalledWith("select fn_settle_subscription_ai($1,$2,$3)", [
+      ORG,
+      expect.any(String),
+      null,
+    ]);
+  },
+);
+
+it.each([true, false])(
+  "valida todas as etapas do SDK real (primeira etapa medida: %s)",
+  async (complete) => {
+    const { pool, query } = poolQueGrava({}, [], "paid");
+    let calls = 0;
+    const registry = {
+      anthropic: () =>
+        ({
+          specificationVersion: "v3",
+          provider: "anthropic",
+          modelId: "claude-sonnet-4-6",
+          doGenerate: async () => {
+            const first = calls++ === 0;
+            return {
+              content: first
+                ? [{ type: "tool-call", toolCallId: "lookup-1", toolName: "lookup", input: "{}" }]
+                : [{ type: "text", text: "Resposta final" }],
+              finishReason: { unified: first ? "tool-calls" : "stop", raw: undefined },
+              usage: {
+                inputTokens: { total: first ? (complete ? 200 : undefined) : 100 },
+                outputTokens: { total: first ? 50 : 20 },
+              },
+              warnings: [],
+            };
+          },
+        }) as never,
+    };
+    const result = await runModelCall(
+      pool,
+      cfg,
+      {
+        tenantId: ORG,
+        model: "claude-sonnet-4-6",
+        maxSteps: 2,
+        messages: [{ role: "user", content: "oi" }],
+        tools: { lookup: { inputSchema: z.object({}), execute: async () => "ok" } },
+      },
+      { registry },
+    );
+    expect(calls).toBe(2);
+    expect(result.result.text).toBe("Resposta final");
+    expect(result.result.usage.outputTokens).toBe(70);
+    if (complete) expect(result.costCents).toBeCloseTo(0.195);
+    else expect(result.costCents).toBeNull();
+    const settlement = query.mock.calls.find(([sql]) => sql.includes("fn_settle_subscription_ai"));
+    expect(settlement?.[1]?.[2]).toBe(result.costCents);
+  },
+);
+
+it("saldo comercial recusado impede a fábrica do provedor e deixa registro explicativo", async () => {
+  const { pool, inserts, query } = poolQueGrava({}, [], "exhausted");
+  const factory = vi.fn();
+  await expect(
+    runModelCall(
+      pool,
+      cfg,
+      { tenantId: ORG, messages: [{ role: "user", content: "oi" }] },
+      { registry: { anthropic: factory } },
+    ),
+  ).rejects.toMatchObject({ name: "subscription_ai_allowance", terminal: true });
+  expect(factory).not.toHaveBeenCalled();
+  expect(inserts).toHaveLength(1);
+  expect(inserts[0]!.params).toContain("franquia_de_ia");
+  expect(query.mock.calls.some(([sql]) => sql.includes("fn_settle_subscription_ai"))).toBe(false);
+});
+it("falha do provedor mantém o consumo desconhecido e a exceção original", async () => {
+  const { pool, query } = poolQueGrava({}, [], "paid");
+  const error = new Error("falha sem uso confirmado");
+  await expect(
+    runModelCall(
+      pool,
+      cfg,
+      { tenantId: ORG, messages: [{ role: "user", content: "oi" }] },
+      { registry: registryQueFalha(error) },
+    ),
+  ).rejects.toBe(error);
+  expect(query).toHaveBeenCalledWith("select fn_settle_subscription_ai($1,$2,$3)", [
+    ORG,
+    expect.any(String),
+    null,
+  ]);
+});
+
+it.each([
+  ["5m", 0.576],
+  ["1h", 0.666],
+] as const)(
+  "concilia o custo com o TTL de cache %s realmente configurado",
+  async (cacheTtl, expected) => {
+    const { pool, query } = poolQueGrava({}, [], "paid");
+    const registry = {
+      anthropic: () =>
+        ({
+          specificationVersion: "v3",
+          provider: "anthropic",
+          modelId: "claude-sonnet-4-6",
+          doGenerate: async () => ({
+            content: [{ type: "text", text: "Resposta" }],
+            finishReason: { unified: "stop", raw: undefined },
+            usage: {
+              inputTokens: { total: 1000, noCache: 400, cacheRead: 200, cacheWrite: 400 },
+              outputTokens: { total: 200, text: 200, reasoning: 0 },
+            },
+            warnings: [],
+          }),
+        }) as never,
+    };
+    const result = await runModelCall(
+      pool,
+      { ...cfg, cacheTtl },
+      {
+        tenantId: ORG,
+        model: "claude-sonnet-4-6",
+        messages: [{ role: "user", content: "oi" }],
+      },
+      { registry },
+    );
+    expect(result.costCents).toBeCloseTo(expected);
+    const settlement = query.mock.calls.find(([sql]) => sql.includes("fn_settle_subscription_ai"));
+    expect(settlement?.[1]?.[2]).toBeCloseTo(expected);
+  },
+);
+
+it.each(["default", "flex", undefined])(
+  "concilia OpenAI por etapa usando o tier %s retornado pelo SDK",
+  async (secondTier) => {
+    const { pool, query } = poolQueGrava({}, [], "paid");
+    let calls = 0;
+    const registry = {
+      openai: () =>
+        ({
+          specificationVersion: "v3",
+          provider: "openai",
+          modelId: "gpt-5.6-terra",
+          doGenerate: async () => {
+            const first = calls++ === 0;
+            return {
+              content: first
+                ? [{ type: "tool-call", toolCallId: "lookup-1", toolName: "lookup", input: "{}" }]
+                : [{ type: "text", text: "Resposta final" }],
+              finishReason: { unified: first ? "tool-calls" : "stop", raw: undefined },
+              usage: {
+                inputTokens: { total: 200000, cacheRead: 100000 },
+                outputTokens: { total: 1000 },
+              },
+              providerMetadata: { openai: { serviceTier: first ? "default" : secondTier } },
+              warnings: [],
+            };
+          },
+        }) as never,
+    };
+    const result = await runModelCall(
+      pool,
+      { ...cfg, openaiApiKey: "test-key" },
+      {
+        tenantId: ORG,
+        model: "gpt-5.6-terra",
+        llmOverride: { provider: "openai" },
+        maxSteps: 2,
+        messages: [{ role: "user", content: "oi" }],
+        tools: { lookup: { inputSchema: z.object({}), execute: async () => "ok" } },
+      },
+      { registry },
+    );
+    expect(calls).toBe(2);
+    expect(result.result.text).toBe("Resposta final");
+    if (secondTier === undefined) expect(result.costCents).toBeNull();
+    else expect(result.costCents).toBeCloseTo(secondTier === "flex" ? 34.8 : 46.4);
+    const settlement = query.mock.calls.find(([sql]) => sql.includes("fn_settle_subscription_ai"));
+    expect(settlement?.[1]?.[2]).toBe(result.costCents);
+  },
+);

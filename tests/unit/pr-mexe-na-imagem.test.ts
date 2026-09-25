@@ -28,6 +28,7 @@ describe("pr-mexe-na-imagem", () => {
     ["workers/event-log.ts"],
     ["docker/scheduler/entrypoint.sh"],
     ["public/logo.png"],
+    ["public/brand/agent-studio-art.png"],
     ["lib/agent-engine/playbooks/platform.md"],
     ["supabase/baseline.sql"],
     [".github/workflows/publish-image.yml"],
@@ -62,7 +63,7 @@ describe("pr-mexe-na-imagem", () => {
   const ignorados = readFileSync(".dockerignore", "utf-8")
     .split("\n")
     .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("#"));
+    .filter((l) => l && !l.startsWith("#") && !l.startsWith("!"));
 
   // Um processo bash só, que chama o script por entrada (~50 execuções): menos
   // de um segundo numa máquina ociosa, 18 s numa com carga 90. O teto é para a

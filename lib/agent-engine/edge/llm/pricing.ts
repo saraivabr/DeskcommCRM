@@ -112,9 +112,12 @@ export function precoDoModelo(model: string): Preco | undefined {
  * descontada e cobrada pela tarifa de cache.
  *
  * `cacheTtl` é o TTL com que o prefixo estável foi gravado (knob `LLM_CACHE_TTL`);
- * o default repete a doutrina ('1h') para quem chama sem ele.
+ * gravação Anthropic sem TTL explícito tem custo desconhecido.
  */
-export function costCents(model: string, usage: TokenUsage, cacheTtl: CacheTtl = '1h'): number | null {
+export function costCents(model: string, usage: TokenUsage, cacheTtl?: CacheTtl): number | null {
+  if (Object.values(usage).some(value => !Number.isFinite(value) || value < 0)) return null;
+  if (usage.cacheReadTokens + usage.cacheWriteTokens > usage.inputTokens) return null;
+  if (usage.cacheWriteTokens > 0 && model.startsWith("claude-") && !cacheTtl) return null;
   const p = precoDoModelo(model);
   if (p === undefined) {
     return null;
@@ -127,5 +130,6 @@ export function costCents(model: string, usage: TokenUsage, cacheTtl: CacheTtl =
       usage.cacheWriteTokens * cacheWrite +
       usage.outputTokens * p.output) /
     1_000_000;
-  return usd * 100;
+  const cents = usd * 100;
+  return Number.isFinite(cents) ? cents : null;
 }
