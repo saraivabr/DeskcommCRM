@@ -65,7 +65,7 @@ async function login(page: Page, email: string): Promise<void> {
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(creds.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.waitForURL(/\/app\//);
+  await page.waitForURL(/\/app(?:\/|$|\?)/);
 }
 
 /**
@@ -90,7 +90,7 @@ async function loginWithTotp(page: Page, email: string, secret: string): Promise
     await firstDigit.click();
     await page.keyboard.type(code, { delay: 40 });
     try {
-      await page.waitForURL(/\/app\//, { timeout: 8_000 });
+      await page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: 8_000 });
       return;
     } catch {
       await page.waitForTimeout(msUntilNextTotpWindow() + 200);
@@ -196,6 +196,7 @@ async function connectHandles(
   const target = page.locator(
     `.react-flow__node[data-id="${targetNodeId}"] .react-flow__handle.target`,
   );
+  const edgesBefore = await page.locator(".react-flow__edge").count();
   const sBox = await source.boundingBox();
   const tBox = await target.boundingBox();
   if (!sBox || !tBox) throw new Error(`handle não encontrado: ${sourceNodeId} -> ${targetNodeId}`);
@@ -204,7 +205,12 @@ async function connectHandles(
   await page.mouse.move(sBox.x + sBox.width / 2 + 5, sBox.y + sBox.height / 2 + 5, { steps: 3 });
   await page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2, { steps: 12 });
   await page.mouse.up();
-  await page.waitForTimeout(200);
+  // Uma falha no gesto deve apontar o par que faltou, sem deslocar os IDs
+  // usados pelo editor de condições mais adiante.
+  await expect(page.locator(".react-flow__edge"), `${sourceNodeId} -> ${targetNodeId}`)
+    .toHaveCount(edgesBefore + 1);
+  await expect(page.locator(".react-flow__edge").last())
+    .toHaveAttribute("aria-label", `Edge from ${sourceNodeId} to ${targetNodeId}`);
 }
 
 /** Flow-space position from the node's own transform — not the viewport box. */
@@ -527,21 +533,12 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await expect(page.locator(`[data-testid="node-error-${waitId}"]`)).toHaveCount(0);
     await page.screenshot({ path: "test-results/followup-6.2-07-published.png", fullPage: true });
 
-    // Normalize the viewport (pan/zoom drifted from the manual connect drags)
-    // so the before/after position comparison isn't comparing two arbitrary
-    // transforms — both sides fit the same 4 nodes to the same container.
-    await page.locator(".react-flow__controls-fitview").click();
-    // fitView's viewport transform settles on the next animation frame(s) —
-    // under load (full suite run) reading positions immediately can catch a
-    // mid-transition frame. Wait for it to settle before the "before" capture.
-    await page.waitForTimeout(400);
-
-    const positionsBefore: Record<string, { x: number; y: number; width: number; height: number }> =
-      {};
+    // Persistência é medida nas coordenadas do grafo, não no viewport.
+    // O canvas pode mudar de altura após publicar/recarregar (barra de status,
+    // painel selecionado e fitView), sem que a posição salva de um nó mude.
+    const positionsBefore: Record<string, { x: number; y: number }> = {};
     for (const id of [triggerId, waitId, actionId, endId]) {
-      const box = await page.locator(`.react-flow__node[data-id="${id}"]`).boundingBox();
-      if (!box) throw new Error(`nó ${id} sem bounding box antes do reload`);
-      positionsBefore[id] = box;
+      positionsBefore[id] = await nodeFlowPosition(page, id);
     }
 
     // 7. Reload — the graph must persist identically.
@@ -555,17 +552,8 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await expect(page.locator(`[data-testid="node-card-${actionId}"]`)).toContainText(
       "Reforce o benefício",
     );
-    // Same settle wait as the "before" capture — the post-reload fitView (on
-    // mount) needs the same grace period before its transform is comparable.
-    await page.waitForTimeout(400);
-
-    const TOLERANCE_PX = 10;
     for (const id of [triggerId, waitId, actionId, endId]) {
-      const box = await page.locator(`.react-flow__node[data-id="${id}"]`).boundingBox();
-      if (!box) throw new Error(`nó ${id} sem bounding box depois do reload`);
-      const before = positionsBefore[id]!;
-      expect(Math.abs(box.x - before.x)).toBeLessThanOrEqual(TOLERANCE_PX);
-      expect(Math.abs(box.y - before.y)).toBeLessThanOrEqual(TOLERANCE_PX);
+      await expect.poll(() => nodeFlowPosition(page, id)).toEqual(positionsBefore[id]);
     }
     await page.screenshot({
       path: "test-results/followup-6.2-08-reloaded-persisted.png",
@@ -711,6 +699,8 @@ test.describe("followup flow builder — editor de condição de aresta / ai_cla
   test("ai_classify só publica depois de configurar class_match/no_reply/always nas arestas de saída", async ({
     page,
   }) => {
+    // O grafo de seis nós precisa de espaço para a ligação manual e seus rótulos.
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await login(page, creds.users.manager!.email);
 
     await page.goto("/app/ai/followups");
@@ -757,15 +747,19 @@ test.describe("followup flow builder — editor de condição de aresta / ai_cla
 
     // 1b. Spread the 6 nodes into a real branching layout (source above target, siblings
     // apart on X) — see `moveNodeTo` for why the default add-grid can't be used here.
-    const canvasBox = await page.getByTestId("flow-canvas").boundingBox();
+    const canvasBox = await page.locator(".react-flow").boundingBox();
     if (!canvasBox) throw new Error("flow-canvas sem bounding box");
-    const at = (dx: number, dy: number): [number, number] => [canvasBox.x + dx, canvasBox.y + dy];
-    await moveNodeTo(page, triggerId, ...at(150, 60));
-    await moveNodeTo(page, classifyId, ...at(150, 220));
-    await moveNodeTo(page, action1Id, ...at(50, 420));
-    await moveNodeTo(page, action2Id, ...at(400, 420));
-    await moveNodeTo(page, end1Id, ...at(225, 620));
-    await moveNodeTo(page, end2Id, ...at(650, 220));
+    const viewport = page.viewportSize()!;
+    const visibleHeight = Math.min(canvasBox.height, viewport.height - canvasBox.y);
+    const at = (x: number, y: number): [number, number] => [
+      canvasBox.x + canvasBox.width * x, canvasBox.y + visibleHeight * y,
+    ];
+    await moveNodeTo(page, triggerId, ...at(0.3, 0.08));
+    await moveNodeTo(page, classifyId, ...at(0.3, 0.22));
+    await moveNodeTo(page, action1Id, ...at(0.15, 0.61));
+    await moveNodeTo(page, action2Id, ...at(0.6, 0.61));
+    await moveNodeTo(page, end1Id, ...at(0.38, 0.87));
+    await moveNodeTo(page, end2Id, ...at(0.85, 0.3));
 
     // 2. Configure ai_classify classes = positivo, objecao (no lugar do padrão Interessado/Sem interesse).
     await page.locator(`[data-testid="node-card-${classifyId}"]`).click();
@@ -983,16 +977,17 @@ test.describe("followup flow selector no editor do agente (Task 7.2)", () => {
     await page.goto(`/app/ai/agents/${agentId}`);
     await expect(page.getByRole("heading", { name: agentName })).toBeVisible();
 
+    await page.getByRole("tabpanel", { name: "Configuração", exact: true }).locator("summary").filter({ hasText: "Comportamento e repasses" }).click();
     const followupHeading = page.getByRole("heading", { name: "Follow-up", exact: true });
     await followupHeading.scrollIntoViewIfNeeded();
     await expect(followupHeading).toBeVisible();
 
-    const followupToggle = page.getByLabel("Habilitar gatilhos automáticos de follow-up");
+    const followupToggle = page.getByRole("tabpanel", { name: "Configuração", exact: true }).getByLabel("Habilitar gatilhos automáticos de follow-up");
     await expect(followupToggle).not.toBeChecked();
     await followupToggle.click();
     await expect(followupToggle).toBeChecked();
 
-    const flowCheckbox = page.getByLabel(flowName, { exact: true });
+    const flowCheckbox = page.getByRole("tabpanel", { name: "Configuração", exact: true }).getByLabel(flowName, { exact: true });
     await expect(flowCheckbox).toBeVisible();
     await flowCheckbox.check();
     await expect(flowCheckbox).toBeChecked();

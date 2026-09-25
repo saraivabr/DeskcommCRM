@@ -1,6 +1,7 @@
 // @vitest-environment node
 // Rota de API, sem DOM. Sob jsdom, `req.formData()` lança AssertionError no Node 26 (medido:
 // 11 casos com 422); em ambiente `node` o mesmo teste passa nos Node 22 e 26.
+
 /**
  * A IMPORTAÇÃO DE LEADS NÃO ACEITA NADA NO ESCURO.
  *
@@ -276,9 +277,7 @@ describe("POST /api/v1/leads/import", () => {
     const { POST } = await import("@/app/api/v1/leads/import/route");
 
     await POST(
-      pedido(
-        "nome,telefone\nAna,11988887777\nAna (2),(11) 98888-7777\nAna (3),+5511988887777",
-      ),
+      pedido("nome,telefone\nAna,11988887777\nAna (2),(11) 98888-7777\nAna (3),+5511988887777"),
     );
 
     expect(espiao.inseridos).toHaveLength(1);
@@ -421,7 +420,7 @@ describe("POST /api/v1/leads/import", () => {
 
 // Este teste isola o handler; autoridade de suporte é exercitada na suíte própria.
 vi.mock("@/lib/impersonate/support", async (importOriginal) => ({
-  ...await importOriginal<typeof import("@/lib/impersonate/support")>(),
+  ...(await importOriginal<typeof import("@/lib/impersonate/support")>()),
   requireSupportWrite: vi.fn(async () => null),
   authenticatedSessionId: vi.fn(async () => "f2200000-0000-4000-8000-000000000099"),
 }));

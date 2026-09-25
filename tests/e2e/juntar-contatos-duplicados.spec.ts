@@ -93,6 +93,15 @@ async function login(page: Page, email: string, senha: string): Promise<void> {
   await page.waitForURL(/\/app/, { timeout: 60_000 });
 }
 
+/** A manutenção de contatos fica no menu de ações da própria lista. */
+async function abrirDuplicados(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Mais opções", exact: true }).click();
+  const porta = page.getByRole("menuitem", { name: "Duplicados", exact: true });
+  await expect(porta).toBeVisible();
+  await expect(porta).toHaveCount(1);
+  await porta.click();
+}
+
 async function captura(page: Page, nome: string): Promise<void> {
   fs.mkdirSync(EVIDENCIA, { recursive: true });
   await page.screenshot({ path: path.join(EVIDENCIA, `${nome}.png`), fullPage: true });
@@ -280,12 +289,8 @@ test.describe("Contatos duplicados — juntar pela tela", () => {
     await login(page, creds.users.manager!.email, creds.password);
     await page.goto("/app/contacts");
 
-    // 1. A PORTA. Botão presente na barra de ações da tela que já existe.
-    const botao = page.getByRole("button", { name: /duplicados/i });
-    await expect(botao).toBeVisible({ timeout: 20_000 });
-    expect(await botao.count(), "a porta é UMA, não duas").toBe(1);
-
-    await botao.click();
+    // 1. A PORTA. O menu de manutenção oferece uma única entrada de duplicados.
+    await abrirDuplicados(page);
 
     const dialogo = page.getByRole("dialog");
     await expect(dialogo).toBeVisible({ timeout: 20_000 });
@@ -335,7 +340,7 @@ test.describe("Contatos duplicados — juntar pela tela", () => {
   }) => {
     await login(page, creds.users.manager!.email, creds.password);
     await page.goto("/app/contacts");
-    await page.getByRole("button", { name: /duplicados/i }).click();
+    await abrirDuplicados(page);
     const dialogo = page.getByRole("dialog");
     await expect(dialogo.getByText(NOME_ABSORVIDO, { exact: false })).toBeVisible({
       timeout: 20_000,
@@ -362,7 +367,7 @@ test.describe("Contatos duplicados — juntar pela tela", () => {
   test("fundir exige confirmação explícita — desistir não funde nada", async ({ page }) => {
     await login(page, creds.users.manager!.email, creds.password);
     await page.goto("/app/contacts");
-    await page.getByRole("button", { name: /duplicados/i }).click();
+    await abrirDuplicados(page);
     const dialogo = page.getByRole("dialog");
     await expect(dialogo.getByText(NOME_PRINCIPAL, { exact: false })).toBeVisible({
       timeout: 20_000,
@@ -399,7 +404,7 @@ test.describe("Contatos duplicados — juntar pela tela", () => {
   test("agent não funde: o pedido é recusado e o banco não muda", async ({ page }) => {
     await login(page, creds.users.agent!.email, creds.password);
     await page.goto("/app/contacts");
-    await page.getByRole("button", { name: /duplicados/i }).click();
+    await abrirDuplicados(page);
     const dialogo = page.getByRole("dialog");
     await expect(dialogo.getByText(NOME_PRINCIPAL, { exact: false })).toBeVisible({
       timeout: 20_000,
@@ -457,7 +462,7 @@ test.describe("Contatos duplicados — juntar pela tela", () => {
 
     await login(page, creds.users.manager!.email, creds.password);
     await page.goto("/app/contacts");
-    await page.getByRole("button", { name: /duplicados/i }).click();
+    await abrirDuplicados(page);
     const dialogo = page.getByRole("dialog");
     await expect(dialogo.getByText(NOME_PRINCIPAL, { exact: false })).toBeVisible({
       timeout: 20_000,
@@ -553,7 +558,7 @@ test.describe("Contatos duplicados — juntar pela tela", () => {
     await captura(page, "05-lista-depois-da-fusao");
 
     // ── E o grupo de duplicados esvazia: o trabalho ficou feito ────────────
-    await page.getByRole("button", { name: /duplicados/i }).click();
+    await abrirDuplicados(page);
     const dialogoDepois = page.getByRole("dialog");
     await expect(dialogoDepois).toBeVisible({ timeout: 20_000 });
     await expect(dialogoDepois.getByText(NOME_ABSORVIDO, { exact: false })).toHaveCount(0);

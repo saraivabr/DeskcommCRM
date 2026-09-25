@@ -2854,3 +2854,15 @@ que dirige o browser resolviam `E2E_PORT` para valores **diferentes** — servid
 `page.goto` em outra, e `ERR_CONNECTION_REFUSED` com um servidor saudável no ar. O CI nunca
 pisou nisso porque o gerador não escreve `E2E_PORT`; quem monta bancada em porta própria,
 sim. Consertado pela ordem: publicar primeiro, decidir a porta depois.
+
+### Instagram: publicação e automações — 24/09/2026
+
+- [P0] Conexão existente verificada por API em leitura: perfil isolado, Instagram ativo, `healthy`, `canPost=true`, permissões de comentários e Direct presentes; 16 postagens disponíveis. Nenhuma campanha real alterada no QA.
+- [P0] Navegador local com Supabase real e receptor HTTP local: criar regra por postagem, editar Direct preenchido, pausar/reativar, mostrar erro de execução; carrossel de três imagens, com busca real dos JPEGs assinados pelo receptor e apenas uma chamada de publicação. Desktop e largura mobile 390 px sem overflow.
+- Regressão: `tests/e2e/instagram-social.spec.ts` cobre a interface autenticada com respostas controladas; `tests/invariants/instagram-publications.test.ts` cobre duas organizações, recibos somente via backend e UUID único. Contratos de publicação e preservação da animação estão nos testes unitários focados.
+- Achados corrigidos: baseline tinha bloco PL/pgSQL incompleto antes da 0116; rótulo do textarea preenchido precisava associação explícita para edição acessível.
+- Evidência local: `.superpowers/evidence/instagram-zernio/` (screenshots e recibo do receptor). Limite: OAuth exige consentimento do dono; post/DM reais não foram disparados para testar.
+
+### Home de operação e assistente global
+
+[P0] `tests/e2e/home-operacao.spec.ts`: gestor abre pendências pessoais, alterna visão da equipe, acessa catálogo e assistente global; atendente não recebe opção da equipe. Layout mobile, revisão da pergunta e Shift+Enter também cobertos. Backend isolado em Supabase local aplicado do baseline; geração de IA depende de credencial real e não é comprovada por esta jornada.

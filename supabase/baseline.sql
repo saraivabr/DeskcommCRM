@@ -12005,7 +12005,9 @@ begin
        and rel.relname = 'followup_enrollments'
        and con.contype = 'c'
        and pg_get_constraintdef(con.oid) like '%paused_handoff%'
-       and pg_get_constraintdef(con.oid) not like '%dormente%'
+       -- A versão EM VIGOR tem 'coletando' (0394). Qualquer uma sem ele — a de
+       -- antes da 'dormente' ou a de antes da 0394 — sai aqui e é recriada abaixo.
+       and pg_get_constraintdef(con.oid) not like '%coletando%'
   loop
     execute format('alter table public.followup_enrollments drop constraint %I', c.conname);
   end loop;
@@ -12014,7 +12016,7 @@ end $$;
 do $$ begin
   alter table public.followup_enrollments
     add constraint followup_enrollments_status_valido
-    check (status in ('active','waiting_reply','dormente','paused_handoff','paused_manual','completed','cancelled','dead'));
+    check (status in ('active','waiting_reply','dormente','paused_handoff','paused_manual','coletando','completed','cancelled','dead'));
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -12022,9 +12024,13 @@ do $$ begin
     add constraint followup_enrollments_relogio_coerente
     check (
       (status in ('active','waiting_reply','dormente') and next_eval_at is not null)
-      or (status in ('paused_handoff','paused_manual','completed','cancelled','dead'))
+      or (status in ('paused_handoff','paused_manual','coletando','completed','cancelled','dead'))
     );
 exception when duplicate_object then null; end $$;
+-- 'coletando' (0394): a execução de um roteiro de atendimento, conduzida pelo
+-- TURNO e não pelo relógio — por isso no grupo sem `next_eval_at`, e por isso
+-- fora do `idx_followup_enrollments_one_live` logo abaixo.  Blocos ÚNICOS dos dois
+-- CHECKs; a 0394 não os reconstrói no apêndice.
 
 -- ⚠️ AS COLUNAS SÃO (organization_id, contact_id), NÃO (pointer_id, contact_id).
 --
@@ -14095,6 +14101,34 @@ update public.lead_state_transitions t set contact_id = c.is_merged_into from pu
 update public.cron_jobs           t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
 update public.lead_notes          t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
 update public.before_send_traces  t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
+-- Roteiro de atendimento vivo ('coletando', 0394): UM por contato
+-- (`idx_followup_enrollments_um_roteiro_coletando`). Reapontar sem deduplicar
+-- daria 23505 quando os dois contatos fundidos têm roteiro vivo — e este bloco
+-- roda de novo a cada `update.sh`. Fica o mais NOVO; o excedente é encerrado,
+-- com o evento na trilha. Idempotente: encerrado deixa de ser 'coletando'.
+with vivos as (
+  select e.id, e.organization_id, e.current_node_id,
+         row_number() over (
+           partition by e.organization_id, coalesce(c.is_merged_into, c.id)
+           order by e.started_at desc, e.id desc
+         ) as posicao
+    from public.followup_enrollments e
+    join public.contacts c on c.id = e.contact_id and c.organization_id = e.organization_id
+   where e.status = 'coletando'
+),
+encerrados as (
+  update public.followup_enrollments e
+     set status = 'cancelled', cancel_reason = 'nono_digito_merge', completed_at = now(), updated_at = now()
+    from vivos v
+   where e.id = v.id and v.posicao > 1
+  returning e.id, e.organization_id, e.current_node_id
+)
+insert into public.followup_enrollment_events
+  (organization_id, enrollment_id, node_id, event_type, payload, idempotency_key)
+select organization_id, id, current_node_id, 'roteiro_cancelado',
+       '{"motivo":"nono_digito_merge"}'::jsonb, 'roteiro_cancelado:nono_digito_merge'
+  from encerrados
+on conflict do nothing;
 update public.followup_enrollments t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
 update public.demandas            t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
 update public.contact_field_proposals t set contact_id = c.is_merged_into from public.contacts c where t.contact_id = c.id and c.is_merged_into is not null;
@@ -14936,10 +14970,13 @@ alter table public.followup_flow_pointers
 
 alter table public.followup_flow_pointers
   add constraint followup_flow_pointers_surface_check
-  check (surface in ('followup', 'crm_automation'));
+  check (surface in ('followup', 'crm_automation', 'atendimento'));
+-- 'atendimento' entrou na migration 0394 (roteiro de perguntas no turno, #1130).
+-- Bloco ÚNICO desta constraint: a 0394 não a reconstrói no apêndice.
 
 comment on column public.followup_flow_pointers.surface is
-  'Onde o fluxo aparece: followup = /app/ai/followups; crm_automation = CRM Automação. '
+  'Onde o fluxo aparece: followup = /app/ai/followups; crm_automation = CRM Automação; '
+  'atendimento = roteiro de perguntas conduzido no turno do agente (módulo opcional, 0394). '
   'Vocabulário cobrado por tests/invariants/vocabulario-banco-x-typescript.test.ts.';
 
 -- ---- inscrição Web Push (migrations 0197 e 0199) ----
@@ -36760,6 +36797,898 @@ update public.lead_checkpoints l set
         or l.next_action is not null
         or l.declaracao is not null);
 
+-- ---- fluxos de atendimento: a base, desligada por padrão (migration 0394, de @vgamkt, #1130) ----
+-- Os CHECKs de `surface` e de `status` ('atendimento', 'coletando') estão nos
+-- blocos únicos da 0196 e da 0145, acima. Aqui: o índice do roteiro vivo, o
+-- ponteiro do roteador com FK composta, e o gatilho que encerra o roteiro vivo
+-- na anonimização (os dois caminhos). Racional inteiro na migration 0394.
+-- ⚠️ ANTES da VARREDURA anon, porque cria função. Idempotente.
+create unique index if not exists idx_followup_enrollments_um_roteiro_coletando
+  on public.followup_enrollments (organization_id, contact_id)
+  where status = 'coletando';
+
+create unique index if not exists idx_followup_flow_pointers_org_id
+  on public.followup_flow_pointers (organization_id, id);
+
+alter table public.ai_router_members
+  add column if not exists flow_pointer_id uuid;
+
+do $$ begin
+  alter table public.ai_router_members
+    add constraint ai_router_members_flow_pointer_mesma_org
+    foreign key (organization_id, flow_pointer_id)
+    references public.followup_flow_pointers (organization_id, id)
+    on delete set null (flow_pointer_id);
+exception when duplicate_object then null; end $$;
+
+comment on column public.ai_router_members.flow_pointer_id is
+  'Roteiro de atendimento (surface=atendimento) que começa quando esta intenção casa. NULL = só roteia o agente. FK composta: só roteiro da mesma organização.';
+
+create or replace function public.fn_contato_anonimizado_encerra_roteiro()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  update public.followup_enrollments
+     set status = 'cancelled',
+         cancel_reason = 'Contato anonimizado (LGPD)',
+         completed_at = now(),
+         updated_at = now()
+   where organization_id = new.organization_id
+     and contact_id = new.id
+     and status = 'coletando';
+  return new;
+end
+$$;
+
+revoke all on function public.fn_contato_anonimizado_encerra_roteiro() from public;
+revoke execute on function public.fn_contato_anonimizado_encerra_roteiro() from anon;
+revoke execute on function public.fn_contato_anonimizado_encerra_roteiro() from authenticated;
+
+drop trigger if exists trg_contato_anonimizado_encerra_roteiro on public.contacts;
+create trigger trg_contato_anonimizado_encerra_roteiro
+  after update of is_anonymized on public.contacts
+  for each row
+  when (new.is_anonymized = true and coalesce(old.is_anonymized, false) = false)
+  execute function public.fn_contato_anonimizado_encerra_roteiro();
+
+-- A superfície e o status andam juntos, no BANCO. Quem cria enrollment pelo
+-- relógio (gatilhos de etapa, lead, caso, retorno, silêncio, o enroll manual) lê
+-- o pointer pelo `trigger_config`, não pela superfície: um roteiro de
+-- atendimento com gatilho de silêncio viraria enrollment 'active' e o motor de
+-- follow-up executaria as perguntas como passos de relógio. E o inverso — um
+-- 'coletando' num fluxo de follow-up — ocuparia a vaga do roteiro. Uma regra, um
+-- lugar, para todos os produtores de hoje e os que vierem.
+create or replace function public.fn_enrollment_superficie_coerente()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_surface text;
+begin
+  select p.surface into v_surface
+    from public.followup_flow_pointers p
+   where p.id = new.pointer_id;
+  if v_surface = 'atendimento' and new.status not in ('coletando','completed','cancelled','dead') then
+    raise exception 'roteiro de atendimento só roda como coletando (status %)', new.status
+      using errcode = '23514';
+  end if;
+  if v_surface is distinct from 'atendimento' and new.status = 'coletando' then
+    raise exception 'coletando é exclusivo de roteiro de atendimento'
+      using errcode = '23514';
+  end if;
+  return new;
+end
+$$;
+
+revoke all on function public.fn_enrollment_superficie_coerente() from public;
+revoke execute on function public.fn_enrollment_superficie_coerente() from anon;
+revoke execute on function public.fn_enrollment_superficie_coerente() from authenticated;
+
+drop trigger if exists trg_enrollment_superficie_coerente on public.followup_enrollments;
+create trigger trg_enrollment_superficie_coerente
+  before insert or update of status, pointer_id on public.followup_enrollments
+  for each row
+  execute function public.fn_enrollment_superficie_coerente();
+
+-- A superfície de um fluxo é IMUTÁVEL depois de criado, e roteiro de atendimento
+-- só tem gatilho manual (revisão adversarial do #1559). A policy de
+-- `followup_flow_pointers` é só de tenant: qualquer membro da empresa, até
+-- viewer, faria pelo PostgREST `update ... set surface = 'atendimento'` num
+-- fluxo de silêncio ativo — e o `trg_enrollment_superficie_coerente` passaria a
+-- recusar (23514) cada inscrição da varredura. E um PATCH de gatilho levaria um
+-- roteiro publicado de Manual para Silêncio. As duas portas fecham no BANCO.
+-- Nenhuma linha antes da 0394 pode ter 'atendimento' (o CHECK de conjunto o
+-- recusava), então o CHECK abaixo não tem dado a corrigir.
+alter table public.followup_flow_pointers
+  drop constraint if exists followup_flow_pointers_roteiro_so_manual;
+alter table public.followup_flow_pointers
+  add constraint followup_flow_pointers_roteiro_so_manual
+  check (surface <> 'atendimento' or coalesce(trigger_config->>'kind', 'manual') = 'manual');
+
+create or replace function public.fn_superficie_do_fluxo_imutavel()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if new.surface is distinct from old.surface then
+    raise exception 'a superfície de um fluxo não muda depois de criado (% → %)', old.surface, new.surface
+      using errcode = '23514';
+  end if;
+  return new;
+end
+$$;
+
+revoke all on function public.fn_superficie_do_fluxo_imutavel() from public;
+revoke execute on function public.fn_superficie_do_fluxo_imutavel() from anon;
+revoke execute on function public.fn_superficie_do_fluxo_imutavel() from authenticated;
+
+drop trigger if exists trg_superficie_do_fluxo_imutavel on public.followup_flow_pointers;
+create trigger trg_superficie_do_fluxo_imutavel
+  before update of surface on public.followup_flow_pointers
+  for each row
+  execute function public.fn_superficie_do_fluxo_imutavel();
+
+-- ---- o roteiro de atendimento encerra quando um humano assume, no opt-out e no prazo (migration 0397, #1130) ----
+-- Gatilho na virada false→true de `force_human`/`is_blocked` (um lugar para todos
+-- os escritores) e `fn_encerrar_roteiros_vencidos` (prazo em settings.expira_em_horas,
+-- padrão 72 h), chamada pelo relógio do follow-up. Racional na migration 0397.
+-- ⚠️ ANTES da VARREDURA anon, porque cria função. Idempotente.
+create or replace function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_motivo text;
+begin
+  if new.is_blocked = true and coalesce(old.is_blocked, false) = false then
+    v_motivo := 'opt_out';
+  elsif new.force_human = true and coalesce(old.force_human, false) = false then
+    v_motivo := 'humano_assumiu';
+  else
+    return new;
+  end if;
+
+  with encerrados as (
+    update public.followup_enrollments
+       set status = 'cancelled',
+           cancel_reason = case v_motivo when 'opt_out' then 'Contato pediu para parar (opt-out)'
+                                         else 'Humano assumiu o atendimento' end,
+           completed_at = now(),
+           updated_at = now()
+     where organization_id = new.organization_id
+       and contact_id = new.id
+       and status = 'coletando'
+    returning id, organization_id, current_node_id
+  )
+  insert into public.followup_enrollment_events
+    (organization_id, enrollment_id, node_id, event_type, payload, idempotency_key)
+  select organization_id, id, current_node_id, 'roteiro_cancelado',
+         jsonb_build_object('motivo', v_motivo), 'roteiro_cancelado:' || v_motivo
+    from encerrados
+  on conflict do nothing;
+  return new;
+end
+$$;
+
+revoke all on function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out() from public;
+revoke execute on function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out() from anon;
+revoke execute on function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out() from authenticated;
+
+drop trigger if exists trg_contato_encerra_roteiro_com_humano_ou_opt_out on public.contacts;
+create trigger trg_contato_encerra_roteiro_com_humano_ou_opt_out
+  after update of force_human, is_blocked on public.contacts
+  for each row
+  when ((new.force_human = true and coalesce(old.force_human, false) = false)
+     or (new.is_blocked = true and coalesce(old.is_blocked, false) = false))
+  execute function public.fn_contato_encerra_roteiro_com_humano_ou_opt_out();
+
+create or replace function public.fn_encerrar_roteiros_vencidos(p_limite int default 200)
+returns int
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_encerrados int;
+begin
+  with vencidos as (
+    select e.id
+      from public.followup_enrollments e
+      join public.followup_flow_versions v on v.id = e.version_id and v.organization_id = e.organization_id
+     where e.status = 'coletando'
+       and greatest(
+             e.started_at,
+             coalesce((select max(ev.created_at) from public.followup_enrollment_events ev
+                        where ev.enrollment_id = e.id and ev.organization_id = e.organization_id
+                          and ev.event_type = 'roteiro_mensagem'), e.started_at)
+           ) < now() - make_interval(hours => case
+             when (v.graph->'settings'->>'expira_em_horas') ~ '^[0-9]{1,4}$'
+               then greatest(1, (v.graph->'settings'->>'expira_em_horas')::int)
+             else 72 end)
+     order by e.started_at
+     limit greatest(1, least(coalesce(p_limite, 200), 1000))
+     for update of e skip locked
+  ),
+  encerrados as (
+    update public.followup_enrollments e
+       set status = 'cancelled',
+           cancel_reason = 'Roteiro expirou sem resposta',
+           completed_at = now(),
+           updated_at = now()
+      from vencidos
+     where e.id = vencidos.id and e.status = 'coletando'
+    returning e.id, e.organization_id, e.current_node_id
+  ),
+  eventos as (
+    insert into public.followup_enrollment_events
+      (organization_id, enrollment_id, node_id, event_type, payload, idempotency_key)
+    select organization_id, id, current_node_id, 'roteiro_expirado', '{}'::jsonb, 'roteiro_expirado'
+      from encerrados
+    on conflict do nothing
+    returning 1
+  )
+  select count(*)::int into v_encerrados from encerrados;
+  return v_encerrados;
+end
+$$;
+
+revoke all on function public.fn_encerrar_roteiros_vencidos(int) from public;
+revoke execute on function public.fn_encerrar_roteiros_vencidos(int) from anon;
+revoke execute on function public.fn_encerrar_roteiros_vencidos(int) from authenticated;
+grant execute on function public.fn_encerrar_roteiros_vencidos(int) to service_role;
+
+-- Subscription state is written only by trusted billing handlers, never by a tenant.
+create table if not exists public.org_subscriptions (
+  organization_id uuid primary key references public.organizations(id) on delete cascade,
+  plan_id text check (plan_id in ('essencial','crescer','escala')),
+  provider text not null default 'stripe' check (provider in ('stripe','asaas','mercadopago')),
+  provider_customer_id text,
+  provider_subscription_id text,
+  status text not null default 'pending' check (status in ('pending','trialing','active','past_due','canceled','unpaid','incomplete','incomplete_expired','paused')),
+  current_period_end timestamptz,
+  cancel_at_period_end boolean not null default false,
+  checkout_session_id text,
+  checkout_url text,
+  checkout_expires_at timestamptz,
+  checkout_attempt_id uuid not null default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (provider, provider_subscription_id),
+  unique (provider, provider_customer_id)
+);
+alter table public.org_subscriptions enable row level security;
+revoke all on public.org_subscriptions from anon, authenticated;
+grant select on public.org_subscriptions to authenticated;
+grant all on public.org_subscriptions to service_role;
+drop policy if exists tenant_isolation_org_subscriptions_select on public.org_subscriptions;
+create policy tenant_isolation_org_subscriptions_select on public.org_subscriptions
+  for select to authenticated using (
+    organization_id in (select public.fn_user_org_ids())
+    and public.fn_user_role_in_org(organization_id) = 'admin'
+  );
+
+create table if not exists public.billing_webhook_events (
+  provider text not null,
+  event_id text not null,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  event_type text not null,
+  processed_at timestamptz not null default now(),
+  primary key (provider, event_id)
+);
+alter table public.billing_webhook_events enable row level security;
+revoke all on public.billing_webhook_events from anon, authenticated;
+grant all on public.billing_webhook_events to service_role;
+
+-- ---- Subscription resource limits (migration 0315) ----
+-- Published plan capacities. Tenant roles cannot edit the commercial catalogue.
+create table if not exists public.subscription_plan_limits (
+  plan_id text primary key,
+  seats integer not null check (seats > 0),
+  channels integer not null check (channels > 0),
+  agents integer not null check (agents > 0)
+);
+alter table public.subscription_plan_limits enable row level security;
+revoke all on public.subscription_plan_limits from public, anon, authenticated;
+grant select on public.subscription_plan_limits to service_role;
+insert into public.subscription_plan_limits(plan_id,seats,channels,agents) values
+ ('essencial',2,1,2),('crescer',5,3,5),('escala',15,8,15)
+on conflict(plan_id) do update set seats=excluded.seats,channels=excluded.channels,agents=excluded.agents;
+
+-- A row write serializes reservations, including under repeatable-read isolation.
+-- Do not change updated_at: it also anchors unresolved checkout retries.
+alter table public.org_subscriptions add column if not exists quota_revision bigint not null default 0;
+
+create or replace function public.fn_subscription_resource_limit()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare
+  target_org uuid := new.organization_id;
+  counted_new boolean;
+  counted_old boolean := false;
+  sub public.org_subscriptions%rowtype;
+  capacity integer;
+  used_slots bigint;
+  resource_label text;
+begin
+  if tg_table_name='user_organizations' then
+    counted_new := new.revoked_at is null;
+    if tg_op='UPDATE' then counted_old := old.revoked_at is null; end if;
+  elsif tg_table_name in ('ai_agents','channel_sessions') then
+    counted_new := new.archived_at is null;
+    if tg_op='UPDATE' then counted_old := old.archived_at is null; end if;
+  else raise exception 'unsupported_subscription_resource';
+  end if;
+  -- Editing an existing resource and releasing capacity must remain possible,
+  -- including after downgrade, overdue payment or cancellation.
+  if not counted_new then return new; end if;
+  if tg_op='UPDATE' and counted_old and old.organization_id=target_org then return new; end if;
+
+  update public.org_subscriptions set quota_revision=quota_revision+1
+   where organization_id=target_org and provider_subscription_id is not null
+   returning * into sub;
+  if not found then return new; end if; -- legacy or unconfirmed checkout: no commercial conversion
+
+  if sub.status not in ('active','trialing') or sub.current_period_end is null or sub.current_period_end<=now() then
+    raise exception 'Regularize sua assinatura para adicionar novos recursos. Seus recursos atuais foram preservados.' using errcode='P4020';
+  end if;
+  if tg_table_name='ai_agents' then
+    select agents into capacity from public.subscription_plan_limits where plan_id=sub.plan_id;
+    select count(*) into used_slots from public.ai_agents where organization_id=target_org and archived_at is null;
+    resource_label := 'agentes';
+  elsif tg_table_name='channel_sessions' then
+    select channels into capacity from public.subscription_plan_limits where plan_id=sub.plan_id;
+    select count(*) into used_slots from public.channel_sessions where organization_id=target_org and archived_at is null;
+    resource_label := 'canais';
+  else
+    select seats into capacity from public.subscription_plan_limits where plan_id=sub.plan_id;
+    select count(*) into used_slots from public.user_organizations where organization_id=target_org and revoked_at is null;
+    resource_label := 'pessoas';
+  end if;
+  if capacity is null or used_slots>=capacity then
+    raise exception 'Seu plano atingiu o limite de %. Gerencie sua assinatura para adicionar mais.',resource_label using errcode='P4020';
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.fn_subscription_resource_limit() from public, anon, authenticated;
+
+-- Disconnected channels and drafts reserve capacity until explicitly archived.
+-- Membership records reserve a seat until revoked, including accepted_at=NULL.
+-- Standalone email invitations do not count before a membership is created.
+drop trigger if exists subscription_agents_limit on public.ai_agents;
+create trigger subscription_agents_limit before insert or update of organization_id,archived_at on public.ai_agents
+ for each row execute function public.fn_subscription_resource_limit();
+drop trigger if exists subscription_channels_limit on public.channel_sessions;
+create trigger subscription_channels_limit before insert or update of organization_id,archived_at on public.channel_sessions
+ for each row execute function public.fn_subscription_resource_limit();
+drop trigger if exists subscription_seats_limit on public.user_organizations;
+create trigger subscription_seats_limit before insert or update of organization_id,revoked_at on public.user_organizations
+ for each row execute function public.fn_subscription_resource_limit();
+
+-- ---- Subscription billing period (migration 0316) ----
+-- The commercial AI allowance follows the provider's billing cycle, not UTC month boundaries.
+-- Existing rows stay unknown until reconciled with the provider; never infer a paid start date.
+alter table public.org_subscriptions add column if not exists current_period_start timestamptz;
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname='org_subscriptions_period_order'
+      and conrelid='public.org_subscriptions'::regclass
+  ) then
+    alter table public.org_subscriptions add constraint org_subscriptions_period_order check (
+      current_period_start is null or (
+        isfinite(current_period_start) and current_period_end is not null
+        and isfinite(current_period_end) and current_period_start < current_period_end
+      )
+    );
+  end if;
+end $$;
+
+-- ---- Subscription AI allowance (migration 0317) ----
+-- Commercial credit is BRL. The conversion below is a fixed service tariff,
+-- not a claim about spot FX. Each billing period snapshots its tariff and grant.
+alter table public.subscription_plan_limits add column if not exists ai_credit_cents integer;
+alter table public.subscription_plan_limits add column if not exists ai_usd_to_brl_rate numeric;
+update public.subscription_plan_limits set
+ ai_credit_cents=case plan_id when 'essencial' then 3000 when 'crescer' then 8000 when 'escala' then 18000 end,
+ ai_usd_to_brl_rate=6
+where plan_id in ('essencial','crescer','escala') and ai_credit_cents is null;
+
+create table if not exists public.subscription_ai_periods (
+ id uuid primary key default gen_random_uuid(),
+ organization_id uuid not null references public.organizations(id) on delete cascade,
+ provider_subscription_id text not null,
+ period_start timestamptz not null,
+ period_end timestamptz not null,
+ budget_brl_cents numeric not null check (budget_brl_cents>0 and budget_brl_cents<'Infinity'::numeric),
+ usd_to_brl_rate numeric not null check (usd_to_brl_rate>0 and usd_to_brl_rate<'Infinity'::numeric),
+ revision bigint not null default 0,
+ created_at timestamptz not null default now(),
+ unique (organization_id,provider_subscription_id,period_start),
+ unique (id,organization_id),
+ check (isfinite(period_start) and isfinite(period_end) and period_start<period_end)
+);
+create table if not exists public.subscription_ai_reservations (
+ id uuid primary key,
+ organization_id uuid not null references public.organizations(id) on delete cascade,
+ period_id uuid not null,
+ reserved_brl_cents numeric not null check (reserved_brl_cents>0 and reserved_brl_cents<'Infinity'::numeric),
+ cost_usd_cents numeric check (cost_usd_cents>=0 and cost_usd_cents<'Infinity'::numeric),
+ charged_brl_cents numeric check (charged_brl_cents>=0 and charged_brl_cents<'Infinity'::numeric),
+ status text not null default 'reserved' check (status in ('reserved','settled','unknown')),
+ created_at timestamptz not null default now(),
+ settled_at timestamptz,
+ foreign key (period_id,organization_id) references public.subscription_ai_periods(id,organization_id) on delete cascade,
+ check ((status='settled' and cost_usd_cents is not null and charged_brl_cents is not null and settled_at is not null)
+     or (status in ('reserved','unknown') and cost_usd_cents is null and charged_brl_cents is null and settled_at is null))
+);
+create index if not exists subscription_ai_reservations_period on public.subscription_ai_reservations(organization_id,period_id,status);
+alter table public.subscription_ai_periods enable row level security;
+alter table public.subscription_ai_reservations enable row level security;
+revoke all on public.subscription_ai_periods,public.subscription_ai_reservations from public,anon,authenticated;
+grant all on public.subscription_ai_periods,public.subscription_ai_reservations to service_role;
+
+create or replace function public.fn_reserve_subscription_ai(p_org uuid,p_call uuid)
+returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
+declare
+ s public.org_subscriptions%rowtype;
+ p public.subscription_ai_periods%rowtype;
+ credit numeric;
+ conversion numeric;
+ spent numeric;
+ held numeric;
+ reserve_amount numeric;
+begin
+ -- Same serialization as resource reservations, including repeatable-read transactions.
+ update public.org_subscriptions set quota_revision=quota_revision+1
+ where organization_id=p_org and provider_subscription_id is not null returning * into s;
+ if not found then return null; end if; -- Unconverted legacy company.
+ if s.status not in ('active','trialing') or s.current_period_start is null
+    or s.current_period_start>now() or s.current_period_end<=now() then
+   raise exception 'Sua assinatura precisa de confirmação antes de usar a franquia de IA.' using errcode='P4021';
+ end if;
+ select ai_credit_cents,ai_usd_to_brl_rate into credit,conversion from public.subscription_plan_limits where plan_id=s.plan_id;
+ if credit is null or conversion is null then
+   raise exception 'Franquia de IA indisponível para este plano.' using errcode='P4021';
+ end if;
+ insert into public.subscription_ai_periods(organization_id,provider_subscription_id,period_start,period_end,budget_brl_cents,usd_to_brl_rate)
+ values(p_org,s.provider_subscription_id,s.current_period_start,s.current_period_end,credit,conversion)
+ on conflict(organization_id,provider_subscription_id,period_start) do nothing;
+ update public.subscription_ai_periods set revision=revision+1
+ where organization_id=p_org and provider_subscription_id=s.provider_subscription_id and period_start=s.current_period_start returning * into p;
+ if exists(select 1 from public.subscription_ai_reservations where organization_id=p_org and period_id=p.id and status='unknown') then
+   raise exception 'O consumo anterior de IA precisa ser conferido. Sua franquia foi preservada.' using errcode='P4021';
+ end if;
+ if exists(select 1 from public.subscription_ai_reservations where id=p_call) then
+   raise exception 'Esta execução já possui uma reserva de IA.' using errcode='P4022';
+ end if;
+ select coalesce(sum(charged_brl_cents) filter(where status='settled'),0),
+        coalesce(sum(reserved_brl_cents) filter(where status<>'settled'),0)
+ into spent,held from public.subscription_ai_reservations where organization_id=p_org and period_id=p.id;
+ reserve_amount:=least(100,p.budget_brl_cents-spent-held);
+ if reserve_amount<=0 then
+   raise exception 'A franquia de IA está esgotada ou reservada por atendimentos em andamento.' using errcode='P4021';
+ end if;
+ insert into public.subscription_ai_reservations(id,organization_id,period_id,reserved_brl_cents)
+ values(p_call,p_org,p.id,reserve_amount);
+ return p_call;
+end $$;
+
+create or replace function public.fn_settle_subscription_ai(p_org uuid,p_call uuid,p_cost_usd_cents numeric)
+returns numeric language plpgsql security definer set search_path=public,pg_temp as $$
+declare
+ period uuid;
+ p public.subscription_ai_periods%rowtype;
+ r public.subscription_ai_reservations%rowtype;
+ occupied numeric;
+ charge numeric;
+begin
+ if p_cost_usd_cents is not null and (p_cost_usd_cents<0 or p_cost_usd_cents>='Infinity'::numeric) then
+   raise exception 'Custo inválido.' using errcode='P4022';
+ end if;
+ select period_id into period from public.subscription_ai_reservations where organization_id=p_org and id=p_call;
+ if not found then raise exception 'Reserva não encontrada.' using errcode='P4022'; end if;
+ -- Settle against the original period even if the subscription has since renewed or canceled.
+ update public.subscription_ai_periods set revision=revision+1 where id=period and organization_id=p_org returning * into p;
+ select * into r from public.subscription_ai_reservations where id=p_call and organization_id=p_org for update;
+ if r.status='settled' then
+   if r.cost_usd_cents is distinct from p_cost_usd_cents then
+     raise exception 'Custo já conciliado com outro valor.' using errcode='P4022';
+   end if;
+   return r.charged_brl_cents;
+ end if;
+ if p_cost_usd_cents is null then
+   update public.subscription_ai_reservations set status='unknown' where id=p_call and organization_id=p_org;
+   return null; -- Never manufacture zero or automatically release an ambiguous call.
+ end if;
+ select coalesce(sum(case when status='settled' then charged_brl_cents else reserved_brl_cents end),0)
+ into occupied from public.subscription_ai_reservations where organization_id=p_org and period_id=period and id<>p_call;
+ -- R$1 is a concurrency reservation, not an estimated provider price or extra charge.
+ -- Provider cost above available credit is absorbed by the platform, never billed automatically.
+ charge:=least(p_cost_usd_cents*p.usd_to_brl_rate,greatest(0,p.budget_brl_cents-occupied));
+ update public.subscription_ai_reservations set status='settled',cost_usd_cents=p_cost_usd_cents,
+ charged_brl_cents=charge,settled_at=now() where organization_id=p_org and id=p_call;
+ return charge;
+end $$;
+revoke all on function public.fn_reserve_subscription_ai(uuid,uuid) from public,anon,authenticated;
+revoke all on function public.fn_settle_subscription_ai(uuid,uuid,numeric) from public,anon,authenticated;
+grant execute on function public.fn_reserve_subscription_ai(uuid,uuid) to service_role;
+grant execute on function public.fn_settle_subscription_ai(uuid,uuid,numeric) to service_role;
+
+-- ---- Subscription AI evidence (migration 0318) ----
+-- Preserve the actual billing identity and a content-free usage snapshot for reconciliation.
+-- Existing reservations are intentionally not backfilled from timestamps or model guesses.
+alter table public.subscription_ai_reservations add column if not exists provider text;
+alter table public.subscription_ai_reservations add column if not exists model text;
+alter table public.subscription_ai_reservations add column if not exists usage_evidence jsonb;
+create or replace function public.fn_record_subscription_ai_evidence(
+ p_org uuid,p_call uuid,p_provider text,p_model text,p_evidence jsonb
+) returns void language plpgsql security definer set search_path=public,pg_temp as $$
+declare r public.subscription_ai_reservations%rowtype;
+begin
+ if p_provider is null or length(btrim(p_provider)) not between 1 and 256
+    or p_model is null or length(btrim(p_model)) not between 1 and 256 then
+   raise exception 'Identidade de consumo inválida.' using errcode='P4022';
+ end if;
+ if p_evidence is not null and (
+   jsonb_typeof(p_evidence) is distinct from 'object'
+   or p_evidence->'version' is distinct from '1'::jsonb
+   or jsonb_typeof(p_evidence->'steps') is distinct from 'array'
+ ) then raise exception 'Evidência de consumo inválida.' using errcode='P4022'; end if;
+ select * into r from public.subscription_ai_reservations
+ where id=p_call and organization_id=p_org for update;
+ if not found then raise exception 'Reserva não encontrada.' using errcode='P4022'; end if;
+ if (r.provider is not null and r.provider<>p_provider)
+    or (r.model is not null and r.model<>p_model)
+    or (r.usage_evidence is not null and p_evidence is not null and r.usage_evidence<>p_evidence) then
+   raise exception 'Evidência já registrada com outro conteúdo.' using errcode='P4022';
+ end if;
+ update public.subscription_ai_reservations set provider=p_provider,model=p_model,
+ usage_evidence=coalesce(usage_evidence,p_evidence)
+ where id=p_call and organization_id=p_org;
+end $$;
+revoke all on function public.fn_record_subscription_ai_evidence(uuid,uuid,text,text,jsonb) from public,anon,authenticated;
+grant execute on function public.fn_record_subscription_ai_evidence(uuid,uuid,text,text,jsonb) to service_role;
+
+-- ---- Subscription AI reconciliation (migration 0319) ----
+-- An explicit platform-admin review resolves unknown usage atomically with its audit.
+-- No timer expires holds, and no tenant can submit its own accounting cost.
+create or replace function public.fn_reconcile_subscription_ai(
+ p_org uuid,p_call uuid,p_actor uuid,p_cost_usd_cents numeric,p_reference text,p_request_id text
+) returns numeric language plpgsql security definer set search_path=public,pg_temp as $$
+declare
+ r public.subscription_ai_reservations%rowtype;
+ period uuid;
+ charge numeric;
+ prior jsonb;
+begin
+ if not exists(select 1 from public.platform_admins where user_id=p_actor and scope='full' and revoked_at is null) then
+   raise exception 'Administração completa necessária.' using errcode='42501';
+ end if;
+ if p_cost_usd_cents is null or p_cost_usd_cents<0 or p_cost_usd_cents>='Infinity'::numeric
+    or p_reference is null or length(btrim(p_reference)) not between 10 and 1000 then
+   raise exception 'Informe o custo conferido e a referência da verificação.' using errcode='P4022';
+ end if;
+ select period_id into period from public.subscription_ai_reservations where id=p_call and organization_id=p_org;
+ if not found then raise exception 'Reserva não encontrada.' using errcode='P4022'; end if;
+ -- Keep the same period-before-reservation lock order as automatic settlement.
+ perform 1 from public.subscription_ai_periods where id=period and organization_id=p_org for update;
+ select * into r from public.subscription_ai_reservations where id=p_call and organization_id=p_org for update;
+ if r.status='settled' then
+   select metadata into prior from public.api_audit_log
+    where organization_id=p_org and resource_id=p_call and action='billing.ai_reconciled'
+    order by created_at desc limit 1;
+   if prior is not null and r.cost_usd_cents=p_cost_usd_cents and prior->>'reference'=btrim(p_reference) then
+     return r.charged_brl_cents;
+   end if;
+   raise exception 'Este consumo já foi conciliado. Atualize a lista.' using errcode='P4022';
+ end if;
+ if r.status<>'unknown' then
+   raise exception 'O consumo ainda está em andamento; não pode ser conciliado manualmente.' using errcode='P4022';
+ end if;
+ if r.provider is null or r.model is null then
+   raise exception 'Consumo sem identificação suficiente para esta conferência.' using errcode='P4022';
+ end if;
+ charge:=public.fn_settle_subscription_ai(p_org,p_call,p_cost_usd_cents);
+ insert into public.api_audit_log(organization_id,actor_user_id,acting_as_platform_admin,action,resource_type,resource_id,request_id,bypassed_rls,metadata)
+ values(p_org,p_actor,true,'billing.ai_reconciled','subscription_ai_reservation',p_call,p_request_id,true,
+ jsonb_build_object('reference',btrim(p_reference),'cost_usd_cents',p_cost_usd_cents,'charged_brl_cents',charge,
+ 'provider',r.provider,'model',r.model,'period_id',r.period_id,'usage_evidence',r.usage_evidence));
+ return charge;
+end $$;
+revoke all on function public.fn_reconcile_subscription_ai(uuid,uuid,uuid,numeric,text,text) from public,anon,authenticated;
+grant execute on function public.fn_reconcile_subscription_ai(uuid,uuid,uuid,numeric,text,text) to service_role;
+
+-- ---- Reconciled native modules (migration 0323) ----
+-- Recovery of production native modules; 0265 already belongs to subscriptions.
+-- Módulos Nativos: Instagram Growth Engine e Cliente Oculto (Mystery Shopper)
+
+-- 1. Instagram Growth Triggers (Comentários -> DMs -> Leads)
+create table if not exists public.growth_instagram_triggers (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  post_id text, -- ID do post/reels na Meta ou null para todos os posts
+  post_permalink text,
+  post_thumbnail text,
+  keywords text[] not null default '{}', -- Ex: ["EU QUERO", "PREÇO", "VALOR"]
+  match_mode text not null default 'contains' check (match_mode in ('exact', 'contains', 'any')),
+  dm_response_template text not null,
+  auto_create_lead boolean not null default true,
+  pipeline_id uuid references public.crm_pipelines(id) on delete set null,
+  pipeline_stage_id uuid references public.crm_stages(id) on delete set null,
+  lead_tags text[] not null default '{}',
+  is_active boolean not null default true,
+  executions_count integer not null default 0,
+  leads_generated_count integer not null default 0,
+  last_triggered_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_growth_insta_org on public.growth_instagram_triggers(organization_id);
+create index if not exists idx_growth_insta_post on public.growth_instagram_triggers(organization_id, post_id);
+
+alter table public.growth_instagram_triggers enable row level security;
+grant all on public.growth_instagram_triggers to service_role;
+grant select, insert, update, delete on public.growth_instagram_triggers to authenticated;
+
+-- 2. Cliente Oculto (Mystery Shopper Audits)
+create table if not exists public.audit_mystery_scenarios (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  title text not null,
+  persona_name text not null,
+  persona_description text not null,
+  objective text not null,
+  target_channel_session_id uuid references public.channel_sessions(id) on delete set null,
+  target_phone text,
+  evaluation_criteria jsonb not null default '{"speed": true, "politeness": true, "objection_handling": true, "closing": true}'::jsonb,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.audit_mystery_executions (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  scenario_id uuid references public.audit_mystery_scenarios(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'running', 'completed', 'failed')),
+  score numeric(4,2), -- 0 a 10.00
+  first_response_time_seconds integer,
+  messages_exchanged integer not null default 0,
+  transcript jsonb not null default '[]',
+  ai_feedback text,
+  strengths text[],
+  weaknesses text[],
+  started_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+
+create index if not exists idx_mystery_scenarios_org on public.audit_mystery_scenarios(organization_id);
+create index if not exists idx_mystery_exec_org on public.audit_mystery_executions(organization_id);
+
+alter table public.audit_mystery_scenarios enable row level security;
+grant all on public.audit_mystery_scenarios to service_role;
+grant select, insert, update, delete on public.audit_mystery_scenarios to authenticated;
+
+alter table public.audit_mystery_executions enable row level security;
+grant all on public.audit_mystery_executions to service_role;
+grant select, insert, update, delete on public.audit_mystery_executions to authenticated;
+
+-- 3. Transcrição e Sentimento direto na tabela de mensagens (se não existirem)
+alter table public.messages add column if not exists audio_transcription text;
+alter table public.messages add column if not exists audio_transcription_status text default 'none' check (audio_transcription_status in ('none', 'processing', 'completed', 'failed'));
+alter table public.messages add column if not exists audio_summary text;
+alter table public.messages add column if not exists audio_intent text;
+
+
+revoke all on public.growth_instagram_triggers from public, anon;
+drop policy if exists tenant_isolation_growth_instagram_triggers_all on public.growth_instagram_triggers;
+create policy tenant_isolation_growth_instagram_triggers_all on public.growth_instagram_triggers for all to authenticated
+ using (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'admin'))
+ with check (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'admin'));
+
+revoke all on public.audit_mystery_scenarios from public, anon;
+drop policy if exists tenant_isolation_audit_mystery_scenarios_all on public.audit_mystery_scenarios;
+create policy tenant_isolation_audit_mystery_scenarios_all on public.audit_mystery_scenarios for all to authenticated
+ using (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'admin'))
+ with check (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'admin'));
+
+revoke all on public.audit_mystery_executions from public, anon;
+drop policy if exists tenant_isolation_audit_mystery_executions_all on public.audit_mystery_executions;
+create policy tenant_isolation_audit_mystery_executions_all on public.audit_mystery_executions for all to authenticated
+ using (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'admin'))
+ with check (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'admin'));
+
+-- ---- Cakto billing (migration 0320) ----
+-- Cakto is opt-in; existing subscriptions and resource/AI limits are preserved.
+alter table public.org_subscriptions drop constraint if exists org_subscriptions_provider_check;
+alter table public.org_subscriptions add constraint org_subscriptions_provider_check check(provider in ('stripe','asaas','mercadopago','cakto'));
+alter table public.org_subscriptions add column if not exists cakto_paid_order_id uuid;
+alter table public.org_subscriptions add column if not exists cakto_paid_period integer;
+-- A Cakto buyer can pay for multiple organizations. Subscription and checkout
+-- correlation bind the tenant; buyer identity alone must never bind access.
+alter table public.org_subscriptions drop constraint if exists org_subscriptions_provider_provider_customer_id_key;
+create unique index if not exists org_subscriptions_non_cakto_customer on public.org_subscriptions(provider,provider_customer_id) where provider<>'cakto';
+create unique index if not exists org_subscriptions_cakto_attempt on public.org_subscriptions(checkout_attempt_id) where provider='cakto';
+-- Platform ingress queue before tenant resolution. No customer payload, secret,
+-- address, email, or payment details are stored. Tenants have no access.
+create table if not exists public.cakto_billing_inbox(
+ id text primary key,
+ order_id uuid not null,
+ event_type text not null,
+ received_at timestamptz not null default now(),
+ retry_at timestamptz not null default now(),
+ attempts integer not null default 0,
+ last_error text,
+ processed_at timestamptz
+);
+alter table public.cakto_billing_inbox enable row level security;
+revoke all on public.cakto_billing_inbox from public,anon,authenticated;
+grant all on public.cakto_billing_inbox to service_role;
+create index if not exists cakto_billing_inbox_pending on public.cakto_billing_inbox(retry_at) where processed_at is null;
+
+-- cabe varredura — `authenticated` PRECISA de EXECUTE nos helpers de RLS e em
+-- `retrieve_top_k_chunks` (num install fresco ele tem). É julgamento por função,
+-- e o alvo de cada linha é o valor que um install fresco produz, medido.
+revoke execute on function public.fn_decrypt_oauth(bytea) from authenticated;
+revoke execute on function public.fn_encrypt_oauth(text) from authenticated;
+revoke execute on function public.fn_lgpd_cascade_redact_contact(uuid, uuid, uuid) from authenticated;
+revoke execute on function public.fn_update_budget_consumption() from authenticated;
+
+grant execute on function public.fn_audit_log_row() to service_role;
+grant execute on function public.fn_decrypt_oauth(bytea) to service_role;
+grant execute on function public.fn_encrypt_oauth(text) to service_role;
+grant execute on function public.fn_lgpd_cascade_redact_contact(uuid, uuid, uuid) to service_role;
+grant execute on function public.fn_update_budget_consumption() to service_role;
+-- Organization-scoped drafts, research and references. External actions stay server-side.
+create table if not exists public.instagram_studio_items (
+ id uuid primary key,
+ organization_id uuid not null references public.organizations(id) on delete cascade,
+ kind text not null check (kind in ('post','research','reference')),
+ status text not null check (status in ('generating','ready','failed')),
+ input jsonb not null,
+ caption text not null default '',
+ answer text not null default '',
+ sources jsonb not null default '[]'::jsonb,
+ asset_path text,
+ error text,
+ created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now()
+);
+create index if not exists instagram_studio_items_org_created on public.instagram_studio_items(organization_id,created_at desc);
+alter table public.instagram_studio_items enable row level security;
+drop policy if exists tenant_isolation_instagram_studio_items_all on public.instagram_studio_items;
+create policy tenant_isolation_instagram_studio_items_all on public.instagram_studio_items for select to authenticated using (organization_id in (select public.fn_user_org_ids()));
+revoke all on public.instagram_studio_items from public,anon,authenticated;
+grant select on public.instagram_studio_items to authenticated;
+grant select,insert,update,delete on public.instagram_studio_items to service_role;
+
+-- 0322: Ligações pontuais por IA com contexto do atendimento
+-- Durable, explicitly requested calls. Browser clients cannot enqueue directly.
+create table if not exists public.voice_missions (
+ id uuid primary key,
+ organization_id uuid not null references public.organizations(id) on delete cascade,
+ conversation_id uuid not null references public.conversations(id) on delete cascade,
+ created_by uuid not null references auth.users(id),
+ objective text not null default '' check (length(objective)<=3000),
+ agent_id uuid references public.ai_agents(id) on delete set null,
+ channel_id uuid references public.channel_sessions(id) on delete set null,
+ test_contact_id uuid references public.contacts(id) on delete set null,
+ test boolean not null default true,
+ status text not null default 'draft' check(status in ('draft','queued','preparing','dialing','ringing','connected','finishing','completed','unanswered','cancelled','failed','uncertain')),
+ cancel_requested boolean not null default false,
+ call_id text,
+ provider_conversation_id text,
+ redacted boolean not null default false,
+ context_snapshot text,
+ usage_evidence jsonb,
+ result jsonb,
+ error text,
+ heartbeat_at timestamptz,
+ started_at timestamptz,
+ ended_at timestamptz,
+ created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now()
+);
+create index if not exists voice_missions_conversation on public.voice_missions(organization_id,conversation_id,created_at desc);
+create unique index if not exists voice_missions_one_active on public.voice_missions(organization_id) where status in ('queued','preparing','dialing','ringing','connected','finishing');
+alter table public.voice_missions enable row level security;
+revoke all on public.voice_missions from public,anon,authenticated;
+grant select on public.voice_missions to authenticated;
+drop policy if exists voice_missions_read on public.voice_missions;
+create policy voice_missions_read on public.voice_missions for select to authenticated using(organization_id in(select public.fn_user_org_ids()) and public.fn_user_role_in_org(organization_id) in ('agent','manager','admin'));
+-- Voice context is personal data and follows contact anonymization.
+create or replace function public.fn_redact_voice_missions() returns trigger language plpgsql security definer set search_path=public as $$
+begin
+ if new.is_anonymized and not coalesce(old.is_anonymized,false) then
+  update public.voice_missions m set objective='',context_snapshot=null,result=null,usage_evidence=null,redacted=true,cancel_requested=true,error='Contato anonimizado.'
+  where m.organization_id=new.organization_id and (m.test_contact_id=new.id or m.conversation_id in(select id from public.conversations where organization_id=new.organization_id and contact_id=new.id));
+ end if;
+ return new;
+end $$;
+revoke execute on function public.fn_redact_voice_missions() from public,anon,authenticated;
+drop trigger if exists redact_voice_missions on public.contacts;
+create trigger redact_voice_missions after update of is_anonymized on public.contacts for each row execute function public.fn_redact_voice_missions();
+alter table public.voice_missions add column if not exists transport_status text;
+alter table public.voice_missions add column if not exists transport_ended boolean not null default false;
+alter table public.voice_missions add column if not exists session_id text;
+alter table public.voice_missions add column if not exists reservation_id uuid;
+alter table public.voice_missions add column if not exists usage_evidence jsonb;
+alter table public.voice_missions add column if not exists redacted boolean not null default false;
+-- Internal liveness gate; no tenant data or browser access.
+create table if not exists public.voice_mission_runtime(id integer primary key check(id=1),heartbeat_at timestamptz not null);
+alter table public.voice_mission_runtime enable row level security;
+revoke all on public.voice_mission_runtime from public,anon,authenticated;
+
+grant all on public.voice_missions,public.voice_mission_runtime to service_role;
+
+--
+-- ⚠️ ESTE BLOCO É, DE PROPÓSITO, O ÚLTIMO DO ARQUIVO. Apêndice novo entra ANTES
+
+-- dele — quem o empurrar para o meio desarma a cura para tudo que vier depois.
+-- Vigiado por `tests/unit/varredura-anon-e-o-ultimo-bloco.test.ts`.
+--
+-- A 0108 revogou anon numa LISTA de 8 funções, medida num banco instalado do
+-- ZERO. Quem ATUALIZA tem outro estado: o `ALTER DEFAULT PRIVILEGES ... GRANT
+-- ALL ON FUNCTIONS TO anon` do corpo deste arquivo grava uma entrada em
+-- `pg_default_acl` que fica no catálogo PARA SEMPRE, e a partir daí toda função
+-- criada em `public` nasce com EXECUTE para anon — inclusive as deste apêndice.
+--
+-- Medido numa VPS real (2026-08-07), comparando com o que um install fresco
+-- produz: 6 definer expostas a anon e 5 a authenticated, entre elas
+-- `fn_decrypt_oauth` — alcançável pela anon key, que vai para o browser.
+--
+-- Lista conserta o estoque e reabre no próximo `create function`. Esta varredura
+-- é auto-curativa e roda DEPOIS de tudo que cria função, então cura no mesmo run
+-- em que o defeito nasceria. Desfazer o ALTER DEFAULT PRIVILEGES não serve: ele
+-- vem do `pg_dump` do Supabase e é reescrito a cada re-aplicação.
+--
+-- As duas origens de EXECUTE (a mesma lição da 0108): grant DIRETO a anon, que
+-- `revoke from public` não remove; e grant a PUBLIC, do qual anon HERDA, que
+-- `revoke from anon` não remove. O privilégio EFETIVO de authenticated e
+-- service_role é medido ANTES e devolvido depois — tira anon sem tirar leitura.
+do $$
+declare
+  f record;
+  tinha_auth boolean;
+  tinha_service boolean;
+begin
+  if to_regrole('anon') is null then
+    return;
+  end if;
+
+  for f in
+    select p.oid, p.oid::regprocedure as assinatura
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.prosecdef
+  loop
+    tinha_auth := to_regrole('authenticated') is not null
+                  and has_function_privilege('authenticated', f.oid, 'EXECUTE');
+    tinha_service := to_regrole('service_role') is not null
+                     and has_function_privilege('service_role', f.oid, 'EXECUTE');
+
+    execute format('revoke execute on function %s from public, anon', f.assinatura);
+
+    if tinha_auth then
+      execute format('grant execute on function %s to authenticated', f.assinatura);
+    end if;
+    if tinha_service then
+      execute format('grant execute on function %s to service_role', f.assinatura);
+    end if;
+  end loop;
+end $$;
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
@@ -37639,3 +38568,28 @@ end $$;
 -- a lista de erros benignos do update.sh, então a atualização não diz
 -- "atualizado" com módulo fora do ar. Instalação nova não tem módulo: no-op.
 do $f$ begin perform public.fn_conferir_modulos_instalados(); end $f$;
+
+-- ---- Publicações Instagram (migration 0399) ----
+-- Durable dispatch intent: an uncertain HTTP write must never be resent blindly.
+create table if not exists public.instagram_publications (
+  id uuid primary key,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  account_id text not null,
+  item_ids uuid[] not null check (cardinality(item_ids) between 1 and 10),
+  format text not null check (format in ('feed','story','carousel')),
+  caption text not null default '',
+  status text not null default 'preparing' check (status in ('preparing','sending','pending','published','failed','uncertain')),
+  provider_post_id text,
+  permalink text,
+  error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists instagram_publications_org_created on public.instagram_publications(organization_id,created_at desc);
+alter table public.instagram_publications enable row level security;
+drop policy if exists tenant_isolation_instagram_publications_all on public.instagram_publications;
+create policy tenant_isolation_instagram_publications_all on public.instagram_publications for select to authenticated using (organization_id in (select public.fn_user_org_ids()));
+revoke all on public.instagram_publications from anon, authenticated;
+grant select on public.instagram_publications to authenticated;
+grant all on public.instagram_publications to service_role;
+notify pgrst, 'reload schema';

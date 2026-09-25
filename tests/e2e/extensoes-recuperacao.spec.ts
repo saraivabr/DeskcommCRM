@@ -147,7 +147,8 @@ test("recupera preparação em HTTP real e mantém tema, idioma e fallback legí
     if (error) throw new Error(error.message);
     catalogId = data.id as string;
 
-    const theme = page.getByRole("button", { name: /^Tema:/ });
+    await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
+    const theme = page.getByRole("menuitem", { name: /^Tema:/ });
     for (let attempt = 0; attempt < 3; attempt += 1) {
       if ((await theme.getAttribute("aria-label"))?.includes("Tema: dark")) break;
       await theme.click();
@@ -155,13 +156,20 @@ test("recupera preparação em HTTP real e mantém tema, idioma e fallback legí
     await expect(theme).toHaveAttribute("aria-label", /Tema: dark/);
     // O produto marca o tema no atributo (lib/theme.tsx: setAttribute("data-theme")), não em classe.
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.keyboard.press("Escape");
     await capturar(page, testInfo, "recuperacao-dark.png");
 
-    await page.getByTestId("seletor-de-idioma").click();
+    await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
+    await page.getByTestId("seletor-de-idioma").press("ArrowRight");
+    await expect(page.getByTestId("idioma-pt-BR")).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByTestId("idioma-es")).toBeFocused();
     const reloadEs = page.waitForEvent("load");
-    await page.getByTestId("idioma-es").click();
+    await page.keyboard.press("Enter");
     await reloadEs;
-    await expect(page.getByTestId("seletor-de-idioma")).toHaveText("ES");
+    await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
+    await expect(page.getByTestId("seletor-de-idioma")).toContainText("ES");
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("heading", { name: "Extensiones", exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "Catálogo", exact: true }).click();
     await expect(page.getByText("Texto disponible en portugués.").first()).toBeVisible();
@@ -170,11 +178,15 @@ test("recupera preparação em HTTP real e mantém tema, idioma e fallback legí
     ).toBeVisible();
     await capturar(page, testInfo, "recuperacao-es-fallback.png");
 
-    await page.getByTestId("seletor-de-idioma").click();
+    await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
+    await page.getByTestId("seletor-de-idioma").press("ArrowRight");
+    await expect(page.getByTestId("idioma-pt-BR")).toBeFocused();
     const reloadPt = page.waitForEvent("load");
-    await page.getByTestId("idioma-pt-BR").click();
+    await page.keyboard.press("Enter");
     await reloadPt;
-    await expect(page.getByTestId("seletor-de-idioma")).toHaveText("PT");
+    await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
+    await expect(page.getByTestId("seletor-de-idioma")).toContainText("PT");
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("heading", { name: "Extensões", exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "Catálogo", exact: true }).click();
   });

@@ -25,7 +25,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
 import { loginComoAdmin, lerCreds, type CredsE2E } from "./helpers/login-admin";
 
@@ -46,20 +46,42 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Criar um agente pela tela", () => {
-  test("o formulário abre e diz o que falta antes de deixar criar", async ({ page }) => {
+  test("começa por conversa e preserva ajustes ao alternar com o editor", async ({ page }) => {
     await page.goto("/app/ai/agents/new");
+    await expect(page.getByRole("heading", { name: /Seu próximo agente começa/ })).toBeVisible();
+    await expect(page.locator("#model")).not.toBeVisible();
+    await page.getByLabel("Conte sua ideia").fill("Quero atender interessados na minha clínica");
+    await page.getByRole("button", { name: "Configurar manualmente" }).click();
+    await page.locator("#name").fill("Recepção conversacional");
+    await page.getByRole("button", { name: "Voltar à conversa" }).click();
+    await expect(page.getByLabel("Conte sua ideia")).toHaveValue(
+      "Quero atender interessados na minha clínica",
+    );
+    await expect(page.getByRole("heading", { name: "Recepção conversacional" })).toBeVisible();
+    await page.getByRole("button", { name: "Configurar manualmente" }).click();
+    await expect(page.locator("#name")).toHaveValue("Recepção conversacional");
+  });
+
+  test("o formulário valida após tentar criar e mantém o rascunho sem número", async ({ page }) => {
+    await page.goto("/app/ai/agents/new");
+    await page.getByRole("button", { name: "Configurar manualmente" }).click();
     await expect(page.getByRole("heading", { name: /novo agent/i })).toBeVisible();
 
-    // O botão nasce bloqueado: a tela não deixa criar um agente pela metade.
     const criar = page.getByRole("button", { name: /criar agent/i });
-    await expect(criar).toBeDisabled();
-
-    // E ela diz o que falta — as exigências que o servidor também impõe.
-    // Escritas como instrução, não como acusação — um formulário recém-aberto
-    // que já diz "obrigatório" em vermelho trata o usuário como quem errou.
-    for (const exigencia of [/escolha o modelo/i, /escolha a chave de acesso/i]) {
-      await expect(page.getByText(exigencia).first()).toBeVisible();
-    }
+    await expect(criar).toBeEnabled();
+    await expect(page.getByText("Revise os campos para salvar.")).toHaveCount(0);
+    await criar.click();
+    await expect(page.getByText("Revise os campos para salvar.")).toBeVisible();
+    await expect(page.locator("#name")).toBeFocused();
+    // Managed defaults can already satisfy AI configuration. Exercise a real
+    // invalid numeric field instead of assuming model/key are always blank.
+    const avancadas = page.locator("details").filter({ has: page.locator("#max_steps") });
+    await avancadas.locator("summary").click();
+    await page.locator("#max_steps").fill("0");
+    await avancadas.locator("summary").click();
+    await criar.click();
+    await expect(avancadas).toHaveAttribute("open", "");
+    await expect(page.getByText("O valor mínimo é 1.").first()).toBeVisible();
 
     // ⚠️ O NÚMERO DE WHATSAPP NÃO ESTÁ NESSA LISTA, e a ausência é o teste.
     //
@@ -68,9 +90,7 @@ test.describe("Criar um agente pela tela", () => {
     // rascunho de quem tinha acabado de escrever o prompt do atendente. Hoje o
     // número é requisito para PUBLICAR, e a tela diz isso em vez de acusar
     // falta (migration 0239, `lib/ai/agents/bloqueio-de-publicacao.ts`).
-    await expect(
-      page.getByText(/o rascunho salva|rascunho salva sem ele/i).first(),
-    ).toBeVisible();
+    await expect(page.getByText(/o rascunho salva|rascunho salva sem ele/i).first()).toBeVisible();
 
     await page.screenshot({
       path: path.join(EVIDENCIA, "w1-nova-01-tela-de-criar.png"),
@@ -82,12 +102,12 @@ test.describe("Criar um agente pela tela", () => {
     page,
   }) => {
     await page.goto("/app/ai/agents/new");
+    await page.getByRole("button", { name: "Configurar manualmente" }).click();
     const nome = `Recepção da Clínica ${Date.now()}`;
 
     await page.locator("#name").fill(nome);
     await page
-      .locator("textarea")
-      .first()
+      .locator("#system_prompt")
       .fill(
         "Você é a recepção de uma clínica odontológica. Atenda com educação, responda dúvidas sobre horários e ajude a marcar consulta.",
       );
@@ -96,16 +116,27 @@ test.describe("Criar um agente pela tela", () => {
     // nativo: não existe `<option>` no DOM até o menu abrir, e procurar por
     // `option` devolve zero — que lê como "a tela não tem modelo nenhum" quando
     // na verdade o instrumento é que estava olhando o lugar errado.
-    for (const id of ["model", "credential_id", "channel_session_id"]) {
+    const configuracao = page.locator("details").filter({ has: page.locator("#model") });
+    if ((await configuracao.getAttribute("open")) === null) {
+      await configuracao.locator("summary").click();
+    }
+    for (const id of ["model", "credential_id"]) {
       const gatilho = page.locator(`#${id}`);
-      if ((await gatilho.count()) === 0) continue;
+      // O catálogo chega por HTTP. "Carregando…" não é um modelo escolhido:
+      // o seletor só habilita quando há opções disponíveis para a pessoa.
+      await expect(gatilho).toBeEnabled();
+      if (!/Selecione|Escolha/.test((await gatilho.textContent()) ?? "")) continue;
       await gatilho.click();
       const opcoes = page.getByRole("option");
-      const quantas = await opcoes.count();
-      expect(quantas, `o campo "${id}" abriu sem nenhuma opção para escolher`).toBeGreaterThan(0);
+      await expect(opcoes.first()).toBeVisible();
       await opcoes.first().click();
-      await expect(gatilho).not.toContainText(/^Selecione/);
+      await expect(gatilho).not.toHaveText(/Selecione|Escolha|Carregando/);
     }
+    // A draft deliberately has no connected channel and cannot start attending.
+    const avancadas = page.locator("details").filter({ has: page.locator("#max_steps") });
+    if ((await avancadas.getAttribute("open")) === null) await avancadas.locator("summary").click();
+    await page.locator("#max_steps").fill("17");
+    await avancadas.locator("summary").click();
 
     // Liga uma jornada de trabalho — o caminho que a W1 entregou.
     await page.getByTestId("switch-pacote-atender").click();
@@ -145,6 +176,7 @@ test.describe("Criar um agente pela tela", () => {
     page,
   }) => {
     await page.goto("/app/ai/agents/new");
+    await page.getByRole("button", { name: "Configurar manualmente" }).click();
     await expect(page.getByRole("heading", { name: /novo agent/i })).toBeVisible();
 
     // ⚠️ O QUE ESTE CASO NÃO CONSEGUE MEDIR, declarado em vez de fingido: o
@@ -210,10 +242,7 @@ test.describe("Olhar o consumo de IA", () => {
     await page.waitForTimeout(2500);
 
     const corpo = await page.locator("main").innerText();
-    expect(
-      /sem dados|nenhum|0/i.test(corpo),
-      "período vazio não disse nada ao usuário",
-    ).toBe(true);
+    expect(/sem dados|nenhum|0/i.test(corpo), "período vazio não disse nada ao usuário").toBe(true);
 
     await page.screenshot({
       path: path.join(EVIDENCIA, "w1-uso-02-periodo-vazio.png"),

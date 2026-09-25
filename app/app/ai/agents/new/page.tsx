@@ -6,9 +6,15 @@ import { listSelectableChannels } from "@/lib/channels/selectable";
 import { createClient } from "@/lib/supabase/server";
 import type { CredentialRow } from "@/hooks/ai/useCredentials";
 
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { resolveAgentCreationDefaults } from "@/lib/ai/agents/creation-defaults";
+import { chaveDePlataforma } from "@/lib/ai/runtime/agent";
+
 import { lerAmbiente } from "@/lib/instalacao/ambiente";
 
 import { AgentForm } from "../[id]/_components/AgentForm";
+import { employeeRoleById } from "@/lib/ai/agents/employee-roles";
+import { ConversationalAgentCreator } from "./_components/ConversationalAgentCreator";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +32,15 @@ const CREDENTIAL_COLUMNS =
 function provedoresDaInstalacao(): string[] {
   const a = lerAmbiente();
   return Object.entries(a.chavesDeProvedor)
-    .filter(([, tem]) => tem)
+    .filter(([id, tem]) => tem && !!chaveDePlataforma(id))
     .map(([id]) => id);
 }
 
-export default async function NewAgentPage() {
+export default async function NewAgentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cargo?: string }>;
+}) {
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/app");
@@ -48,15 +58,37 @@ export default async function NewAgentPage() {
   ]);
 
   const credentials = (credentialsRes.data ?? []) as unknown as CredentialRow[];
+  const { cargo } = await searchParams;
+  const initialPreset = employeeRoleById(cargo);
+
+  const platformProviders = provedoresDaInstalacao();
+  const db = await getRequestPool().connect();
+  let defaultAI;
+  try {
+    defaultAI = await resolveAgentCreationDefaults(db, activeOrg.orgId, platformProviders);
+  } finally {
+    db.release();
+  }
 
   return (
-    <div className="flex h-full flex-col gap-6 p-6">
-      <AgentForm
-        mode="create"
-        credentials={credentials}
-        provedoresDaInstalacao={provedoresDaInstalacao()}
-        channelSessions={channelSessions}
-      />
+    <div className="flex h-full flex-col gap-6 p-4 sm:p-6">
+      {initialPreset ? (
+        <AgentForm
+          mode="create"
+          initialPreset={initialPreset}
+          credentials={credentials}
+          provedoresDaInstalacao={platformProviders}
+          defaultAI={defaultAI}
+          channelSessions={channelSessions}
+        />
+      ) : (
+        <ConversationalAgentCreator
+          credentials={credentials}
+          provedoresDaInstalacao={platformProviders}
+          defaultAI={defaultAI}
+          channelSessions={channelSessions}
+        />
+      )}
     </div>
   );
 }

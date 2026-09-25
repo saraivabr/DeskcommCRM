@@ -31,10 +31,11 @@ import { decryptKey, byteaToBuffer } from "@/lib/crypto/aes_gcm";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-import { OPENROUTER_BASE_URL, resolveLanguageModel, type ModelId } from "./gateway";
+import { OPENROUTER_BASE_URL, resolveLanguageModel, resolveLanguageModelWithProvider, type ModelId } from "./gateway";
 
 export interface ModeloResolvido {
   model: LanguageModel;
+  provider: string;
   /** Para o log: qual modelo e de onde veio a decisão. */
   modelId: string;
   origem: "binding" | "credencial_da_organizacao" | "padrao";
@@ -72,18 +73,17 @@ export async function resolverModeloDoPonto(
       if (model !== null) {
         // `modelId` continua sendo o id CANÔNICO, não o traduzido: é ele que
         // casa com o catálogo de preço no log de custo.
-        return { model, modelId: String(padrao), origem: "credencial_da_organizacao" };
+        return { model, provider: daOrg.provider, modelId: String(padrao), origem: "credencial_da_organizacao" };
       }
     }
-    // Sem credencial cadastrada sobra a chave da INSTALAÇÃO, e quem diz de QUEM
-    // é essa chave é o provedor que a organização escolheu (issue #1181). A
-    // leitura desse provedor é preguiçosa: id que já traz rota resolve sem ela,
-    // e é esse o caminho de toda instalação padrão.
     const model = await padraoDaInstalacao(
       () => (daOrg !== null ? Promise.resolve(daOrg.provider) : providerDaOrganizacao(organizationId)),
       padrao,
     );
-    return model === null ? null : { model, modelId: String(padrao), origem: "padrao" };
+    if (model === null) return null;
+    const resolved = resolveLanguageModelWithProvider(padrao);
+    const provider = resolved?.provider ?? (daOrg?.provider ?? "default");
+    return { model, provider, modelId: String(padrao), origem: "padrao" };
   }
 
   const apiKey = await decifrarChave(binding.credential_id, organizationId);
@@ -96,7 +96,10 @@ export async function resolverModeloDoPonto(
       purpose,
     });
     const model = await padraoDaInstalacao(() => Promise.resolve(binding.provider), padrao);
-    return model === null ? null : { model, modelId: String(padrao), origem: "padrao" };
+    if (model === null) return null;
+    const resolved = resolveLanguageModelWithProvider(padrao);
+    const provider = resolved?.provider ?? binding.provider;
+    return { model, provider, modelId: String(padrao), origem: "padrao" };
   }
 
   const model = instanciar(binding.provider, apiKey, binding.model_id, binding.base_url);
@@ -107,10 +110,13 @@ export async function resolverModeloDoPonto(
       provider: binding.provider,
     });
     const fallback = await padraoDaInstalacao(() => Promise.resolve(binding.provider), padrao);
-    return fallback === null ? null : { model: fallback, modelId: String(padrao), origem: "padrao" };
+    if (fallback === null) return null;
+    const resolved = resolveLanguageModelWithProvider(padrao);
+    const provider = resolved?.provider ?? binding.provider;
+    return { model: fallback, provider, modelId: String(padrao), origem: "padrao" };
   }
 
-  return { model, modelId: binding.model_id, origem: "binding" };
+  return { model, provider: binding.provider, modelId: binding.model_id, origem: "binding" };
 }
 
 interface LinhaBinding {

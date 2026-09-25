@@ -61,7 +61,7 @@ async function login(page: Page, email: string): Promise<void> {
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(creds.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.waitForURL(/\/app\//);
+  await page.waitForURL(/\/app(?:\/|$|\?)/);
 }
 
 async function selectFirstOption(page: Page, combobox: Locator): Promise<void> {
@@ -103,6 +103,8 @@ test.describe("J6.8 — anti-SSRF do outbound call_webhook (real, ponta a ponta)
     try {
       // --- fonte inbound (para gerar o lead que dispara a regra) ---
       await login(page, creds.users.manager!.email);
+      await page.getByRole("link", { name: "Todas as ferramentas" }).click();
+      await page.waitForURL(/\/app\/ferramentas/);
       await page.getByRole("link", { name: "Webhooks" }).click();
       await page.waitForURL(/\/app\/webhooks/);
       await page.getByRole("button", { name: /Nova fonte|Criar primeira fonte/ }).click();

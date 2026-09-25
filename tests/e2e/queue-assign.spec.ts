@@ -49,7 +49,7 @@ async function login(page: Page, email: string, password: string): Promise<void>
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.waitForURL(/\/app\//, { timeout: 60_000 });
+  await page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: 60_000 });
 }
 
 test.describe("G5-03 — fila com posição + atribuição", () => {

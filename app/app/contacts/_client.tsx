@@ -69,10 +69,7 @@ export function ContactsListClient() {
   );
   const q = useContactList(filters);
 
-  const allContacts = useMemo(
-    () => q.data?.pages.flatMap((p) => p.data) ?? [],
-    [q.data],
-  );
+  const allContacts = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
 
   const tagOptions = useMemo(() => {
     const set = new Set<string>();
@@ -106,7 +103,9 @@ export function ContactsListClient() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">{t("Contatos")}</h1>
           <p className="text-sm text-muted-foreground">
-            {t("Customer 360 — busque, filtre e gerencie contatos.")}
+            {t(
+              "Encontre uma pessoa, consulte seu histórico e acompanhe a relação com seu negócio.",
+            )}
           </p>
         </div>
         {/*
@@ -114,33 +113,40 @@ export function ContactsListClient() {
           vem do PR #267, e vale para os DOIS botões agora: numa tela de 390px
           uma linha de dois botões sem isso comprime os rótulos.
         */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {/*
             A porta do recurso de duplicados fica AQUI, na tela que já existe, e
             não num item de menu novo: quem descobre que tem contato repetido
             descobre olhando a lista, e a barra lateral não precisa crescer para
             um trabalho que se faz de vez em quando.
           */}
-          <Button variant="outline" onClick={() => setDuplicadosOpen(true)}>
-            <UsersThree size={16} weight="bold" aria-hidden />
-            <span>{t("Duplicados")}</span>
-          </Button>
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <UploadSimple size={16} weight="bold" aria-hidden />
-            <span>{t("Importar CSV")}</span>
-          </Button>
           <Button onClick={() => setCreateOpen(true)}>
             <Plus size={16} weight="bold" aria-hidden />
             <span>{t("Novo contato")}</span>
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost">{t("Mais opções")}</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setImportOpen(true)}>
+                <UploadSimple size={16} aria-hidden />
+                {t("Importar CSV")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDuplicadosOpen(true)}>
+                <UsersThree size={16} aria-hidden />
+                {t("Duplicados")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2">
-        <div className="relative w-full sm:w-72">
+      <div className="flex flex-wrap items-start gap-3 py-4">
+        <div className="relative min-w-0 flex-1">
           <MagnifyingGlass
             size={16}
-            className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="absolute top-1/2 left-2 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
           <Input
@@ -229,12 +235,7 @@ export function ContactsListClient() {
       ) : q.isError ? (
         <Card className="p-6 text-center">
           <p className="text-sm text-error-fg">{t("Erro ao carregar contatos.")}</p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="mt-2"
-            onClick={() => q.refetch()}
-          >
+          <Button size="sm" variant="outline" className="mt-2" onClick={() => q.refetch()}>
             {t("Tentar novamente")}
           </Button>
         </Card>

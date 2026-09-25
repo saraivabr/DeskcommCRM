@@ -30,7 +30,11 @@ export interface NavGroup {
   hub?: { href: string; label: string };
 }
 
+export type WorkspaceSection = "trabalhar" | "criar" | "organizar";
+
 export interface NavMetadata {
+  /** Projeção compacta do menu diário; o catálogo completo preserva todas as portas. */
+  workspace?: { section: WorkspaceSection; order: number; label?: string; sidebarLabel?: string };
   href: string;
   label: string;
   /** Aparece no card do hub e é texto buscável no ⌘K. Nunca vazio. */
@@ -75,7 +79,7 @@ export interface NavMetadata {
 export const NAV_GROUPS: NavGroup[] = [
   { id: "atendimento", label: "Atendimento" },
   { id: "crm", label: "CRM", hub: { href: "/app/crm", label: "Ver tudo em CRM" } },
-  { id: "ia", label: "Agente de IA", hub: { href: "/app/ai", label: "Ver tudo em IA" } },
+  { id: "ia", label: "Funcionários", hub: { href: "/app/ai", label: "Ver toda a equipe" } },
   { id: "canais", label: "Canais" },
   { id: "analise", label: "Análise", hub: { href: "/app/analise", label: "Ver tudo em Análise" } },
   {
@@ -111,6 +115,73 @@ export const GRUPO_NO_RODAPE: NavGroupId = "organizacao";
  */
 export const NAV_CATALOG = [
   {
+    href: "/app/ferramentas",
+    label: "Todas as ferramentas",
+    description: "Encontre o que precisa para atender, vender, criar e organizar sua operação.",
+    icon: "Signpost",
+    group: "atendimento",
+  },
+  {
+    href: "/app/instagram",
+    workspace: { section: "criar", order: 1, label: "Conteúdo" },
+    label: "Instagram",
+    description: "Crie imagens, encontre referências e entenda seus resultados.",
+    icon: "InstagramLogo",
+    group: "canais",
+  },
+  {
+    href: "/app/instagram/new",
+    label: "Criar postagem",
+    description: "Conte sua ideia e gere uma imagem para revisar e baixar.",
+    icon: "InstagramLogo",
+    group: "canais",
+  },
+  {
+    href: "/app/instagram/library",
+    label: "Minhas criações",
+    description: "Imagens e legendas salvas para o seu Instagram.",
+    icon: "InstagramLogo",
+    group: "canais",
+  },
+  {
+    href: "/app/instagram/inspirations",
+    label: "Inspirações",
+    description: "Pesquise ideias do seu nicho e guarde perfis de referência.",
+    icon: "InstagramLogo",
+    group: "canais",
+  },
+  {
+    href: "/app/instagram/insights",
+    label: "Meus resultados",
+    description: "Consulte alcance, visualizações e interações do Instagram.",
+    icon: "InstagramLogo",
+    group: "canais",
+  },
+  {
+    href: "/app",
+    label: "Início",
+    description: "Converse com o conteúdo do seu CRM e encontre seu próximo passo.",
+    icon: "Sparkle",
+    group: "atendimento",
+  },
+  {
+    href: "/app/instagram/growth",
+    label: "Instagram Growth",
+    description: "Responda comentários com DMs e gere leads no Instagram.",
+    icon: "Megaphone",
+    group: "canais",
+    minRole: "admin",
+  },
+  {
+    href: "/app/audit/mystery-shopper",
+    label: "Cliente Oculto",
+    description: "Auditoria com IA do atendimento e tempo de resposta.",
+    icon: "ShieldCheck",
+    group: "analise",
+    minRole: "admin",
+    section: "Qualidade e Auditoria",
+  },
+  {
     // SEM `sidebar: true`, e a razão não tem nada a ver com a qualidade desta
     // tela: o menu lateral está no limite medido. Com ela, seriam 20 portas, e
     // `tests/e2e/navegacao.spec.ts` reprova ("em 900px o menu inteiro tem de
@@ -124,8 +195,9 @@ export const NAV_CATALOG = [
     // (ver doc 47), este item volta ao sidebar — é o primeiro da fila, porque
     // saiu por falta de espaço e não por decisão de produto.
     href: "/app/prospecting",
+    workspace: { section: "trabalhar", order: 2 },
     label: "Prospecção",
-    description: "Busque empresas e conduza abordagens graduais com IA.",
+    description: "Encontre empresas, delegue a um BDR e acompanhe cada conversa até o funil.",
     icon: "Funnel",
     group: "crm",
     minRole: "admin",
@@ -134,6 +206,7 @@ export const NAV_CATALOG = [
   // ---- Atendimento — onde o operador passa o dia ----
   {
     href: "/app/inbox",
+    workspace: { section: "trabalhar", order: 1 },
     label: "Inbox",
     description: "As conversas de WhatsApp, com você e a IA atendendo lado a lado.",
     icon: "Inbox",
@@ -162,6 +235,7 @@ export const NAV_CATALOG = [
     // tela, quando o que faltava era o CAMINHO até ela. O aviso da Agenda agora
     // aponta para `/app/team?aba=atendimento`.
     href: "/app/agenda",
+    workspace: { section: "trabalhar", order: 4 },
     label: "Agenda",
     description: "O que está marcado, com quem, e quem atende — seu e da equipe.",
     icon: "CalendarBlank",
@@ -193,6 +267,7 @@ export const NAV_CATALOG = [
     // abre o quadro de cada um. "Pipeline" é palavra de quem construiu o
     // sistema; "funil de vendas" é palavra de quem vende.
     href: "/app/kanban",
+    workspace: { section: "trabalhar", order: 3 },
     label: "Funis",
     description: "Seus funis de venda — clique em um para abrir o quadro de clientes.",
     icon: "Kanban",
@@ -216,6 +291,7 @@ export const NAV_CATALOG = [
   },
   {
     href: "/app/contacts",
+    workspace: { section: "organizar", order: 1 },
     label: "Contatos",
     description: "As pessoas do outro lado da conversa e seu histórico.",
     icon: "Users",
@@ -395,14 +471,15 @@ export const NAV_CATALOG = [
     // Tarefas se abrem todo dia. É esse o corte que decide quem fica no menu.
   },
 
-  // ---- Agente de IA — montar, ensinar, acompanhar ----
+  // ---- Funcionários digitais — montar, ensinar, acompanhar ----
   {
     href: "/app/ai/agents",
-    label: "Agentes",
-    description: "Quem atende por você: instruções, modelo, ferramentas e publicação.",
-    icon: "Robot",
+    workspace: { section: "criar", order: 2, sidebarLabel: "Funcionários de IA" },
+    label: "Funcionários",
+    description: "Sua equipe digital por função: SDR, BDR, Closer, atendimento e operações.",
+    icon: "UsersThree",
     group: "ia",
-    section: "Montar o agente",
+    section: "Montar a equipe",
     minRole: "manager",
     sidebar: true,
   },
@@ -830,7 +907,7 @@ export const NAV_CATALOG = [
   },
   {
     href: "/app/settings/billing",
-    label: "Billing",
+    label: "Planos e assinatura",
     description: "Plano e cobrança.",
     icon: "Receipt",
     group: "organizacao",

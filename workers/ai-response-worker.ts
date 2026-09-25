@@ -1,3 +1,4 @@
+import { runMeteredOperation, measuredGeneration } from "@/lib/billing/metered-operation";
 import { recordLegacyNotice } from "@/lib/ai/agents/legacy-notice";
 import { serviceFromMessage } from "@/lib/atendimento/origem-mensagem";
 import { assertServiceBoundarySupabase } from "@/lib/atendimento/origem";
@@ -18,7 +19,7 @@ import type { ServiceBoundary } from "@/lib/atendimento/fronteira";
  * `row.organization_id` (from the trusted event_log row, not user input).
  */
 
-import { generateText, type LanguageModel } from "ai";
+import { generateText } from "ai";
 
 import { DEFAULT_BOT_MODEL, gatewayConfig, gatewayHeaders } from "@/lib/ai/gateway";
 import { embedText } from "@/lib/ai/embed";
@@ -51,7 +52,7 @@ import type {
   SkipDecision,
 } from "@/lib/ai/types";
 import type { EventRow } from "@/lib/event-log/dispatcher";
-import { resolverModeloDoPonto } from "@/lib/ai/gateway-binding";
+import { resolverModeloDoPonto, type ModeloResolvido } from "@/lib/ai/gateway-binding";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -239,7 +240,7 @@ export async function processMessageReceived(row: EventRow): Promise<ProcessResu
   // defeito já tinha sido corrigido no ai-sentiment-worker; aqui era a cópia do
   // padrão que ficou para trás.
   try {
-    const response = await invokeBot(ctx, model);
+    const response = await invokeBot(ctx, resolvido);
     const post = postProcess(response.text);
 
     // ── G3 — bot's own response signals low confidence / uncertainty.
@@ -979,9 +980,8 @@ async function retrieveContext(input: RetrieveInput): Promise<RagHit[]> {
 // ---------------------------------------------------------------------------
 
 // `model` chega resolvido de fora (ver o guard em processMessageReceived):
-// `ctx.agent.model` continua sendo a STRING canônica, porque é ela que vai para
-// o custo e para a auditoria em ai_invocations; o que executa é o provider.
-async function invokeBot(ctx: BotContext, model: LanguageModel): Promise<BotResponse> {
+// Modelo e provedor resolvidos seguem juntos para execução e conciliação.
+export async function invokeBot(ctx: BotContext, resolved: ModeloResolvido): Promise<BotResponse> {
   const renderedSystem = renderSystemPrompt(ctx.agent.system_prompt, ctx);
   const cfg = gatewayConfig();
   const headers = cfg ? gatewayHeaders({ organizationId: ctx.organization_id }) : undefined;
@@ -1000,12 +1000,16 @@ async function invokeBot(ctx: BotContext, model: LanguageModel): Promise<BotResp
   }
 
   const start = Date.now();
-  const result = await generateText({
-    model,
-    system: renderedSystem,
-    messages,
-    headers,
-  });
+  const result = await runMeteredOperation(
+    { organizationId: ctx.organization_id, provider: resolved.provider, model: resolved.modelId },
+    () => generateText({
+      model: resolved.model,
+      system: renderedSystem,
+      messages,
+      headers,
+    }),
+    (response) => measuredGeneration(response),
+  );
   const latency = Date.now() - start;
 
   const usage = result.usage as

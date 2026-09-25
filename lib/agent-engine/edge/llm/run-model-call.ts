@@ -1,3 +1,4 @@
+import { usageEvidence } from "@/lib/billing/usage-evidence";
 import { guardServiceTools } from "@/lib/atendimento/fronteira-server";
 /**
  * SEAM ÚNICO de chamada de modelo: TODA chamada de LLM do harness passa por
@@ -37,7 +38,9 @@ import {
   SQL_ORCAMENTO,
   type ChaveDeOrcamento,
 } from './orcamento';
-import { costCents } from './pricing';
+import { meteredUsageCostCents } from './catalog-pricing';
+import { measuredGeneration } from '@/lib/billing/measured-usage';
+import { reserveSubscriptionAi, settleSubscriptionAi, recordSubscriptionAiEvidence, SubscriptionAiAllowanceError } from '@/lib/billing/ai-allowance';
 import { chaveDeOrcamentoDaInstalacao } from '../../../instalacao/comportamento';
 import { createDefaultRegistry, type ProviderRegistry } from './providers';
 import { buildStablePrefix } from './stable-prefix';
@@ -647,12 +650,18 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
     cacheTtl: cfg.cacheTtl ?? '1h',
   });
 
+  let allowanceReservation: string | null = null;
+  let allowanceDispatched = false;
   const startedAt = Date.now();
   let result: Awaited<ReturnType<typeof generateText>>;
   try {
     input.abortSignal?.throwIfAborted();
+    allowanceReservation = await reserveSubscriptionAi(db, input.tenantId);
+    await recordSubscriptionAiEvidence(db, input.tenantId, allowanceReservation,
+      { provider: config.provider, model }, null);
     // `system` aceita SystemModelMessage (com providerOptions de cache) — igual
     // em v6 e v7 (smoke prova que o cacheControl continua virando cache_control).
+    allowanceDispatched = true;
     result = await generateText({
       // `decisao.baseUrl` só é preenchido quando o painel apontou um endpoint
       // (gateway OpenAI-compatível, ou modelo local). Providers canônicos
@@ -671,6 +680,10 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
         : Math.min(maxOutputTokens ?? Infinity, input.maxOutputTokens),
     });
   } catch (err) {
+    await settleSubscriptionAi(db, input.tenantId, allowanceReservation, allowanceDispatched ? null : 0).catch(() => {
+      // A retained reservation cannot be spent again; preserve the original provider error.
+      (deps.log ?? console).error('llm: conciliação da franquia pendente', { organization_id: input.tenantId });
+    });
     // ─── A LINHA QUE FALTAVA ────────────────────────────────────────────────
     //
     // Até aqui o INSERT em llm_calls vivia só DEPOIS desta chamada, sem `try`
@@ -713,10 +726,23 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
     cacheReadTokens: result.usage.inputTokenDetails.cacheReadTokens ?? 0,
     cacheWriteTokens: result.usage.inputTokenDetails.cacheWriteTokens ?? 0,
   };
-  // O TTL é o MESMO que gravou o prefixo estável acima: a gravação de cache custa
-  // 1.25× a entrada em 5m e 2× em 1h, e supor a doutrina superfaturaria 60% da
-  // parcela de cache write em quem usa o knob.
-  const cost = costCents(model, usage, cfg.cacheTtl ?? '1h');
+  await recordSubscriptionAiEvidence(db, input.tenantId, allowanceReservation,
+    { provider: config.provider, model }, usageEvidence(result)).catch(() => {
+    (deps.log ?? console).error('llm: evidência de consumo pendente', {
+      organization_id: input.tenantId, reservation_id: allowanceReservation,
+    });
+  });
+  const measured = measuredGeneration(result);
+  const subscriptionCost = measured === null
+    ? null
+    : await meteredUsageCostCents(db, config.provider, model, measured, cfg.cacheTtl ?? '1h');
+  // Só o consumo medido pode liquidar a reserva. Uso ausente permanece null
+  // para conciliação; os contadores normalizados para log não provam custo zero.
+  const cost = subscriptionCost;
+  await settleSubscriptionAi(db, input.tenantId, allowanceReservation, cost).catch(() => {
+    // Keep the generated answer and the held credit; reconciliation can retry later.
+    (deps.log ?? console).error('llm: conciliação da franquia pendente', { organization_id: input.tenantId });
+  });
 
   const { rows } = await db.query<{ id: string }>(
     `insert into llm_calls
@@ -813,6 +839,9 @@ export function normalizarErro(err: unknown): {
   // grafias de fornecedor para reconciliar — há um objeto que nós mesmos
   // construímos. Sem este ramo a tela de Execuções mostraria "Não conseguimos
   // classificar esta falha" no caso mais bem explicado do produto.
+  if (err instanceof SubscriptionAiAllowanceError) {
+    return { error_code: 'franquia_de_ia', error_message: err.message, http_status: null };
+  }
   if (err instanceof LlmBudgetExceededError) {
     return { error_code: 'orcamento_esgotado', error_message: redigirMensagemDoProvedor(bruto), http_status: null };
   }

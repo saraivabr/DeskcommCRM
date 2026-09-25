@@ -1,0 +1,198 @@
+/* Movimento inspirado no AICSS (Thinking State / Orbs).
+   Escopo exclusivo de WorkspaceHome: nenhuma regra muda sua geometria. */
+.composer {
+  position: relative;
+  isolation: isolate;
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.composer:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.composer::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 20%,
+    var(--primary) 45%,
+    color-mix(in srgb, var(--primary) 35%, white) 50%,
+    var(--primary) 55%,
+    transparent 80%
+  );
+  background-size: 300% 100%;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.composer[data-busy="true"]::after {
+  opacity: 0.8;
+  animation: border-flow 3s ease-in-out infinite;
+}
+
+.activity {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  animation: appear 220ms ease-out both;
+}
+
+.dots {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 3px);
+  gap: 3px;
+  width: 19px;
+  height: 19px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.dots > span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: radial-pulse 1.8s ease-in-out infinite;
+}
+
+.shimmer {
+  color: var(--muted-foreground);
+  background: linear-gradient(
+    100deg,
+    var(--muted-foreground) 35%,
+    var(--foreground) 50%,
+    var(--muted-foreground) 65%
+  );
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: border-flow 2.4s ease-in-out infinite;
+}
+
+.illustration {
+  animation: float 7s ease-in-out infinite;
+}
+
+.answer {
+  animation: reveal 420ms ease-out both;
+}
+
+.source {
+  animation: appear 360ms 100ms ease-out both;
+}
+
+.suggestion,
+.send {
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+@media (hover: hover) {
+  .suggestion:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+  .send:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--primary) 25%, transparent);
+  }
+}
+
+.send:active:not(:disabled),
+.suggestion:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@keyframes border-flow {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+@keyframes radial-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.65);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer,
+  .composer::after,
+  .activity,
+  .dots > span,
+  .shimmer,
+  .illustration,
+  .answer,
+  .source,
+  .suggestion,
+  .send {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  .composer::after {
+    display: none;
+  }
+  .shimmer {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+@media (forced-colors: active) {
+  .composer::after {
+    display: none;
+  }
+  .shimmer {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}

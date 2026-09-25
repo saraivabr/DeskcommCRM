@@ -8,18 +8,33 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { SeletorDeIdioma } from "@/components/shell/SeletorDeIdioma";
+import { useTheme } from "@/lib/theme";
+import { useHotkeys } from "react-hotkeys-hook";
+import { toast } from "sonner";
+import { trocarIdioma } from "@/app/actions/settings/trocarIdioma";
+import { useAplicarIdioma, useIdioma } from "@/lib/i18n/IdiomaProvider";
+import { IDIOMAS_VISIVEIS, idiomaVisivelPorCodigo } from "@/lib/i18n/registro";
+import type { Idioma } from "@/lib/i18n/idiomas";
 import { useT } from "@/hooks/i18n/useT";
 import Link from "next/link";
-import { SignOut, ShieldCheck } from "@/lib/ui/icons";
+import { SignOut, ShieldCheck, Check, Sun, Moon, MonitorPlay } from "@/lib/ui/icons";
 
 function initials(name: string | null, email: string): string {
   if (name && name.trim()) {
-    return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+    return name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((p) => p[0])
+      .join("")
+      .toUpperCase();
   }
   return email.slice(0, 2).toUpperCase();
 }
@@ -29,15 +44,44 @@ export function UserMenu() {
   const user = useUser();
   const { signOut } = useAuth();
   const [isPending, startTransition] = useTransition();
+  const idioma = useIdioma();
+  const aplicarIdioma = useAplicarIdioma();
+  const idiomaAtual = idiomaVisivelPorCodigo(idioma);
+  const [salvandoIdioma, startIdioma] = useTransition();
+  const escolherIdioma = (novo: Idioma) => {
+    if (novo === idioma) return;
+    aplicarIdioma(novo);
+    startIdioma(async () => {
+      const resultado = await trocarIdioma(novo);
+      if (!resultado.ok) {
+        aplicarIdioma(idioma);
+        toast.error(t("Não foi possível trocar o idioma. Tente de novo."));
+        return;
+      }
+      // Documento novo descarta o cache de rotas que ainda carrega o idioma anterior.
+      window.location.reload();
+    });
+  };
+  const { theme, setTheme } = useTheme();
+  const IconeTema = theme === "dark" ? Moon : theme === "system" ? MonitorPlay : Sun;
+  useHotkeys(
+    "mod+shift+l",
+    () => setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light"),
+    { preventDefault: true },
+    [theme],
+  );
 
   return (
     <div className="flex items-center gap-2">
-      <SeletorDeIdioma />
-      <ThemeToggle />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full" aria-label={t("Menu do usuário")}>
-            <Avatar className="h-8 w-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-full border border-border bg-card p-[3px]"
+            aria-label={t("Menu do usuário")}
+          >
+            <Avatar className="h-7 w-7 text-[10px]">
               {user.avatar_url && <AvatarImage src={user.avatar_url} alt="" />}
               <AvatarFallback>{initials(user.full_name, user.email)}</AvatarFallback>
             </Avatar>
@@ -50,6 +94,44 @@ export function UserMenu() {
               <span className="truncate text-xs text-muted-foreground">{user.email}</span>
             </div>
           </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger
+              disabled={salvandoIdioma}
+              data-testid="seletor-de-idioma"
+              aria-label={`${t("Idioma")}: ${idiomaAtual.nomeNativo}`}
+            >
+              <span>{t("Idioma")}</span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                {idiomaAtual.rotuloCurto}
+              </span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent>
+                {IDIOMAS_VISIVEIS.map(({ codigo, nomeNativo }) => (
+                  <DropdownMenuItem
+                    key={codigo}
+                    data-testid={`idioma-${codigo}`}
+                    aria-current={codigo === idioma}
+                    onSelect={() => escolherIdioma(codigo)}
+                  >
+                    <Check size={16} aria-hidden className={codigo === idioma ? "" : "invisible"} />
+                    {nomeNativo}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+          <DropdownMenuItem
+            aria-label={t(`Tema: ${theme}. Cmd+Shift+L para alternar.`)}
+            onSelect={(event) => {
+              event.preventDefault();
+              setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light");
+            }}
+          >
+            <IconeTema size={16} aria-hidden />
+            {t("Tema")}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           {/*
             A PORTA DO MODO ADMINISTRADOR.
@@ -87,7 +169,14 @@ export function UserMenu() {
               <DropdownMenuSeparator />
             </>
           )}
-          <DropdownMenuItem disabled={isPending} onClick={() => startTransition(async () => { await signOut(); })}>
+          <DropdownMenuItem
+            disabled={isPending}
+            onClick={() =>
+              startTransition(async () => {
+                await signOut();
+              })
+            }
+          >
             <SignOut size={16} className="mr-2" aria-hidden />
             {t("Sair")}
           </DropdownMenuItem>

@@ -122,7 +122,7 @@ async function loginComTotp(page: Page, email: string, secret: string): Promise<
     await primeiroDigito.click();
     await page.keyboard.type(generateTotp(secret), { delay: 40 });
     try {
-      await page.waitForURL(/\/app\//, { timeout: 30_000 });
+      await page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: 30_000 });
       return;
     } catch {
       await page.waitForTimeout(msUntilNextTotpWindow() + 200);
@@ -277,7 +277,7 @@ test.describe("aviso de caso no WhatsApp", () => {
     expect(m.salvar.altura).toBeGreaterThanOrEqual(32);
     expect(m.salvar.x + m.salvar.largura).toBeLessThanOrEqual(m.janela);
     expect(m.rolagemHorizontal, "a tela do aviso não pode rolar para o lado").toBeLessThanOrEqual(0);
-    expect(m.salvar.fonte).toMatch(/Atkinson/i);
+    expect(m.salvar.fonte).toMatch(/Manrope/i);
     expect(m.salvar.fundo).not.toBe("rgba(0, 0, 0, 0)");
 
     // Em largura de telefone continua sem rolagem lateral.

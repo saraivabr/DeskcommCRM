@@ -29,6 +29,9 @@
  * `tests/unit/audit-lista-do-painel-e-derivada.test.tsx` reprova quem tentar.
  */
 export const AUDIT_ACTIONS = [
+  "billing.checkout_created",
+  "billing.portal_opened",
+  "billing.subscription_synced",
   "auth.login_success",
   "auth.login_failed",
   /** Teto de tentativas barrou antes de chegar ao provedor (issue #64). */
@@ -218,6 +221,11 @@ export const AUDIT_ACTIONS = [
   "ai_agent.run_failed",
   "channel.connected",
   "prospecting.changed",
+  "instagram.created",
+  "instagram.completed",
+  "instagram.failed",
+  "instagram.caption_updated",
+  "instagram.reference_removed",
   // A ABORDAGEM que SAIU (PR #963). Distinta de `prospecting.changed`, que é
   // configuração: esta é a única linha do produto que fala primeiro com quem
   // nunca falou com a empresa, e é a resposta a "por que vocês me escreveram?".
@@ -254,6 +262,7 @@ export const AUDIT_ACTIONS = [
   // atende ou a recusa, e alguém a derruba. Um registro em `voice_calls` diz o
   // QUE aconteceu; a trilha diz QUEM mandou acontecer, e são perguntas
   // diferentes quando o time inteiro compartilha o mesmo número.
+  "voice.mission_requested",
   "voice.call_started",
   "voice.call_accepted",
   "voice.call_rejected",
@@ -313,6 +322,8 @@ export const AUDIT_ACTIONS = [
   "followup_flow.rolled_back",
   "followup.worker_run",
   "followup.silence_sweep_run",
+  // Roteiros de atendimento encerrados por prazo (0397) — só quando houve efeito.
+  "followup.roteiros_expirados",
   "followup_enrollment.created",
   "followup_enrollment.cancelled",
   // As quatro intervenções humanas num follow-up em andamento (0145). São

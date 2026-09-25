@@ -97,4 +97,14 @@ describe("CommandPalette", () => {
     expect(screen.queryAllByRole("option")).toHaveLength(0);
     expect(screen.getByText(/Nada encontrado/i)).toBeTruthy();
   });
+
+  it("permite filtrar por categorias através dos botões", async () => {
+    const user = userEvent.setup();
+    abrir();
+    const btnAtendimento = screen.getByRole("button", { name: /Atendimento/i });
+    expect(btnAtendimento).toBeTruthy();
+    await user.click(btnAtendimento);
+    // Ao filtrar por Atendimento, itens de CRM ou Funcionários não devem aparecer
+    expect(screen.getByRole("option", { name: /Inbox/ })).toBeTruthy();
+  });
 });

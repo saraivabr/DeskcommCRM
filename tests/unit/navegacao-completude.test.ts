@@ -46,6 +46,8 @@ const NAV_ALLOWLIST: Record<string, string> = {
     "redirect para /app/connections?aba=oficial&sub=templates — template da Meta só existe por causa do canal oficial, e vive como sub-aba dele",
   "/app/settings/atualizacao":
     "porta é o rodapé de versão (VersionFooter), que aparece justamente quando há versão nova — melhor que um card fixo. Além disso é só do dono do servidor (is_platform_admin), papel que o registro não modela",
+  "/app/growth/instagram":
+    "redirect para /app/instagram/growth — unificação da matriz de criação e automação de crescimento do Instagram em um único ecossistema integrado",
 };
 
 /** Deriva as rotas estáticas a partir dos arquivos de página que existem. */

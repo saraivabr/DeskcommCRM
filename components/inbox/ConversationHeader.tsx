@@ -35,9 +35,12 @@ import { SnoozeButton } from "@/components/inbox/SnoozeButton";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
 import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
+import { VoiceMissionDialog } from "@/components/voice/VoiceMissionDialog";
 
 interface Props {
   conversation: ConversationWithContact;
+  /** Seleciona outra conversa no Inbox — a aba Número do Transferir abre a do outro número. */
+  onAbrirConversa?: (id: string) => void;
 }
 
 /**
@@ -66,7 +69,7 @@ const STATUS_LABEL: Record<string, string> = {
   archived: "Arquivada",
 };
 
-export function ConversationHeader({ conversation }: Props) {
+export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
   const t = useT();
   const { user } = useAuth();
   const claim = useClaimConversation();
@@ -219,6 +222,7 @@ export function ConversationHeader({ conversation }: Props) {
           barra pode encolher e quebrar internamente, e os botões continuam
           todos visíveis e clicáveis — só que em duas linhas quando preciso. */}
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        {!encerrada && !conversation.is_group && <VoiceMissionDialog conversationId={conversation.id} />}
         {isOpen && (
           <Button
             size="sm"
@@ -365,6 +369,16 @@ export function ConversationHeader({ conversation }: Props) {
         conversationId={conversation.id}
         open={reassignOpen}
         onOpenChange={setReassignOpen}
+        numero={
+          onAbrirConversa && c?.id
+            ? {
+                contactId: c.id,
+                contactPhone: c.phone_number ?? null,
+                channelSessionId: conversation.channel_session_id,
+                onAbrirConversa,
+              }
+            : undefined
+        }
       />
       <AlertDialog open={confirmFecharOpen} onOpenChange={setConfirmFecharOpen}>
         <AlertDialogContent>

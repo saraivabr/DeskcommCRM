@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/auth/AuthProvider";
 import { fonteDeTemplates } from "@/lib/channels/templates-fonte";
 import { estadoDaJanela, formatarDecorrido } from "@/lib/channels/janela";
 import { JanelaFechadaAviso } from "@/components/inbox/JanelaFechadaAviso";
+import { NumeroForaDoAr } from "@/components/inbox/NumeroForaDoAr";
 import { useClaimConversation } from "@/hooks/inbox/useClaimConversation";
 import { useCloseConversation } from "@/hooks/inbox/useCloseConversation";
 import { useMarkAsRead } from "@/hooks/inbox/useMarkAsRead";
@@ -28,7 +29,8 @@ import { InboxKeyboardShortcuts } from "./InboxKeyboardShortcuts";
 import { ShortcutsHelpDialog } from "./ShortcutsHelpDialog";
 import { OpenConversationProvider } from "@/hooks/notifications/OpenConversationContext";
 // ADR-05: ícone de feature sai do mapa canônico, nunca do pacote direto.
-import { CaretLeft, ChatCircle, IdentificationCard } from "@/lib/ui/icons";
+import { ArtisanIcon } from "@/components/brand/ArtisanIcon";
+import { CaretLeft, IdentificationCard } from "@/lib/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -377,7 +379,7 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
   return (
     <OpenConversationProvider conversationId={selectedId}>
     <div
-      className="grid h-[calc(100dvh-3.5rem-var(--space-6)-max(var(--space-6),var(--rodape-ocupado,0px)))] w-full grid-cols-1 md:grid-cols-[300px_1fr] xl:grid-cols-[272px_1fr_296px] 2xl:grid-cols-[300px_1fr_320px]"
+      className="grid h-[calc(100dvh-3.5rem-var(--space-6)-max(var(--space-6),var(--rodape-ocupado,0px)))] min-h-[28rem] overflow-hidden rounded-2xl border bg-surface w-full grid-cols-1 md:grid-cols-[300px_1fr] xl:grid-cols-[272px_1fr_296px] 2xl:grid-cols-[300px_1fr_320px]"
       /*
        * O ESTADO DO TEMPO REAL, LEGÍVEL DE FORA — mesmo par que o dossiê do lead
        * já publica (`LeadDossier`), e pela mesma razão: quando a entrega morre,
@@ -489,7 +491,11 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
           <>
             {/* `key`: trocar de conversa desmonta a confirmação de Fechar/Arquivar
                 aberta — senão o clique de dentro agiria sobre a conversa nova. */}
-            <ConversationHeader key={selectedConversation.id} conversation={selectedConversation} />
+            <ConversationHeader
+              key={selectedConversation.id}
+              conversation={selectedConversation}
+              onAbrirConversa={handleSelect}
+            />
             <div className="min-h-0 flex-1 overflow-hidden">
               <ChatThread
                 conversationId={selectedConversation.id}
@@ -506,6 +512,16 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
               />
             </div>
             <RetentionNotice conversationId={selectedConversation.id} />
+            {selectedConversation.contacts?.id && (
+              <NumeroForaDoAr
+                key={`numero:${selectedConversation.id}`}
+                conversationId={selectedConversation.id}
+                channelSessionId={selectedConversation.channel_session_id}
+                contactId={selectedConversation.contacts.id}
+                contactPhone={selectedConversation.contacts.phone_number ?? null}
+                onAbrirConversa={handleSelect}
+              />
+            )}
             {motivoDaJanela && (
               <JanelaFechadaAviso
                 conversationId={selectedConversation.id}
@@ -531,9 +547,9 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-            <ChatCircle size={36} weight="thin" className="text-text-subtle" aria-hidden />
-            <p className="text-sm font-medium text-text-muted">{t("Selecione uma conversa")}</p>
-            <p className="text-xs text-text-muted">{t("Ou navegue com J e K")}</p>
+            <span className="channel-emblem channel-green mb-4"><ArtisanIcon symbol="conversation" className="h-8 w-8" /></span>
+            <p className="text-xl font-medium tracking-tight text-text">{t("Selecione uma conversa")}</p>
+            <p className="text-xs text-text-muted">{t("Abra uma conversa da lista para ver o histórico e responder. Você também pode navegar com J e K.")}</p>
           </div>
         )}
       </div>
