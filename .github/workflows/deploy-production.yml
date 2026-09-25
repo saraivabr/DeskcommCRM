@@ -1,4 +1,4 @@
-name: Deploy Producao (crm.escreve.ai)
+name: Deploy Producao (os.escreve.ai)
 
 on:
   push:
@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    name: Build da Imagem e Deploy na Azure
+    name: Build da Imagem e Deploy no IRB
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -55,21 +55,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Executar Deploy na VM da Azure via SSH
+      - name: Executar Deploy no IRB via SSH
         env:
-          SSH_HOST: ${{ secrets.AZURE_VM_HOST }}
-          SSH_USER: ${{ secrets.AZURE_VM_USER }}
-          SSH_KEY: ${{ secrets.AZURE_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
           IMAGE_TAG: ${{ steps.meta.outputs.version }}
-          GH_ACTOR: ${{ github.actor }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "${SSH_USER}@${SSH_HOST}" \
-            "echo '$GH_TOKEN' | docker login ghcr.io -u '$GH_ACTOR' --password-stdin && /home/azureuser/deploy-live.sh '$IMAGE_TAG'"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "$IMAGE_TAG"
 
       - name: Validar Saude em Producao (Smoke Test)
         run: |
