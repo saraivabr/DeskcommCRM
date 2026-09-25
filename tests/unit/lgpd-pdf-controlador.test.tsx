@@ -62,6 +62,8 @@ function payload(patch: Partial<ExportPayload> = {}): ExportPayload {
     conversations: [],
     messages_count_total: 0,
     messages_recent: [],
+    whatsapp_history_count_total: 0,
+    whatsapp_history_recent: [],
     leads: [],
     orders: [],
     activities: [],

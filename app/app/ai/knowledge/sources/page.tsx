@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -107,6 +108,11 @@ export default async function AcervoPage() {
           )}
         </p>
       </header>
+
+      <Link href="/app/ai/knowledge/whatsapp-history" className="rounded-lg border border-border p-4 text-sm hover:bg-muted">
+        <span className="font-medium">{t("Histórico do WhatsApp")}</span>
+        <span className="ml-2 text-text-muted">{t("Veja o andamento da importação, o panorama e as conversas por contato")} →</span>
+      </Link>
 
       <AcervoClient
         initialSources={initialSources}

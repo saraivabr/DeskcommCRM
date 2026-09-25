@@ -136,6 +136,15 @@ const sessionSnapshotSchema = z.object({
 }).passthrough();
 
 export type WahaSessionSnapshot = z.infer<typeof sessionSnapshotSchema>;
+export interface WahaHistoryChat { id: string; name?: string | null }
+export interface WahaHistoryMessage {
+  id: string;
+  body?: string | null;
+  timestamp?: number | string | null;
+  fromMe?: boolean;
+  from?: string;
+  to?: string;
+}
 type SessionOperation = "create" | "start" | "stop" | "logout" | "delete";
 
 /** Mantém o prefixo/status que checkHealth e os callers já classificam. */
@@ -198,6 +207,33 @@ export class WahaClient {
     }
   }
 
+  /** Leitura do store NOWEB: nunca usa o caminho de webhook/atendimento. */
+  async listHistoryChats(session: string, offset: number, limit = 50): Promise<WahaHistoryChat[]> {
+    // ID estável: ordenar por último timestamp moveria chats enquanto o
+    // backfill avança e o offset passaria por cima de alguns.
+    const path = `/api/${encodeURIComponent(session)}/chats?limit=${limit}&offset=${offset}&sortBy=id&sortOrder=asc`;
+    const res = await this.fetchComTeto(`${this.baseUrl}${path}`, { headers: { "X-Api-Key": this.apiKey } });
+    if (!res.ok) throw new Error(`waha_history_chats_${res.status}`);
+    const rows: unknown = await res.json();
+    if (!Array.isArray(rows)) throw new Error("waha_history_chats_shape");
+    return rows.filter((row): row is WahaHistoryChat => typeof row?.id === "string");
+  }
+
+  async listHistoryMessages(session: string, chatId: string, offset: number, limit = 100): Promise<WahaHistoryMessage[]> {
+    const path = `/api/${encodeURIComponent(session)}/chats/${encodeURIComponent(chatId)}/messages?limit=${limit}&offset=${offset}&downloadMedia=false`;
+    try {
+      const res = await this.fetchComTeto(`${this.baseUrl}${path}`, { headers: { "X-Api-Key": this.apiKey } });
+      if (!res.ok) throw new Error(`waha_history_messages_${res.status}`);
+      const rows: unknown = await res.json();
+      if (!Array.isArray(rows)) throw new Error("waha_history_messages_shape");
+      return rows.filter((row): row is WahaHistoryMessage => typeof row?.id === "string");
+    } catch (error) {
+      // fetchComTeto inclui URL no erro de timeout; URL contém o JID do contato.
+      if (error instanceof Error && error.message.startsWith("waha_timeout")) throw new Error("waha_history_timeout");
+      throw error;
+    }
+  }
+
   /** server/version é diagnóstico, nunca uma licença inventada pelo cliente. */
   async getServerVersion(): Promise<WahaServerCapabilities> {
     const res = await this.fetchComTeto(`${this.baseUrl}/api/server/version`, {
@@ -244,7 +280,12 @@ export class WahaClient {
     const res = await this.fetchComTeto(`${this.baseUrl}/api/sessions`, {
       method: "POST",
       headers: { "X-Api-Key": this.apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ name, start: false, config: { ignore: CONVERSAS_IGNORADAS } }),
+      // NOWEB só sincroniza o histórico do telefone se o store estiver ligado
+      // ANTES da leitura do QR. Não alteramos sessões já pareadas aqui.
+      body: JSON.stringify({ name, start: false, config: {
+        ignore: CONVERSAS_IGNORADAS,
+        noweb: { store: { enabled: true, fullSync: true } },
+      } }),
     });
     if (!res.ok && !knownSessionConflict(await res.json().catch(() => null), res.status, "create", name)) {
       throw new WahaSessionError("create", res.status);

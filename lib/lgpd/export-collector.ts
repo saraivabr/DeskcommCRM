@@ -65,6 +65,14 @@ export interface MessageRow {
   created_at: string;
 }
 
+export interface WhatsappHistoryRow {
+  id: string;
+  chat_id: string;
+  direction: string;
+  body: string;
+  sent_at: string;
+}
+
 export interface LeadRow {
   id: string;
   pipeline_id: string;
@@ -459,6 +467,8 @@ export interface ExportPayload {
   conversations: ConversationRow[];
   messages_count_total: number;
   messages_recent: MessageRow[];
+  whatsapp_history_count_total: number;
+  whatsapp_history_recent: WhatsappHistoryRow[];
   leads: LeadRow[];
   orders: OrderRow[];
   activities: ActivityRow[];
@@ -783,6 +793,21 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
         created_at: m.created_at,
       }));
     }
+  }
+
+  // Histórico anterior também pertence ao titular no export LGPD.
+  let whatsapp_history_count_total = 0;
+  let whatsapp_history_recent: WhatsappHistoryRow[] = [];
+  if (contactId) {
+    const { count, error: countErr } = await admin.from("whatsapp_history_messages" as never)
+      .select("id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("contact_id", contactId);
+    if (countErr) logger.warn("[lgpd-export-worker] whatsapp history count failed", { request_id: requestId, error: countErr.message });
+    else whatsapp_history_count_total = count ?? 0;
+    const { data, error } = await admin.from("whatsapp_history_messages" as never)
+      .select("id,chat_id,direction,body,sent_at").eq("organization_id", organizationId)
+      .eq("contact_id", contactId).order("sent_at", { ascending: false }).limit(RECENT_MESSAGES_LIMIT);
+    if (error) logger.warn("[lgpd-export-worker] whatsapp history load failed", { request_id: requestId, error: error.message });
+    else whatsapp_history_recent = (data ?? []) as WhatsappHistoryRow[];
   }
 
   // Leads (direct contact_id FK on crm_leads).
@@ -1401,6 +1426,8 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
     conversations,
     messages_count_total,
     messages_recent,
+    whatsapp_history_count_total,
+    whatsapp_history_recent,
     leads,
     orders,
     activities,
@@ -1446,6 +1473,8 @@ function emptyPayload(
     conversations: [],
     messages_count_total: 0,
     messages_recent: [],
+    whatsapp_history_count_total: 0,
+    whatsapp_history_recent: [],
     leads: [],
     orders: [],
     activities: [],
