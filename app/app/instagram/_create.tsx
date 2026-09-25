@@ -12,10 +12,14 @@ import { StudioShell, Intro, Notice, studioApi } from "./_shared";
 import { ImageGeneration } from "./_image-generation";
 export function CreatePost({
   company,
+  firstPost = false,
+  canViewBilling = false,
   initialBrief = "",
   initialNiche = "",
 }: {
   company: CompanyContext;
+  firstPost?: boolean;
+  canViewBilling?: boolean;
   initialBrief?: string;
   initialNiche?: string;
 }) {
@@ -58,8 +62,11 @@ export function CreatePost({
   }
   return (
     <StudioShell>
-      <Intro eyebrow={t("Criar postagem")} title={t("O que você quer contar?")}>
-        {t("Uma ideia já é um começo. Descreva do seu jeito; a imagem nasce daqui.")}
+      <Intro
+        eyebrow={t(firstPost ? "Sua primeira postagem" : "Criar postagem")}
+        title={t("O que você quer contar?")}
+      >
+        {t("Uma ideia já é um começo. Descreva do seu jeito; a imagem e a legenda nascem daqui.")}
       </Intro>
       <form onSubmit={submit} className="grid items-start gap-10 lg:grid-cols-[1.3fr_1fr]">
         <div className="space-y-6">
@@ -175,8 +182,18 @@ export function CreatePost({
             </Notice>
           )}
           <Button size="lg" disabled={busy} type="submit">
-            {busy ? t("Criando sua imagem…") : t("Gerar minha imagem")}
+            {busy ? t("Criando sua postagem…") : t("Gerar imagem e legenda")}
           </Button>
+          <p className="text-sm text-muted-foreground">
+            {t(
+              "Texto e imagem usam o saldo compartilhado de IA da empresa. O consumo varia conforme a criação.",
+            )}{" "}
+            {canViewBilling && (
+              <a href="/app/settings/billing" className="underline">
+                {t("Consultar plano e uso")}
+              </a>
+            )}
+          </p>
           {busy ? (
             <Notice>
               {t(
@@ -186,7 +203,7 @@ export function CreatePost({
           ) : (
             <p className="text-sm text-muted-foreground">
               {t(
-                "GPT Image 2.5 · A imagem fica salva para você revisar e baixar. Nada é publicado automaticamente.",
+                "A imagem e a legenda ficam salvas para você revisar. Nada é publicado automaticamente.",
               )}
             </p>
           )}

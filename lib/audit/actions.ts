@@ -166,6 +166,7 @@ export const AUDIT_ACTIONS = [
   "platform_admin.conversation_viewed",
   "platform_admin.tenants_listed",
   "platform_admin.tenant_viewed",
+  "platform_admin.commercial_account_updated",
   "tenant.created_by_platform_admin",
   "platform_admin.tenant_health_viewed",
   "platform_admin.impersonate_started",

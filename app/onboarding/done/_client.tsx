@@ -9,13 +9,7 @@ import { finishOnboarding } from "@/app/actions/onboarding/finishOnboarding";
 import type { ItemDoResumo } from "@/lib/onboarding/passos";
 import type { PecaDoSistema } from "@/lib/onboarding/o-que-mais-existe";
 
-export function DoneClient({
-  itens,
-  pecas,
-}: {
-  itens: ItemDoResumo[];
-  pecas: PecaDoSistema[];
-}) {
+export function DoneClient({ itens, pecas }: { itens: ItemDoResumo[]; pecas: PecaDoSistema[] }) {
   const t = useT();
   const [pending, startTransition] = useTransition();
   const pendentes = itens.filter((i) => !i.feito);
@@ -23,11 +17,15 @@ export function DoneClient({
   return (
     <div className="space-y-6 rounded-lg border bg-background p-6">
       <div className="space-y-1 text-center">
-        <h2 className="text-2xl font-semibold tracking-tight">{t(pendentes.length === 0 ? "Tudo pronto!" : "Seu espaço está criado.")}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">
+          {t(pendentes.length === 0 ? "Tudo pronto!" : "Seu espaço está criado.")}
+        </h2>
         <p className="text-sm text-muted-foreground">
           {pendentes.length === 0
             ? t("Seu funcionário está montado. Daqui em diante é só acompanhar.")
-            : t("Você já pode explorar. As configurações abaixo ainda precisam ser concluídas para começar o atendimento.")}
+            : t(
+                "Você já pode explorar. As configurações abaixo ainda precisam ser concluídas para começar o atendimento.",
+              )}
         </p>
       </div>
 
@@ -112,6 +110,32 @@ export function DoneClient({
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="space-y-3 rounded-xl border p-5">
+        <h3 className="font-medium">{t("Sua primeira postagem com IA")}</h3>
+        <p className="text-sm text-muted-foreground">
+          {t(
+            "Conte o que sua empresa faz e transforme uma ideia em imagem e legenda no Studio. Você revisa antes de compartilhar.",
+          )}
+        </p>
+        <Button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const res = await finishOnboarding("first_post");
+              if (res && !res.ok) toast.error(`${t("Falha:")} ${res.error}`);
+            })
+          }
+        >
+          {pending ? t("Finalizando...") : t("Criar minha primeira postagem")}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          {t(
+            "Abrir o Studio não consome IA. A geração começa quando você confirmar o pedido e usa o saldo disponível da empresa.",
+          )}
+        </p>
       </section>
 
       <div className="flex justify-center">

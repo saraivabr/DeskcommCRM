@@ -1,10 +1,17 @@
 import { caktoConfiguration } from "@/lib/billing/cakto";
 import { AiAllowanceCard } from "@/components/billing/AiAllowanceCard";
-import { readAiAllowance, type AiAllowanceView } from "@/lib/billing/ai-allowance-view";
+import {
+  readAiAllowance,
+  readAiUsageBreakdown,
+  type AiAllowanceView,
+} from "@/lib/billing/ai-allowance-view";
 import { billingConfiguration } from "@/lib/billing/stripe";
 import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
 import { ManageSubscriptionButton } from "@/components/billing/ManageSubscriptionButton";
 import { subscriptionView, type SubscriptionSnapshot } from "@/lib/billing/subscription-view";
+import { AiUsageBreakdown } from "@/components/billing/AiUsageBreakdown";
+import { readCommercialAccount } from "@/lib/billing/entitlements";
+import { FreeBetaCard, type FreeBetaAccount } from "@/components/billing/FreeBetaCard";
 import { redirect } from "next/navigation";
 
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
@@ -33,6 +40,9 @@ export default async function BillingPage() {
   let allowance: AiAllowanceView | null = null;
   let allowanceFailed = false;
   let billingEnabled = false;
+  let freeBeta: FreeBetaAccount | null = null;
+  let usage: Awaited<ReturnType<typeof readAiUsageBreakdown>> | null = null;
+  let usageFailed = false;
   try {
     if (process.env.BILLING_PROVIDER === "cakto") {
       if (process.env.BILLING_ENABLED !== "true") throw new Error("disabled");
@@ -42,7 +52,7 @@ export default async function BillingPage() {
   } catch {
     /* Unconfigured installations keep the informative catalogue. */
   }
-  if (billingEnabled && !user.support) {
+  if (!user.support) {
     try {
       const {
         rows: [subscription],
@@ -51,9 +61,20 @@ export default async function BillingPage() {
         [activeOrg.orgId],
       );
       view = subscriptionView(subscription);
-      if (subscription?.provider_subscription_id) {
+      if (!subscription?.provider_subscription_id) {
+        const account = await readCommercialAccount(getRequestPool(), activeOrg.orgId);
+        freeBeta = account.classification === "free_public" ? account : null;
+      }
+      if (subscription?.provider_subscription_id || freeBeta) {
         try {
           allowance = await readAiAllowance(getRequestPool(), activeOrg.orgId);
+          if (allowance) {
+            try {
+              usage = await readAiUsageBreakdown(getRequestPool(), activeOrg.orgId);
+            } catch {
+              usageFailed = true;
+            }
+          }
         } catch {
           allowanceFailed = true;
         }
@@ -64,6 +85,9 @@ export default async function BillingPage() {
   }
   const suporte = await emailDeSuporte();
   const idioma = user.idioma;
+  // Dynamic server page: sample once per request; clients receive a stable timestamp.
+  // eslint-disable-next-line react-hooks/purity
+  const checkedAt = Date.now();
   return (
     <div className="flex h-full flex-col gap-6 p-6">
       <header>
@@ -74,7 +98,8 @@ export default async function BillingPage() {
           {traduzir("Planos, faturas e cobrança.", idioma)}
         </p>
       </header>
-      {view && (
+      {freeBeta && <FreeBetaCard account={freeBeta} idioma={idioma} now={checkedAt} />}
+      {view && !freeBeta && (
         <section
           className="space-y-3 rounded-2xl border bg-card p-5"
           aria-label={traduzir("Sua assinatura", idioma)}
@@ -93,6 +118,15 @@ export default async function BillingPage() {
         </section>
       )}
       {allowance && <AiAllowanceCard balance={allowance} idioma={idioma} />}
+      {usage && <AiUsageBreakdown usage={usage} idioma={idioma} />}
+      {usageFailed && (
+        <p role="alert">
+          {traduzir(
+            "Não foi possível detalhar o consumo de IA. Atualize a página para tentar novamente.",
+            idioma,
+          )}
+        </p>
+      )}
       {allowanceFailed && (
         <p role="alert">
           {traduzir(
@@ -101,7 +135,7 @@ export default async function BillingPage() {
           )}
         </p>
       )}
-      {view?.canManage && <ManageSubscriptionButton idioma={idioma} />}
+      {billingEnabled && view?.canManage && <ManageSubscriptionButton idioma={idioma} />}
       {view?.caktoBound && (
         <a
           className="text-sm underline"

@@ -1,4 +1,5 @@
 "use client";
+import { CommercialAccountCard } from "@/components/admin/tenants/CommercialAccountCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTenantDetail } from "@/hooks/useTenantDetail";
 import { TenantOverview } from "@/components/admin/tenants/TenantOverview";
@@ -44,12 +45,9 @@ export function TenantOverviewClient({ id }: TenantOverviewClientProps) {
         <SuspendedBanner suspendedAt={organization.suspended_at} />
       )}
 
+      <CommercialAccountCard key={organization.id} organizationId={organization.id} />
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-        <TenantOverview
-          organization={organization}
-          counts={counts}
-          integrations={integrations}
-        />
+        <TenantOverview organization={organization} counts={counts} integrations={integrations} />
         <TenantActions
           organizationId={organization.id}
           status={organization.status}

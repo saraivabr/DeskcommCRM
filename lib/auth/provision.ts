@@ -74,7 +74,7 @@ export async function vinculoAtivo(userId: string): Promise<string | null> {
 /**
  * Provisiona o tenant de um usuário recém-confirmado via signup self-service:
  * cria a organização (status `active`, `onboarded_at` null → cai no onboarding)
- * e a membership `admin` do usuário.
+ * e a membership `admin` do usuário, com Free desabilitado na mesma transação.
  *
  * Idempotente: se o usuário já tem membership ativa (link de confirmação
  * clicado duas vezes, ou usuário que entrou antes por convite), não faz nada.
@@ -98,53 +98,36 @@ export async function ensureTenantForUser(
     "Minha empresa";
   const base = slugify(orgName);
 
-  // ponytail: check-then-insert tem janela de corrida se o mesmo link for
-  // confirmado 2x em paralelo (pior caso: org duplicada órfã). Advisory lock
-  // por user_id se isso aparecer na prática.
-  let org: { id: string; slug: string } | null = null;
+  // Organization, initial admin and disabled Free classification commit together.
+  // The RPC also rechecks membership under an owner lock for concurrent callbacks.
+  let org: { organization_id: string; organization_slug: string; provisioned: boolean } | null =
+    null;
   for (let attempt = 0; attempt < 3 && !org; attempt++) {
     const slug = attempt === 0 ? base : `${base}-${Math.random().toString(36).slice(2, 6)}`;
     const { data, error } = await admin
-      .from("organizations")
-      .insert({
-        slug,
-        display_name: orgName,
-        legal_name: orgName,
-        status: "active",
-        created_by: user.id,
-      })
-      .select("id, slug")
+      .rpc("fn_provision_self_service_tenant", { p_slug: slug, p_name: orgName, p_owner: user.id })
       .single();
     if (data) {
-      org = data;
+      org = data as { organization_id: string; organization_slug: string; provisioned: boolean };
     } else if (error && error.code !== "23505") {
-      throw new Error(`signup provisioning: org insert failed: ${error.message}`);
+      throw new Error(`signup provisioning: atomic provisioning failed: ${error.message}`);
     }
   }
   if (!org) throw new Error("signup provisioning: slug exhausted after 3 attempts");
-
-  const { error: memberError } = await admin.from("user_organizations").insert({
-    user_id: user.id,
-    organization_id: org.id,
-    role: "admin",
-    accepted_at: new Date().toISOString(),
-  });
-  if (memberError && memberError.code !== "23505") {
-    throw new Error(`signup provisioning: membership insert failed: ${memberError.message}`);
-  }
+  if (!org.provisioned) return { provisioned: false, organizationId: org.organization_id };
 
   void audit({
     action:
       options.source === "recovery" ? "tenant.created_by_recovery" : "tenant.created_by_signup",
     actorUserId: user.id,
-    organizationId: org.id,
+    organizationId: org.organization_id,
     resourceType: "organization",
-    resourceId: org.id,
+    resourceId: org.organization_id,
     bypassedRls: true,
-    metadata: { slug: org.slug },
+    metadata: { slug: org.organization_slug },
   });
 
-  return { provisioned: true, organizationId: org.id };
+  return { provisioned: true, organizationId: org.organization_id };
 }
 
 type ExternalProvisionInput = {

@@ -18,8 +18,6 @@ const result = { text: "Resposta", usage: { inputTokens: 1000, outputTokens: 500
 beforeEach(() => {
   vi.clearAllMocks();
   m.query.mockImplementation(async (sql: string, params: unknown[]) => {
-    if (sql.includes("select provider_subscription_id"))
-      return { rows: [{ provider_subscription_id: "sub_paid" }] };
     if (sql.includes("fn_reserve_subscription_ai"))
       return { rows: [{ reservation_id: params[1] }] };
     if (sql.includes("from ai_models"))
@@ -44,7 +42,6 @@ it("reserves before invoking the provider and settles measured cost for the same
   ]);
 });
 it("quota rejection never invokes the provider", async () => {
-  m.query.mockResolvedValueOnce({ rows: [{ provider_subscription_id: "sub_paid" }] });
   m.query.mockRejectedValueOnce(
     Object.assign(new Error("sensitive database detail"), { code: "P4021" }),
   );
@@ -54,8 +51,8 @@ it("quota rejection never invokes the provider", async () => {
   });
   expect(call).not.toHaveBeenCalled();
 });
-it("legacy companies keep their result without commercial writes", async () => {
-  m.query.mockResolvedValueOnce({ rows: [] });
+it("legacy eligibility is serialized by the database before bypassing the ledger", async () => {
+  m.query.mockResolvedValueOnce({ rows: [{ reservation_id: null }] });
   expect(
     await runMeteredOperation(
       identity,
@@ -307,4 +304,67 @@ it("preserves the answer when final evidence persistence fails", async () => {
     organization_id: identity.organizationId,
     reservation_id: expect.any(String),
   });
+});
+
+it("explicit Free accounts reserve even without a payment provider", async () => {
+  await runMeteredOperation(
+    identity,
+    async () => result,
+    (r) => measuredTextUsage(r.usage),
+  );
+  expect(m.query).toHaveBeenCalledWith(
+    "select fn_reserve_subscription_ai($1,$2) as reservation_id",
+    [identity.organizationId, expect.any(String)],
+  );
+});
+it("disabled Free cannot silently become unmetered", async () => {
+  m.query.mockRejectedValueOnce(Object.assign(new Error("disabled"), { code: "P4021" }));
+  const provider = vi.fn();
+  await expect(runMeteredOperation(identity, provider, () => null)).rejects.toMatchObject({
+    name: "subscription_ai_allowance",
+  });
+  expect(provider).not.toHaveBeenCalled();
+});
+it("records text classification before provider egress", async () => {
+  await runMeteredOperation(
+    identity,
+    async () => {
+      expect(m.query).toHaveBeenCalledWith("select fn_record_subscription_ai_kind($1,$2,$3)", [
+        identity.organizationId,
+        expect.any(String),
+        "text",
+      ]);
+      return result;
+    },
+    () => null,
+  );
+});
+it("a missing classification migration fails before provider egress", async () => {
+  m.query.mockRejectedValueOnce(
+    Object.assign(new Error("relation org_commercial_accounts does not exist"), { code: "42P01" }),
+  );
+  const provider = vi.fn();
+  await expect(runMeteredOperation(identity, provider, () => null)).rejects.toMatchObject({
+    code: "42P01",
+  });
+  expect(provider).not.toHaveBeenCalled();
+});
+
+it("does not reach the provider until the serialized eligibility decision completes", async () => {
+  let rejectDecision!: (reason: Error) => void;
+  m.query.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectDecision = reject;
+      }),
+  );
+  const provider = vi.fn();
+  const operation = runMeteredOperation(identity, provider, () => null);
+  const rejected = expect(operation).rejects.toMatchObject({ name: "subscription_ai_allowance" });
+  expect(m.query).toHaveBeenCalledTimes(1);
+  expect(m.query.mock.calls[0]?.[0]).toContain("fn_reserve_subscription_ai");
+  expect(provider).not.toHaveBeenCalled();
+  rejectDecision(Object.assign(new Error("Free activation disabled access"), { code: "P4021" }));
+  await rejected;
+  expect(provider).not.toHaveBeenCalled();
 });
