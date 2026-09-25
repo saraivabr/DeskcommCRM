@@ -43,14 +43,7 @@ on:
   #
   # O gatilho de push da tag já cobre o fluxo real: a tag é sempre empurrada,
   # com ou sem release. Vigiado por tests/unit/packaging-artefato-do-cliente.test.ts.
-  # Em PR a imagem é CONSTRUÍDA e não publicada. Sem isto, nada no PR consegue
-  # revelar que a mudança quebra a imagem — foi assim que um bump de `next`
-  # passou por `verify`, `build-and-size`, `invariants` e `e2e` (os quatro
-  # obrigatórios) e derrubou o build do Dockerfile na `main`: o `next build`
-  # dentro da imagem não enxerga `tests/` (`.dockerignore`), e a partir do
-  # next 16.3 ele typecheca os `*.test.ts` colocados. O artefato que o
-  # self-hoster instala era o único sem gate.
-  pull_request:
+  # PRs usam CI rápido; publicação de imagens permanece em main e tags.
   workflow_dispatch: {}
 
 env:

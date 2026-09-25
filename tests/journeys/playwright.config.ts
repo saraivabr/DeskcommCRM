@@ -56,7 +56,7 @@ export default defineConfig({
     {
       name: "chromium",
       dependencies: ["setup"],
-      testIgnore: /auth\.setup\.ts/,
+      testIgnore: /auth\.setup\.ts|ci-smoke\.spec\.ts/,
       use: { browserName: "chromium", storageState: ".auth/journeys-admin.json" },
     },
   ],

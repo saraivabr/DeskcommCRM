@@ -3,83 +3,105 @@ name: Deploy Producao (os.escreve.ai)
 on:
   push:
     branches:
-      - feat/saraiva-ai-consolidacao
       - main
   workflow_dispatch:
 
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-
 jobs:
-  build-and-deploy:
-    name: Build da Imagem e Deploy no IRB
+  build-candidate:
+    name: Construir candidata da revisão
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-candidate-${{ github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: read
-      actions: read
       packages: write
-
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      version: ${{ steps.version.outputs.value }}
     steps:
-      - name: Checkout do repositorio
-        uses: actions/checkout@v4
-
-      - name: Exigir verificações da revisão antes de publicar
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/require-production-checks.mjs
-
-      - name: Configurar Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login no GitHub Container Registry (GHCR)
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Definir metadados e tags da imagem
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/saraivabr/deskcomm-app
-          tags: |
-            type=sha,format=short,prefix=,priority=1000
-            type=raw,value=latest
-
-      - name: Build e Push da imagem Docker
+      - name: Versão compatível com o deploy remoto
+        id: version
+        run: echo "value=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      # Construção paralela ao CI rápido. Nenhuma tag consumida em produção muda aqui.
+      - name: Build e push da candidata por SHA completo
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ghcr.io/saraivabr/deskcomm-app:candidate-${{ github.sha }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
           build-args: |
-            APP_VERSION=${{ steps.meta.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            APP_VERSION=${{ steps.version.outputs.value }}
+          cache-from: type=gha,scope=deskcomm-app
+          cache-to: type=gha,mode=max,scope=deskcomm-app
 
+  deploy:
+    name: Validar revisão e publicar no IRB
+    needs: build-candidate
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/saraivabr/deskcomm-app
+      IMAGE_TAG: ${{ needs.build-candidate.outputs.version }}
+      IMAGE_DIGEST: ${{ needs.build-candidate.outputs.digest }}
+    steps:
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+      - name: Exigir CI rápido da mesma revisão e branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/require-production-checks.mjs
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promover o digest aprovado para a tag aceita pelo servidor
+        run: |
+          set -euo pipefail
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          [[ "$IMAGE_TAG" == "${GITHUB_SHA}" ]]
+          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:$IMAGE_TAG" "$IMAGE@$IMAGE_DIGEST"
+          ACTUAL=$(docker buildx imagetools inspect "$IMAGE:$IMAGE_TAG" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          [ "$ACTUAL" = "$IMAGE_DIGEST" ] || { echo 'Digest promovido diverge da candidata'; exit 1; }
       - name: Executar Deploy no IRB via SSH
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
           SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
-          IMAGE_TAG: ${{ steps.meta.outputs.version }}
         run: |
+          set -euo pipefail
+          CURRENT=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          [ "$CURRENT" = "$GITHUB_SHA" ] || { echo "Revisão superada: produção preservada"; exit 1; }
           mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          trap 'rm -f ~/.ssh/deploy_key' EXIT
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "$IMAGE_TAG"
-
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "$IMAGE_TAG"
       - name: Validar Saude em Producao (Smoke Test)
-        env:
-          IMAGE_TAG: ${{ steps.meta.outputs.version }}
         run: |
           echo "Consultando health check publico..."
           for i in {1..15}; do
@@ -91,5 +113,7 @@ jobs:
             fi
             sleep 3
           done
-          echo "Aviso: Nao foi possivel confirmar o status healthy imediatamente."
+          echo "Nao foi possivel confirmar a saude da revisao publicada."
           exit 1
+      - name: Atualizar latest somente após saúde confirmada
+        run: docker buildx imagetools create --prefer-index=false --tag "$IMAGE:latest" "$IMAGE@$IMAGE_DIGEST"

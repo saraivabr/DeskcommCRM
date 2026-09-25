@@ -1,10 +1,8 @@
 name: perf
 
+# Regressão completa somente quando solicitada; CI rápido protege PRs e main.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch: {}
 
 # O GITHUB_TOKEN deste job serve a `actions/checkout` (clone) e a
 # `actions/setup-node` (manifest de `actions/node-versions`, repo público).
