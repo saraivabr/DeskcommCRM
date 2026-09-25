@@ -16,7 +16,9 @@ beforeAll(() => {
       insert into public.whatsapp_history_messages(organization_id,channel_session_id,contact_id,chat_id,external_id,direction,body,sent_at)
        values ('${x.org}','${x.session}','${x.contact}','5511999999999@c.us','msg-${label}','inbound','segredo ${label}',now());
       insert into public.whatsapp_history_analysis(message_id,organization_id,intent,objection,confidence)
-       select id,organization_id,'informacao','nenhuma',0.9 from public.whatsapp_history_messages where external_id='msg-${label}';`);
+       select id,organization_id,'informacao','nenhuma',0.9 from public.whatsapp_history_messages where external_id='msg-${label}';
+      insert into public.whatsapp_history_playbook_drafts(organization_id,channel_session_id,content,source_message_count,model)
+       values ('${x.org}','${x.session}','Rascunho ${label}',1,'test-model');`);
   }
 });
 
@@ -42,6 +44,10 @@ describe("histórico importado isolado e redigido", () => {
       select set_config('request.jwt.claims','{"sub":"${a.user}"}',false);
       select count(*) from public.whatsapp_history_syncs;`).trim().split("\n").at(-1);
     expect(syncs).toBe("1");
+    const playbooks = sql(`set role authenticated;
+      select set_config('request.jwt.claims','{"sub":"${a.user}"}',false);
+      select count(*) from public.whatsapp_history_playbook_drafts;`).trim().split("\n").at(-1);
+    expect(playbooks).toBe("1");
     let erasedReadError = "";
     try {
       sql(`set role authenticated;
@@ -64,6 +70,12 @@ describe("histórico importado isolado e redigido", () => {
         select id,'${b.org}','preco','nenhuma' from public.whatsapp_history_messages where external_id='msg-a';`);
     } catch (error) { analysisErr = motivoDoErro(error); }
     expect(analysisErr).toContain("history_analysis_tenant_mismatch");
+    let playbookErr = "";
+    try {
+      sql(`insert into public.whatsapp_history_playbook_drafts(organization_id,channel_session_id,content,source_message_count,model)
+        values ('${a.org}','${b.session}','Rascunho cruzado',1,'test-model');`);
+    } catch (error) { playbookErr = motivoDoErro(error); }
+    expect(playbookErr).toContain("history_playbook_session_tenant_mismatch");
   });
 
   it("anonimizar o contato apaga o arquivo sem apagar o vizinho", () => {

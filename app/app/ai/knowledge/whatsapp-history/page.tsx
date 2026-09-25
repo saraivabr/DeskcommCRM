@@ -9,6 +9,7 @@ import { HistoryRefresh } from "./_refresh";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { fusoUtilizavel } from "@/lib/tempo/fusos";
 import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
+import { approveWhatsappHistoryPlaybook } from "./_playbook-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ type Contact = { id: string; name: string | null; display_name: string | null; p
 type Message = { id: string; direction: string; body: string; sent_at: string };
 type Sync = { status: string; chats_imported: number; messages_imported: number; error_code: string | null };
 type Analysis = { intent: string; objection: string };
+type PlaybookDraft = { id: string; status: string; content: string; source_message_count: number;
+  generated_at: string; evidence: Array<{ case_id: string; contact_id: string; message_ids: string[] }> };
 const INTENT_LABELS: Record<string, string> = {
   preco: "Preços e condições", informacao: "Dúvidas sobre a oferta", agendamento: "Agendamentos",
   suporte: "Pedidos de ajuda", reclamacao: "Reclamações", outro: "Outros assuntos",
@@ -107,6 +110,11 @@ export default async function WhatsappHistoryPage({ searchParams }: { searchPara
   const { count: pendingAnalysisCount, error: pendingError } = await historyDb.from("whatsapp_history_pending_analysis" as never)
     .select("id", { head: true, count: "exact" }).eq("organization_id", org.orgId);
   if (pendingError) throw new Error("whatsapp_history_pending_read");
+  const { data: draftsData, error: draftsError } = await historyDb.from("whatsapp_history_playbook_drafts" as never)
+    .select("id,status,content,source_message_count,generated_at,evidence")
+    .eq("organization_id", org.orgId).order("generated_at", { ascending: false }).limit(5);
+  if (draftsError) throw new Error("whatsapp_history_playbook_read");
+  const drafts = (draftsData ?? []) as PlaybookDraft[];
   const semantic = (semanticData ?? []) as Analysis[];
   const intents = counts(semantic, "intent", INTENT_LABELS);
   const objections = counts(semantic, "objection", OBJECTION_LABELS);
@@ -115,7 +123,8 @@ export default async function WhatsappHistoryPage({ searchParams }: { searchPara
   const onlyUnsupported = syncs.length > 0 && syncs.every((s) => s.status === "unsupported");
 
   return <div className="space-y-6 p-6">
-    <HistoryRefresh active={(pendingAnalysisCount ?? 0) > 0 || syncs.length === 0 || syncs.some((s) => s.status === "running" || s.status === "pending" || s.status === "failed")} />
+    <HistoryRefresh active={(pendingAnalysisCount ?? 0) > 0 || syncs.length === 0 || syncs.some((s) => s.status === "running" || s.status === "pending" || s.status === "failed") ||
+      (drafts.length === 0 && syncs.some((s) => s.status === "complete" && s.messages_imported >= 12))} />
     <div><Link href="/app/ai/knowledge/sources" className="text-sm text-primary underline">← {t("Conhecimento")}</Link>
       <h1 className="mt-2 text-2xl font-semibold">{t("Histórico do WhatsApp")}</h1>
       <p className="text-sm text-text-muted">{t("Conversas anteriores importadas ao conectar. O agente recebe o contexto do próprio contato no atendimento.")}</p>
@@ -143,6 +152,27 @@ export default async function WhatsappHistoryPage({ searchParams }: { searchPara
         : <p className="text-sm text-text-muted">{t("A análise de assuntos aparece conforme as mensagens são processadas.")}</p>}
       {objections.length > 0 && <><h3 className="mt-4 text-sm font-medium">{t("Objeções mencionadas")}</h3>
         <ul className="mt-2 space-y-1 text-sm">{objections.map(([key, count]) => <li key={key}>{t(OBJECTION_LABELS[key]!)} · {count}</li>)}</ul></>}
+    </section>
+    <section className="rounded-lg border border-border p-4" aria-label={t("Playbook do atendimento")}>
+      <h2 className="font-medium">{t("Playbook do atendimento")}</h2>
+      <p className="text-sm text-text-muted">{t("Depois da importação, o sistema prepara um rascunho com base em conversas completas. Revise antes de orientar os agentes.")}</p>
+      {drafts.length === 0 && <p className="mt-3 text-sm text-text-muted">{t("Aguardando conversas suficientes para preparar o playbook automaticamente.")}</p>}
+      <div className="mt-4 space-y-4">{drafts.map((draft) => <div key={draft.id} className="rounded-md border border-border p-3">
+        <p className="text-xs text-text-muted">{draft.status === "approved" ? t("Aprovado e disponível para os agentes") : t("Rascunho para revisão")} · {draft.source_message_count} {t("mensagens de texto importadas")}</p>
+        {draft.status === "draft" ? <form action={approveWhatsappHistoryPlaybook} className="mt-3 space-y-3">
+          <input type="hidden" name="draft_id" value={draft.id} />
+          <label htmlFor={`playbook-${draft.id}`} className="block text-sm font-medium">{t("Revise o texto antes de aplicar")}</label>
+          <textarea id={`playbook-${draft.id}`} name="content" defaultValue={draft.content} maxLength={10000}
+            className="min-h-80 w-full rounded-md border border-border bg-background p-3 text-sm" />
+          <p className="text-xs text-text-muted">{t("Ao aprovar, este conteúdo entra na Memória da IA e orienta todos os agentes da organização.")}</p>
+          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">{t("Aprovar e aplicar aos agentes")}</button>
+        </form> : <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm">{draft.content}</pre>}
+        {draft.evidence?.length > 0 && <div className="mt-3 text-xs text-text-muted">
+          {t("Conversas usadas como evidência")}: {draft.evidence.map((caseRef, index) => <span key={caseRef.case_id}>
+            {index > 0 ? " · " : ""}<Link className="underline" href={`?${new URLSearchParams({ contact: caseRef.contact_id })}`}>{caseRef.case_id}</Link>
+          </span>)}
+        </div>}
+      </div>)}</div>
     </section>
     <section className="grid gap-4 md:grid-cols-[18rem_1fr]">
       <div className="space-y-3"><h2 className="font-medium">{t("Por contato")}</h2>

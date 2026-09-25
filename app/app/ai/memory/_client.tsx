@@ -56,6 +56,7 @@ export function OrgMemoryClient({ initialState }: Props) {
     manual: t("manual"),
     flywheel: t("aprendido automaticamente"),
     agent: t("anotado pelo agente"),
+    whatsapp_history: t("extraído do histórico do WhatsApp"),
   };
   const { data } = useOrgMemory(initialState);
   const document = data?.document ?? null;
