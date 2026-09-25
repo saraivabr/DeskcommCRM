@@ -129,7 +129,9 @@ async function textosVisiveis(page: Page): Promise<string[]> {
       // de mentira. O que não conta é o que está escondido de TODO mundo.
       const estilo = getComputedStyle(pai);
       if (estilo.display === "none" || estilo.visibility === "hidden") continue;
-      if (pai.closest("script,style,noscript")) continue;
+      // Iniciais decorativas (ex.: E da organização) não são a conjunção traduzível “E”.
+      // Os nomes e rótulos acessíveis ao lado continuam na medição.
+      if (pai.closest('script,style,noscript,[aria-hidden="true"]')) continue;
       saida.push(texto);
     }
     return saida;
@@ -148,8 +150,12 @@ async function textosVisiveis(page: Page): Promise<string[]> {
  */
 async function porIdiomaEm(page: Page, codigo: "pt-BR" | "es"): Promise<void> {
   const curto = codigo === "es" ? "ES" : "PT";
+  await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
   const botao = page.getByTestId("seletor-de-idioma");
-  if ((await botao.innerText()).trim() === curto) return;
+  if ((await botao.innerText()).trim().endsWith(curto)) {
+    await page.keyboard.press("Escape");
+    return;
+  }
 
   // Carimba o documento ATUAL. O seletor grava e recarrega a página (o porquê
   // está no comentário dele), e a recarga cria um documento novo — o carimbo
@@ -169,7 +175,9 @@ async function porIdiomaEm(page: Page, codigo: "pt-BR" | "es"): Promise<void> {
     { timeout: PRAZO },
   );
   await page.waitForLoadState("networkidle", { timeout: PRAZO });
-  await expect(botao, `o seletor não passou a mostrar ${curto} depois da troca`).toHaveText(curto);
+  await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
+  await expect(botao, `o seletor não passou a mostrar ${curto} depois da troca`).toContainText(curto);
+  await page.keyboard.press("Escape");
 }
 
 /**

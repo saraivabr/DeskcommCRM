@@ -37,6 +37,18 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "Ver tudo": { es: "Ver todo" },
+  "Tema": { es: "Tema" },
+  "Boa noite": { es: "Buenas noches" },
+  "Boa tarde": { es: "Buenas tardes" },
+  "Bom dia": { es: "Buenos días" },
+  "Conversa atualizada": { es: "Conversación actualizada" },
+  "Atividades no período, sem atribuição entre elas.": { es: "Actividades del período, sin atribución entre ellas." },
+  "Onde perdemos oportunidades?": { es: "¿Dónde perdemos oportunidades?" },
+  "O que precisa de atenção?": { es: "¿Qué necesita atención?" },
+  "Resuma o dia": { es: "Resume el día" },
+  "Seu espaço, com suas permissões": { es: "Tu espacio, con tus permisos" },
+  "Pergunte sobre sua operação...": { es: "Pregunta sobre tu operación..." },
   "Converse com sua operação. Veja o que precisa de você.": {
     es: "Conversa con tu operación. Mira qué necesita tu atención.",
   },
@@ -10597,6 +10609,7 @@ export const DICIONARIO: Traducoes = {
   "Ela segue marcada como ativa e ocupa uma das vagas de extensões ativas até ser desativada.": { es: "Sigue marcada como activa y ocupa uno de los cupos de extensiones activas hasta que se desactive." },
   "Desativar nesta organização": { es: "Desactivar en esta organización" },
   "Atividade recente": { es: "Actividad reciente" },
+  "Acontecendo agora": { es: "Sucediendo ahora" },
   "Recibos lidos do servidor; outra aba verá os mesmos estados.": { es: "Los recibos se leen del servidor, así que otra pestaña verá los mismos estados." },
   "Admissão de catálogo": { es: "Admisión de catálogo" },
   "Instalação": { es: "Instalación" },
@@ -12581,6 +12594,7 @@ export const DICIONARIO: Traducoes = {
   Contratar: { es: "Contratar" },
   "Renomear funcionário": { es: "Renombrar empleado" },
   Funcionários: { es: "Empleados" },
+  "Funcionários de IA": { es: "Empleados de IA" },
   "Monte, treine e acompanhe a equipe digital que trabalha com sua empresa.": {
     es: "Monta, entrena y acompaña al equipo digital que trabaja con tu empresa.",
   },

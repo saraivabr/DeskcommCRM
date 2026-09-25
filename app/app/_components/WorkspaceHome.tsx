@@ -1,12 +1,12 @@
 "use client";
-import { MessageCircle, PanelsTopLeft, BookOpen } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BarChart3, Sparkles, Filter } from "lucide-react";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useT } from "@/hooks/i18n/useT";
-import {
-  WorkspaceComposer,
-  useWorkspaceAssistant,
-} from "@/components/workspace/WorkspaceAssistant";
+import { useWorkspaceAssistant } from "@/components/workspace/WorkspaceAssistant";
 import { WorkspaceOverview } from "./WorkspaceOverview";
+import { HomeComposer } from "./HomeComposer";
+import styles from "./workspace-home.module.css";
 
 export function WorkspaceHome() {
   const { user, activeOrg } = useAuth();
@@ -14,47 +14,52 @@ export function WorkspaceHome() {
 }
 function WorkspaceSession() {
   const t = useT();
-  const { activeOrg } = useAuth();
-  const { openAssistant, canKnowledge, busy } = useWorkspaceAssistant();
+  const { user } = useAuth();
+  const { openAssistant, busy } = useWorkspaceAssistant();
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setNow(new Date()), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const suggestions = [
-    { icon: MessageCircle, text: "Resuma as conversas recentes", scope: "conversations" as const },
-    {
-      icon: PanelsTopLeft,
-      text: "Quais oportunidades precisam de atenção?",
-      scope: "leads" as const,
-    },
-    ...(canKnowledge
-      ? [
-          {
-            icon: BookOpen,
-            text: "Encontre uma informação nos meus conteúdos",
-            scope: "knowledge" as const,
-          },
-        ]
-      : []),
+    { icon: BarChart3, text: "Resuma o dia", scope: "all" as const },
+    { icon: Sparkles, text: "O que precisa de atenção?", scope: "all" as const },
+    { icon: Filter, text: "Onde perdemos oportunidades?", scope: "leads" as const },
   ];
   return (
-    <div className="mx-auto w-full max-w-6xl px-1 pt-6 pb-20 sm:px-6 sm:pt-10">
-      <p className="mb-7 text-xs text-muted-foreground">{activeOrg?.name ?? t("Seu espaço")}</p>
-      <header className="mb-7">
-        <h1 className="text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
-          {t("O que vamos resolver hoje?")}
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+    <div className={styles.home}>
+      <div className={styles.welcome}>
+        <span>
+          {now
+            ? t(now.getHours() < 12 ? "Bom dia" : now.getHours() < 18 ? "Boa tarde" : "Boa noite")
+            : "\u00a0"}
+          {now ? `${user.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}.` : ""}
+        </span>
+        <span className={styles.date}>
+          {now?.toLocaleDateString(user.idioma, {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })}
+        </span>
+      </div>
+      <header>
+        <h1 className={styles.heading}>{t("O que vamos resolver hoje?")}</h1>
+        <p className={styles.subtitle}>
           {t("Converse com sua operação. Veja o que precisa de você.")}
         </p>
       </header>
-      <WorkspaceComposer />
-      <div className="mt-4 flex flex-wrap gap-2">
+      <HomeComposer />
+      <div className={styles.suggestions}>
         {suggestions.map(({ icon: Icon, text, scope }) => (
           <button
             key={text}
             disabled={busy}
             type="button"
             onClick={() => openAssistant(text, scope)}
-            className="flex min-h-10 items-center gap-2 rounded-full border bg-card px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+            className={styles.suggestion}
           >
-            <Icon size={15} aria-hidden />
+            <Icon aria-hidden />
             {t(text)}
           </button>
         ))}

@@ -20,12 +20,11 @@ export function SearchTrigger() {
         variant="outline"
         size="sm"
         aria-label={t("Buscar telas")}
-        className="w-full max-w-sm justify-start gap-2 rounded-xl border-transparent bg-card/70 text-muted-foreground shadow-none"
+        className="h-9 gap-2 rounded-lg border-0 bg-transparent px-2 text-muted-foreground shadow-none hover:bg-muted"
         onClick={() => setOpen(true)}
       >
         <Search size={14} aria-hidden />
-        <span className="hidden md:inline">{t("Buscar...")}</span>
-        <kbd className="ml-2 hidden rounded-md border bg-muted px-1.5 py-0.5 text-[10px] md:inline">
+        <kbd className="hidden rounded-sm border border-border bg-transparent px-1 py-0.5 text-[9px] md:inline">
           ⌘K
         </kbd>
       </Button>

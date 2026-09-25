@@ -41,6 +41,19 @@ describe("Home real", () => {
     ).rejects.toThrow("permissão");
     expect(queries).toEqual([]);
   });
+  it("não mostra casos da IA a quem não pode abrir a tela de casos", async () => {
+    const { db, queries } = database();
+    const result = await loadHomeOverview(
+      db,
+      "org",
+      "viewer",
+      "viewer",
+      { scope: "mine", days: 7 },
+      now,
+    );
+    expect(queries.some((query) => query.table === "agent_cases")).toBe(false);
+    expect(result.attention).toHaveLength(3);
+  });
   it("minhas filtra todas consultas pelo tenant e responsável, incluindo atividade", async () => {
     const { db, queries } = database();
     const result = await loadHomeOverview(
@@ -59,15 +72,29 @@ describe("Home real", () => {
     };
     for (const q of queries) {
       expect(q.calls).toContainEqual(["eq", "organization_id", "org-session"]);
-      expect(q.calls).toContainEqual(["eq", owners[q.table], "user-session"]);
+      if (q.table === "agent_cases") {
+        expect(q.calls).toContainEqual(["eq", "conversations.organization_id", "org-session"]);
+        expect(q.calls).toContainEqual(["eq", "conversations.assigned_to_user_id", "user-session"]);
+        expect(q.calls).toContainEqual(["eq", "status", "awaiting_human"]);
+        expect(q.calls).toContainEqual([
+          "select",
+          "id,conversations!inner(assigned_to_user_id)",
+          { count: "exact", head: true },
+        ]);
+      } else {
+        expect(q.calls).toContainEqual(["eq", owners[q.table], "user-session"]);
+      }
     }
     expect(result.canSeeTeam).toBe(false);
     expect(result.attention[0]?.href).toBe("/app/inbox?filter=mine");
     expect(queries[1]?.calls).toContainEqual(["lt", "expected_close_date", "2026-09-25"]);
-    expect(queries[2]?.calls).toContainEqual(["in", "status", ["pending", "in_progress"]]);
-    expect(queries[3]?.calls).toContainEqual(["gte", "created_at", "2026-09-18T12:00:00.000Z"]);
-    expect(queries[6]?.calls).toContainEqual(["eq", "status", "won"]);
-    expect(queries[7]?.calls).toContainEqual(["eq", "contacts.is_anonymized", false]);
+    expect(queries[3]?.calls).toContainEqual(["in", "status", ["pending", "in_progress"]]);
+    expect(result.attention).toHaveLength(4);
+    expect(result.attention[2]?.href).toBe("/app/ai/cases");
+    expect(result.attention[3]?.href).toBe("/app/tasks");
+    expect(queries[4]?.calls).toContainEqual(["gte", "created_at", "2026-09-18T12:00:00.000Z"]);
+    expect(queries[7]?.calls).toContainEqual(["eq", "status", "won"]);
+    expect(queries[8]?.calls).toContainEqual(["eq", "contacts.is_anonymized", false]);
   });
   it("equipe autorizada remove apenas filtro pessoal, nunca o tenant", async () => {
     const { db, queries } = database();
@@ -82,6 +109,8 @@ describe("Home real", () => {
     expect(result.canSeeTeam).toBe(true);
     for (const q of queries) {
       expect(q.calls).toContainEqual(["eq", "organization_id", "org"]);
+      if (q.table === "agent_cases")
+        expect(q.calls).toContainEqual(["eq", "conversations.organization_id", "org"]);
       expect(q.calls.some((c) => c[0] === "eq" && c[2] === "user")).toBe(false);
     }
   });

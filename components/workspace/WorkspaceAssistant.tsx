@@ -39,7 +39,7 @@ type Assistant = {
   setListening: (value: boolean) => void;
   canKnowledge: boolean;
   openAssistant: (question?: string, scope?: WorkspaceScope) => void;
-  send: () => Promise<void>;
+  send: (scopeOverride?: WorkspaceScope) => Promise<void>;
 };
 const Context = createContext<Assistant | null>(null);
 export function useWorkspaceAssistant() {
@@ -85,17 +85,20 @@ function AssistantSession({ children }: { children: ReactNode }) {
     if (text !== undefined) setQuestion(text);
     setOpen(true);
   }
-  async function send() {
+  async function send(scopeOverride?: WorkspaceScope) {
     const text = question.trim();
     if (!text || sending.current || recording.current) return;
+    const requestedScope = scopeOverride ?? scope;
+    const effectiveScope = requestedScope === "knowledge" && !canKnowledge ? "all" : requestedScope;
     sending.current = true;
     setBusy(true);
     setOpen(true);
+    setScope(effectiveScope);
     setError(null);
     try {
       const reply = await askWorkspace({
         question: text,
-        scope,
+        scope: effectiveScope,
         history: turns.slice(-2).flatMap((turn) => [
           { role: "user", content: turn.question },
           { role: "assistant", content: turn.reply.answer },

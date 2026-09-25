@@ -34,7 +34,7 @@ export type WorkspaceSection = "trabalhar" | "criar" | "organizar";
 
 export interface NavMetadata {
   /** Projeção compacta do menu diário; o catálogo completo preserva todas as portas. */
-  workspace?: { section: WorkspaceSection; order: number; label?: string };
+  workspace?: { section: WorkspaceSection; order: number; label?: string; sidebarLabel?: string };
   href: string;
   label: string;
   /** Aparece no card do hub e é texto buscável no ⌘K. Nunca vazio. */
@@ -474,7 +474,7 @@ export const NAV_CATALOG = [
   // ---- Funcionários digitais — montar, ensinar, acompanhar ----
   {
     href: "/app/ai/agents",
-    workspace: { section: "criar", order: 2 },
+    workspace: { section: "criar", order: 2, sidebarLabel: "Funcionários de IA" },
     label: "Funcionários",
     description: "Sua equipe digital por função: SDR, BDR, Closer, atendimento e operações.",
     icon: "UsersThree",

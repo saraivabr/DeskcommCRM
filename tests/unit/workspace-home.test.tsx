@@ -4,13 +4,22 @@ import { WorkspaceHome } from "@/app/app/_components/WorkspaceHome";
 const mocks = vi.hoisted(() => ({
   overview: vi.fn(),
   open: vi.fn(),
+  send: vi.fn(),
   auth: { user: { id: "u1" }, activeOrg: { orgId: "org1", name: "Empresa", role: "admin" } },
 }));
 vi.mock("@/app/app/_home-action", () => ({ getHomeOverview: mocks.overview }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/components/workspace/WorkspaceAssistant", () => ({
-  WorkspaceComposer: () => <div>Composer compartilhado</div>,
-  useWorkspaceAssistant: () => ({ openAssistant: mocks.open, canKnowledge: true, busy: false }),
+  useWorkspaceAssistant: () => ({
+    openAssistant: mocks.open,
+    canKnowledge: true,
+    busy: false,
+    question: "",
+    setQuestion: vi.fn(),
+    listening: false,
+    setListening: vi.fn(),
+    send: mocks.send,
+  }),
 }));
 function response(canSeeTeam = false) {
   return {
@@ -36,13 +45,50 @@ function response(canSeeTeam = false) {
 beforeEach(() => {
   mocks.auth.activeOrg.orgId = "org1";
   mocks.open.mockReset();
+  mocks.send.mockReset();
   mocks.overview.mockReset().mockResolvedValue(response());
 });
 describe("Home produtiva", () => {
+  it("mostra horário de hoje e data para atividade antiga, com instante completo acessível", async () => {
+    const today = new Date();
+    today.setHours(8, 30, 0, 0);
+    const old = new Date(today);
+    old.setFullYear(old.getFullYear() - 1);
+    const result = response();
+    mocks.overview.mockResolvedValue({
+      ...result,
+      data: {
+        ...result.data,
+        activities: [
+          {
+            id: "today",
+            title: "Conversa de hoje",
+            at: today.toISOString(),
+            href: "/app/inbox?id=today",
+          },
+          { id: "old", title: "Conversa antiga", at: old.toISOString(), href: "/app/inbox?id=old" },
+        ],
+      },
+    });
+    render(<WorkspaceHome />);
+    const todayLink = await screen.findByRole("link", { name: /Conversa de hoje/ });
+    const oldLink = screen.getByRole("link", { name: /Conversa antiga/ });
+    expect(todayLink.querySelector("time")).toHaveTextContent(
+      today.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    );
+    expect(oldLink.querySelector("time")).toHaveTextContent(
+      old.toLocaleDateString([], { day: "2-digit", month: "2-digit", year: "numeric" }),
+    );
+    expect(oldLink.querySelector("time")).toHaveAttribute("title", old.toLocaleString());
+    expect(oldLink.querySelector("time")).toHaveAttribute("datetime", old.toISOString());
+  });
+
   it("usa título aprovado, composer único e padrão pessoal sem opção equipe não autorizada", async () => {
     render(<WorkspaceHome />);
     expect(screen.getByRole("heading", { name: "O que vamos resolver hoje?" })).toBeInTheDocument();
-    expect(screen.getByText("Composer compartilhado")).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "O que você quer saber sobre seu CRM?" }),
+    ).toBeInTheDocument();
     await screen.findByText("Tarefas atrasadas");
     expect(mocks.overview).toHaveBeenCalledWith({ scope: "mine", days: 7 });
     expect(screen.queryByRole("option", { name: "Ver a equipe" })).toBeNull();
@@ -86,7 +132,15 @@ describe("Home produtiva", () => {
   });
   it("sugestão abre o assistente compartilhado com escopo", () => {
     render(<WorkspaceHome />);
-    fireEvent.click(screen.getByRole("button", { name: "Resuma as conversas recentes" }));
-    expect(mocks.open).toHaveBeenCalledWith("Resuma as conversas recentes", "conversations");
+    fireEvent.click(screen.getByRole("button", { name: "Resuma o dia" }));
+    expect(mocks.open).toHaveBeenCalledWith("Resuma o dia", "all");
+  });
+  it("envia pergunta da Home no escopo completo mesmo após outro escopo no assistente", () => {
+    render(<WorkspaceHome />);
+    const input = screen.getByRole("textbox", { name: "O que você quer saber sobre seu CRM?" });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
+    expect(mocks.send).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(mocks.send).toHaveBeenCalledWith("all");
   });
 });

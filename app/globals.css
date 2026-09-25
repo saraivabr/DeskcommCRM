@@ -975,7 +975,7 @@
 .workspace-nav-item.is-active svg { color: var(--color-accent); }
 .workspace-nav-item:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 main h1, .artisan-title { font-family: Georgia, "Times New Roman", serif; font-weight: 400; letter-spacing: -.04em; line-height: 1.12; text-wrap: balance; }
-.workspace-shell main h1 { font-size: clamp(1.9rem, 3.2vw, 2.7rem); }
+.workspace-shell main:not([data-workspace="home"]) h1 { font-size: clamp(1.9rem, 3.2vw, 2.7rem); }
 .workspace-shell main .artisan-title { font-size: clamp(2.25rem, 4.2vw, 3.5rem); }
 .channel-emblem { display: grid; width: 64px; height: 64px; flex-shrink: 0; place-items: center; border-radius: 21px 24px 19px 25px; box-shadow: inset 0 2px 4px #ffffff80, 0 5px 12px #213c3010; transform: rotate(-5deg); }
 .channel-green { background: #e2ebd4; color: #246345; }
@@ -988,6 +988,10 @@ main h1, .artisan-title { font-family: Georgia, "Times New Roman", serif; font-w
 
 /* A shared reading rhythm, with work surfaces specific to each task. */
 .workspace-shell main[data-workspace] { padding-bottom: 6rem; }
+.workspace-shell main[data-workspace="home"] { padding: 0; }
+.workspace-shell main[data-workspace="home"] h1 { font-size: 36px; font-weight: 650; line-height: 1.25; }
+@media (max-width: 850px) { .workspace-shell main[data-workspace="home"] h1 { font-size: 30px; } }
+@media (max-width: 640px) { .workspace-shell main[data-workspace="home"] h1 { font-size: 29px; } }
 .workspace-shell main[data-workspace] > :last-child { margin-inline: auto; width: 100%; max-width: 90rem; }
 .workspace-shell main[data-workspace="preferences"] > :last-child { max-width: 68rem; }
 .workspace-shell main[data-workspace="preferences"] form { max-width: 60rem; }

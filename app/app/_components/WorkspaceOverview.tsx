@@ -1,11 +1,33 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, RefreshCw } from "lucide-react";
+import {
+  ArrowRight,
+  RefreshCw,
+  MessageCircle,
+  Filter,
+  Clock,
+  Sparkles,
+  CalendarDays,
+  Check,
+} from "lucide-react";
 import { useT } from "@/hooks/i18n/useT";
-import { Button } from "@/components/ui/button";
+import styles from "./workspace-home.module.css";
 import { getHomeOverview } from "../_home-action";
 import type { HomeInput, HomeOverview } from "@/lib/workspace/home";
+
+/** Match the browser-local date used by the full timestamp in the tooltip. */
+function activityDateLabel(instant: string, now = new Date()) {
+  const date = new Date(instant);
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  return date.toLocaleDateString([], {
+    day: "2-digit",
+    month: "2-digit",
+    ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" as const } : {}),
+  });
+}
 
 export function WorkspaceOverview() {
   const t = useT();
@@ -39,31 +61,45 @@ export function WorkspaceOverview() {
       current = false;
     };
   }, [scope, days, revision]);
+  const iconFor = (id: string) =>
+    (
+      ({
+        conversations: MessageCircle,
+        leads: Filter,
+        tasks: Clock,
+        cases: Sparkles,
+        "new-conversations": MessageCircle,
+        "new-leads": Filter,
+        appointments: CalendarDays,
+        won: Check,
+      }) as Record<string, typeof Sparkles>
+    )[id] ?? Sparkles;
+  const attention = data?.attention
+    .slice()
+    .sort((a, b) => Number(a.id === "tasks") - Number(b.id === "tasks"));
   return (
-    <div className="mt-12 space-y-8" aria-busy={busy}>
+    <div className={styles.overview} aria-busy={busy}>
       <section aria-labelledby="home-attention-title">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 id="home-attention-title" className="text-lg font-semibold tracking-tight">
-            {t("Precisa de você")}
-          </h2>
-          <div className="flex items-center gap-2">
+        <div className={styles.sectionHead}>
+          <h2 id="home-attention-title">{t("Precisa de você")}</h2>
+          <div className={styles.scopeControls}>
             <select
               aria-label={t("Escopo das pendências")}
               value={scope}
               disabled={busy}
+              className={styles.period}
               onChange={(event) => {
                 setBusy(true);
                 setError(null);
                 setScope(event.target.value as HomeInput["scope"]);
               }}
-              className="h-10 rounded-xl border bg-card px-3 text-sm"
             >
               <option value="mine">{t("Minhas pendências")}</option>
               {data?.canSeeTeam && <option value="team">{t("Ver a equipe")}</option>}
             </select>
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
+              type="button"
+              className={styles.refresh}
               disabled={busy}
               aria-label={t("Atualizar operação")}
               onClick={() => {
@@ -72,158 +108,148 @@ export function WorkspaceOverview() {
                 setRevision((value) => value + 1);
               }}
             >
-              <RefreshCw size={16} className={busy ? "animate-spin" : ""} />
-            </Button>
+              <RefreshCw size={12} className={busy ? "animate-spin" : ""} aria-hidden />
+            </button>
           </div>
         </div>
         {busy && (
-          <p role="status" className="py-6 text-sm text-muted-foreground">
+          <p role="status" className={styles.status}>
             {t("Consultando sua operação…")}
           </p>
         )}
         {error && (
-          <p
-            role="alert"
-            className="rounded-xl border border-destructive/30 p-4 text-sm text-destructive"
-          >
+          <p role="alert" className={styles.error}>
             {t(error)}
           </p>
         )}
         {!busy && data && (
-          <>
-            <p className="mb-4 text-xs leading-5 text-muted-foreground">
-              {t(
-                scope === "mine"
-                  ? "Itens atribuídos a você. Registros sem responsável ficam fora desta visão."
-                  : "Itens da equipe visíveis com suas permissões.",
-              )}
-            </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {data.attention.map((item) => (
+          <div className={styles.attention}>
+            {attention?.map((item) => {
+              const Icon = iconFor(item.id);
+              return (
                 <Link
                   key={item.id}
                   href={item.href}
-                  className="group rounded-2xl border bg-card p-5 transition-colors hover:border-primary/50 focus-visible:outline-2 focus-visible:outline-ring"
+                  className={styles.attentionItem}
+                  data-kind={item.id}
+                  title={t(item.description)}
                 >
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className="text-3xl font-semibold tracking-tight">
-                      {item.count ?? "—"}
-                    </span>
-                    <ArrowUpRight
-                      size={17}
-                      className="text-muted-foreground group-hover:text-primary"
-                    />
+                  <div className={styles.attentionTop}>
+                    <span className={styles.attentionNumber}>{item.count ?? "—"}</span>
+                    <Icon aria-hidden />
                   </div>
-                  <h3 className="text-sm font-medium">{t(item.label)}</h3>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                    {t(
-                      item.count === null
-                        ? "Não foi possível consultar. Atualize para tentar novamente."
-                        : item.description,
-                    )}
-                  </p>
+                  <h3 className={styles.attentionLabel}>{t(item.label)}</h3>
+                  <div className={styles.attentionMeta}>
+                    <span>{t(item.count === null ? "Consulta indisponível" : "Ver detalhes")}</span>
+                    <ArrowRight aria-hidden />
+                  </div>
+                  {item.count === null && (
+                    <span className="sr-only">
+                      {t("Não foi possível consultar. Atualize para tentar novamente.")}
+                    </span>
+                  )}
                 </Link>
-              ))}
-            </div>
-          </>
+              );
+            })}
+          </div>
         )}
       </section>
       {!busy && data && (
-        <div className="grid gap-5 lg:grid-cols-2">
-          <section
-            aria-labelledby="home-movement-title"
-            className="rounded-2xl border bg-card p-5 sm:p-6"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="home-movement-title" className="text-base font-semibold">
-                {t("Movimento da operação")}
-              </h2>
+        <div className={styles.lower}>
+          <section aria-labelledby="home-movement-title">
+            <div className={styles.sectionHead}>
+              <div>
+                <h2 id="home-movement-title">{t("Movimento da operação")}</h2>
+                <p className={styles.sectionSub}>
+                  {t("Atividades no período, sem atribuição entre elas.")}
+                </p>
+              </div>
               <select
                 aria-label={t("Período dos indicadores")}
                 value={days}
+                className={styles.period}
                 onChange={(event) => {
                   setBusy(true);
                   setError(null);
                   setDays(Number(event.target.value) as 7 | 30);
                 }}
-                className="h-10 rounded-lg border bg-background px-2 text-xs"
               >
                 <option value={7}>{t("Últimos 7 dias")}</option>
                 <option value={30}>{t("Últimos 30 dias")}</option>
               </select>
             </div>
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            <div>
+              {data.movement.map((item) => {
+                const Icon = iconFor(item.id);
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className={styles.stat}
+                    title={t(item.count === null ? "Consulta indisponível" : item.description)}
+                  >
+                    <span className={styles.statLabel}>
+                      <Icon aria-hidden />
+                      {t(item.label)}
+                    </span>
+                    <strong>{item.count ?? "—"}</strong>
+                  </Link>
+                );
+              })}
+            </div>
+            <p className={styles.note}>
               {t(
                 scope === "mine"
                   ? "Registros atualmente atribuídos a você. Indicadores independentes, sem atribuição entre eles."
                   : "Registros visíveis da equipe. Indicadores independentes, sem atribuição entre eles.",
               )}
             </p>
-            <ul className="mt-4 divide-y">
-              {data.movement.map((item) => (
-                <li key={item.id}>
-                  <Link
-                    href={item.href}
-                    className="flex items-center justify-between gap-4 py-4 hover:text-primary"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{t(item.label)}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {t(item.count === null ? "Consulta indisponível" : item.description)}
-                      </p>
-                    </div>
-                    <strong className="text-xl tabular-nums">{item.count ?? "—"}</strong>
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </section>
-          <section
-            aria-labelledby="home-activity-title"
-            className="rounded-2xl border bg-card p-5 sm:p-6"
-          >
-            <h2 id="home-activity-title" className="text-base font-semibold">
-              {t("Atividade recente")}
-            </h2>
-            <p className="mt-3 text-xs text-muted-foreground">
-              {t("Últimas mensagens nas conversas deste escopo.")}
-            </p>
+          <section aria-labelledby="home-activity-title">
+            <div className={styles.sectionHead}>
+              <div>
+                <h2 id="home-activity-title">{t("Acontecendo agora")}</h2>
+                <p className={styles.sectionSub}>
+                  {t("Últimas mensagens nas conversas deste escopo.")}
+                </p>
+              </div>
+              <Link
+                href={scope === "mine" ? "/app/inbox?filter=mine" : "/app/inbox?filter=all"}
+                className={styles.quietLink}
+              >
+                {t("Ver tudo")}
+                <ArrowRight aria-hidden />
+              </Link>
+            </div>
             {data.activities === null ? (
-              <p role="alert" className="mt-6 text-sm text-muted-foreground">
+              <p role="alert" className={styles.status}>
                 {t("Não foi possível consultar as atividades. Tente atualizar.")}
               </p>
             ) : data.activities.length ? (
-              <ul className="mt-4 divide-y">
+              <div>
                 {data.activities.map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={item.href}
-                      className="flex items-center justify-between gap-3 py-4 hover:text-primary"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{item.title}</p>
-                        <time
-                          dateTime={item.at}
-                          className="mt-1 block text-xs text-muted-foreground"
-                        >
-                          {new Date(item.at).toLocaleString()}
-                        </time>
-                      </div>
-                      <ArrowUpRight size={16} className="shrink-0" />
-                    </Link>
-                  </li>
+                  <Link key={item.id} href={item.href} className={styles.activity}>
+                    <span className={styles.activityIcon}>
+                      <MessageCircle aria-hidden />
+                    </span>
+                    <div className={styles.activityCopy}>
+                      <strong>{item.title}</strong>
+                      <p>{t("Conversa atualizada")}</p>
+                    </div>
+                    <time dateTime={item.at} title={new Date(item.at).toLocaleString()}>
+                      {activityDateLabel(item.at)}
+                    </time>
+                  </Link>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p className="mt-6 text-sm text-muted-foreground">
-                {t("Nenhuma atividade acessível neste escopo.")}
-              </p>
+              <p className={styles.status}>{t("Nenhuma atividade acessível neste escopo.")}</p>
             )}
           </section>
         </div>
       )}
       {!busy && data && (
-        <p className="text-xs text-muted-foreground">
+        <p className={styles.note}>
           {t("Consultado em")}{" "}
           <time dateTime={data.updatedAt}>{new Date(data.updatedAt).toLocaleString()}</time> ·{" "}
           {t("Atualize para consultar novamente.")}

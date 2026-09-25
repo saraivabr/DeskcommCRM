@@ -1,0 +1,424 @@
+.home {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 48px 52px 36px;
+  color: var(--foreground);
+}
+.welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.date {
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.heading {
+  font-size: 36px;
+  line-height: 1.25;
+  letter-spacing: -1.6px;
+  font-weight: 650;
+  margin: 0;
+}
+.subtitle {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted-foreground);
+}
+.composer {
+  margin-top: 26px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: 0 5px 16px #173b1f04;
+  overflow: hidden;
+}
+.composer:focus-within {
+  border-color: #87c896;
+  box-shadow: 0 0 0 3px #03ad3e08;
+}
+.composer textarea {
+  display: block;
+  width: 100%;
+  height: 84px;
+  resize: none;
+  border: 0;
+  padding: 21px 22px 9px;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.8;
+  outline: none;
+}
+.composer textarea::placeholder {
+  color: var(--muted-foreground);
+}
+.composeBottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 47px;
+  padding: 0 16px 13px 21px;
+}
+.context {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+  margin-right: auto;
+}
+.context svg {
+  width: 13px;
+  height: 13px;
+}
+.voice button {
+  min-height: 34px;
+  height: 34px;
+  padding: 6px 10px;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px;
+  background: transparent;
+}
+.voice button svg {
+  width: 16px;
+  height: 16px;
+}
+.voice p {
+  max-width: 220px;
+}
+.send {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  cursor: pointer;
+}
+.send:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.send svg {
+  width: 19px;
+  height: 19px;
+}
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+  background: transparent;
+  cursor: pointer;
+}
+.suggestion svg {
+  width: 12px;
+  height: 12px;
+}
+.suggestion:hover {
+  background: var(--card);
+  color: var(--foreground);
+}
+.overview {
+  margin-top: 33px;
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.sectionHead h2 {
+  font-size: 19px;
+  line-height: 1.5;
+  letter-spacing: -0.5px;
+  font-weight: 700;
+}
+.scopeControls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.period {
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  border-radius: 6px;
+  padding: 5px 7px;
+  background: transparent;
+  height: 28px;
+}
+.refresh {
+  padding: 4px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.attention {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.attentionItem {
+  padding: 18px 17px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-height: 139px;
+  display: flex;
+  flex-direction: column;
+}
+.attentionItem:hover {
+  border-color: #a4c9ad;
+}
+.attentionItem[data-kind="tasks"] {
+  background: light-dark(#fdfbf6, var(--card));
+  border-color: light-dark(#e8e2d2, var(--border));
+}
+.attentionTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--muted-foreground);
+}
+.attentionTop svg {
+  width: 17px;
+  height: 17px;
+}
+.attentionNumber {
+  font-size: 29px;
+  line-height: 1;
+  letter-spacing: -1.5px;
+  font-weight: 650;
+  color: var(--foreground);
+}
+.attentionLabel {
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.7;
+  margin-top: 12px;
+}
+.attentionMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  font-size: 9px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+  margin-top: auto;
+  padding-top: 6px;
+}
+.attentionMeta svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.lower {
+  display: grid;
+  grid-template-columns: 1.06fr 1fr;
+  gap: 36px;
+  margin-top: 31px;
+  padding-top: 29px;
+  border-top: 1px solid var(--border);
+}
+.lower .sectionHead h2 {
+  font-size: 16px;
+}
+.sectionSub {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.4;
+  margin-top: 6px;
+}
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.stat:last-child {
+  border-bottom: 0;
+}
+.statLabel {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.statLabel svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.stat strong {
+  font-size: 22px;
+  line-height: 1.4;
+  font-weight: 650;
+  letter-spacing: -0.6px;
+}
+.activity {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+}
+.activity:last-child {
+  border-bottom: 0;
+}
+.activityIcon {
+  width: 29px;
+  height: 29px;
+  flex: none;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--muted);
+  color: var(--primary);
+}
+.activityIcon svg {
+  width: 14px;
+  height: 14px;
+}
+.activityCopy {
+  flex: 1;
+  min-width: 0;
+}
+.activityCopy strong {
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.65;
+  display: block;
+}
+.activityCopy p {
+  font-size: 9px;
+  color: var(--muted-foreground);
+  margin-top: 3px;
+  line-height: 1.6;
+}
+.activity time {
+  font-size: 9px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+  padding-top: 2px;
+  white-space: nowrap;
+}
+.note {
+  font-size: 9px;
+  line-height: 1.8;
+  color: var(--muted-foreground);
+  margin-top: 19px;
+}
+.quietLink {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.quietLink svg {
+  width: 13px;
+  height: 13px;
+}
+.status {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  padding: 20px 0;
+}
+.error {
+  font-size: 12px;
+  color: var(--destructive);
+  padding: 14px 0;
+}
+.home :is(button, a, select):focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+}
+@media (max-width: 1150px) {
+  .home {
+    padding: 36px 30px;
+  }
+  .attention {
+    gap: 8px;
+  }
+  .attentionItem {
+    padding: 15px 13px;
+  }
+  .attentionLabel {
+    font-size: 10px;
+  }
+  .lower {
+    gap: 24px;
+  }
+}
+@media (max-width: 850px) {
+  .heading {
+    font-size: 30px;
+  }
+  .attention {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lower {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .date {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .home {
+    padding: 29px 21px 25px;
+  }
+  .heading {
+    font-size: 29px;
+    letter-spacing: -1.25px;
+  }
+  .welcome {
+    font-size: 11px;
+    margin-bottom: 13px;
+  }
+  .composer {
+    margin-top: 22px;
+  }
+  .composer textarea {
+    font-size: 12px;
+    padding: 16px 16px 6px;
+  }
+  .composeBottom {
+    padding: 0 13px 12px 16px;
+  }
+  .context {
+    font-size: 9px;
+  }
+  .suggestion {
+    font-size: 9px;
+  }
+  .sectionHead h2 {
+    font-size: 17px;
+  }
+}

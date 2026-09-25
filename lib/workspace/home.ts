@@ -37,6 +37,7 @@ export async function loadHomeOverview(
   now = new Date(),
 ): Promise<HomeOverview> {
   const canSeeTeam = roleAtLeast(role, "manager");
+  const canSeeCases = roleAtLeast(role, "agent");
   if (input.scope === "team" && !canSeeTeam)
     throw new Error("Sua permissão não permite consultar a equipe.");
   const since = new Date(now.getTime() - input.days * 86400000).toISOString();
@@ -62,6 +63,14 @@ export async function loadHomeOverview(
       description: "Oportunidades abertas com data prevista de fechamento anterior a hoje (UTC).",
       href: "/app/kanban",
     },
+    ...(canSeeCases
+      ? [{
+          id: "agent-cases",
+          label: "Casos da IA aguardando resposta",
+          description: "Casos abertos pela IA que aguardam uma resposta humana.",
+          href: "/app/ai/cases",
+        }]
+      : []),
     {
       id: "tasks",
       label: "Tarefas atrasadas",
@@ -100,6 +109,19 @@ export async function loadHomeOverview(
     base("crm_leads", "owner_user_id")
       .eq("status", "open")
       .lt("expected_close_date", until.slice(0, 10)),
+    ...(canSeeCases
+      ? [(() => {
+          let query = db
+            .from("agent_cases")
+            .select("id,conversations!inner(assigned_to_user_id)", { count: "exact", head: true })
+            .eq("organization_id", orgId)
+            .eq("conversations.organization_id", orgId)
+            .eq("status", "awaiting_human");
+          if (input.scope === "mine")
+            query = query.eq("conversations.assigned_to_user_id", userId);
+          return query;
+        })()]
+      : []),
     base("crm_tasks", "assigned_to").in("status", ["pending", "in_progress"]).lt("due_date", until),
     base("conversations", "assigned_to_user_id").gte("created_at", since).lte("created_at", until),
     base("crm_leads", "owner_user_id").gte("created_at", since).lte("created_at", until),
@@ -145,8 +167,8 @@ export async function loadHomeOverview(
     scope: input.scope,
     canSeeTeam,
     updatedAt: until,
-    attention: measures.slice(0, 3),
-    movement: measures.slice(3),
+    attention: measures.slice(0, canSeeCases ? 4 : 3),
+    movement: measures.slice(canSeeCases ? 4 : 3),
     activities,
   };
 }

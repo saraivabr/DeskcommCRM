@@ -270,7 +270,7 @@ test.describe("navegação agrupada", () => {
     await login(page, creds.users.agent!.email);
 
     await expect(
-      sidebar(page).getByRole("link", { name: "Funcionários", exact: true }),
+      sidebar(page).getByRole("link", { name: "Funcionários de IA", exact: true }),
     ).toHaveCount(0);
     await expect(sidebar(page).getByRole("link", { name: "Prospecção", exact: true })).toHaveCount(
       0,

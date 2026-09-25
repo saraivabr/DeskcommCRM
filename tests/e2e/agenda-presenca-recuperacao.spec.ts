@@ -431,11 +431,14 @@ test.describe("datas do compromisso seguem idioma e fuso próprios", () => {
     for (const locale of ["pt-BR", "es"] as const) {
       if (locale === "es") {
         await page.keyboard.press("Escape");
+        await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
         await page.getByTestId("seletor-de-idioma").click();
         const reload = page.waitForEvent("load");
         await page.getByTestId("idioma-es").click();
         await reload;
-        await expect(page.getByTestId("seletor-de-idioma")).toHaveText("ES");
+        await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
+        await expect(page.getByTestId("seletor-de-idioma")).toContainText("ES");
+        await page.keyboard.press("Escape");
         await detail(page, id, "Consulta atravessa meia-noite");
         await expect(page.getByTestId("compromisso-horario")).toHaveText(
           "29 ago 2026, 23:30 – 30 ago 2026, 0:30",

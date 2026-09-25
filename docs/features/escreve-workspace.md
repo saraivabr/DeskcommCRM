@@ -4,7 +4,7 @@ A entrada `/app` oferece uma conversa de leitura com o conteúdo do CRM, pendên
 
 ## Contratos
 
-`WorkspaceHome` e o botão global da barra superior compartilham `WorkspaceAssistantProvider`, montado no `AppShell`. `WorkspaceComposer` abre o drawer e chama `askWorkspace`, uma server action privada. O servidor deriva organização e papel da sessão, exige autenticação/MFA, bloqueia suporte somente leitura e aplica limite de dez perguntas por minuto por pessoa/organização. `loadWorkspaceContext` usa o cliente Supabase da sessão com RLS e filtro explícito da organização. Não usa service role para buscar conteúdo.
+`WorkspaceHome` e o botão global da barra superior compartilham `WorkspaceAssistantProvider`, montado no `AppShell`. O compositor compacto da Home e o do painel lateral usam a mesma pergunta, histórico e trava de envio. Eles chamam `askWorkspace`, uma server action privada. O servidor deriva organização e papel da sessão, exige autenticação/MFA, bloqueia suporte somente leitura e aplica limite de dez perguntas por minuto por pessoa/organização. `loadWorkspaceContext` usa o cliente Supabase da sessão com RLS e filtro explícito da organização. Não usa service role para buscar conteúdo.
 
 O recorte é declarado junto da resposta: até 20 conversas e 80 mensagens recentes, 30 oportunidades recentes, ou 12 trechos por palavras da pergunta entre 100 materiais com versão ativa. Conteúdos de Conhecimento exigem manager+. Contatos anonimizados e mensagens revogadas são excluídos da consulta de conversas. Não é uma busca semântica nem um censo de toda a operação.
 
@@ -16,7 +16,9 @@ A conversa permanece em memória enquanto a pessoa navega no aplicativo; trocar 
 
 No campo de pergunta, Enter envia e Shift+Enter quebra a linha. A confirmação de composição de texto (IME) não envia a pergunta.
 
-Manrope é a fonte da interface e IBM Plex Mono permanece para dados técnicos. A casca tem tokens neutros locais, conserva o destaque da marca e respeita o branding personalizado. Ícones Lucide na navegação e GSAP para recolher a barra e entrar na tela. `prefers-reduced-motion` desliga os movimentos. O histórico e os controles continuam utilizáveis por teclado.
+Manrope é a fonte da interface e IBM Plex Mono permanece para dados técnicos. A casca tem tokens neutros locais, conserva o destaque da marca e respeita o branding personalizado. Ícones Phosphor na navegação e GSAP para recolher a barra e entrar na tela. `prefers-reduced-motion` desliga os movimentos. O histórico e os controles continuam utilizáveis por teclado.
+
+Os quatro cartões de atenção para papéis com acesso a casos mostram conversas abertas, fechamentos vencidos, casos da IA aguardando resposta humana e tarefas atrasadas. A contagem dos casos lê `agent_cases` com junção obrigatória às conversas visíveis pela RLS; o escopo pessoal exige conversa atribuída à pessoa. Quem só tem papel de visualização não vê esse cartão, pois não pode abrir a tela de casos. Erro parcial aparece como consulta indisponível, nunca como zero.
 
 O drawer sugere o recorte pela área: Inbox → conversas, Funis → oportunidades, Conhecimento → materiais (manager+); nas demais áreas usa o espaço. A pessoa pode ajustar o recorte. Ele não presume conhecer o registro aberto ou os filtros internos da tela. As fontes ficam em uma seção recolhível com os limites da consulta e o horário em que a resposta foi recebida. Esse horário não é uma promessa de sincronização: respostas anteriores não são atualizadas automaticamente.
 

@@ -253,10 +253,14 @@ async function temaDaPagina(page: Page): Promise<string | null> {
  * funcionar tem de reprovar aqui, não consumir o timeout do caso.
  */
 async function escolherTemaPelaTela(page: Page, alvo: "dark" | "light"): Promise<void> {
-  const botao = page.getByRole("button", { name: /^Tema:/ });
+  await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
+  const botao = page.getByRole("menuitem", { name: /^Tema:/ });
   await expect(botao, "o controle de tema não está na tela").toBeVisible({ timeout: 15_000 });
   for (let i = 0; i < 4; i++) {
-    if ((await temaDaPagina(page)) === alvo) return;
+    if ((await temaDaPagina(page)) === alvo) {
+      await page.keyboard.press("Escape");
+      return;
+    }
     await botao.click();
     // O `setTheme` escreve o atributo no mesmo tick do clique; a espera curta é
     // para o repaint, não para a lógica.
