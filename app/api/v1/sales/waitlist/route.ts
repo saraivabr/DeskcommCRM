@@ -15,13 +15,16 @@ const schema = z
   })
   .strict();
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+// The public CRM alias reaches this app through a proxy whose internal request
+// URL can differ from the browser's Origin. Only our two public origins qualify.
+const publicOrigins = new Set(["https://crm.escreve.ai", "https://os.escreve.ai"]);
 const accepted = (requestId: string) =>
   ok({ accepted: true }, { requestId, headers: { "Cache-Control": "no-store" } });
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) {
+  if (origin && origin !== new URL(request.url).origin && !publicOrigins.has(origin)) {
     return fail("forbidden", "Não foi possível enviar este pedido.", 403, { requestId });
   }
   const denied = await requireSupportWrite();

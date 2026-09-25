@@ -16,8 +16,8 @@ const payload = {
   company: " Empresa ",
   website: "",
 };
-function request(body: unknown = payload, origin = "https://produto.example") {
-  return new Request("https://produto.example/api/v1/sales/waitlist", {
+function request(body: unknown = payload, origin = "https://produto.example", url = "https://produto.example/api/v1/sales/waitlist") {
+  return new Request(url, {
     method: "POST",
     headers: { origin, "content-type": "application/json", "x-forwarded-for": "192.0.2.1" },
     body: JSON.stringify(body),
@@ -29,6 +29,11 @@ beforeEach(() => {
   limit.mockResolvedValue({ allowed: true });
   query.mockResolvedValue({ rows: [{ id: "entry-1" }] });
   audit.mockResolvedValue(undefined);
+});
+it("aceita a origem pública do CRM mesmo quando o proxy usa URL interna", async () => {
+  const response = await POST(request(payload, "https://crm.escreve.ai", "http://localhost:3000/api/v1/sales/waitlist"));
+  expect(response.status).toBe(200);
+  expect(query).toHaveBeenCalledOnce();
 });
 it("normaliza email, grava com parâmetros e audita sem dados pessoais", async () => {
   const response = await POST(request());
