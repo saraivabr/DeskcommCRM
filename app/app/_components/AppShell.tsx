@@ -35,12 +35,12 @@ export function AppShell({ sidebarCollapsed, podeAtender = false, children }: Ap
   useEffect(() => {
     const media = gsap.matchMedia();
     media.add("(prefers-reduced-motion: no-preference)", () => {
+      // A entrada mantém o contraste do texto desde o primeiro frame.
       gsap.from(content.current, {
         y: 6,
-        opacity: 0.65,
         duration: 0.24,
         ease: "power2.out",
-        clearProps: "transform,opacity",
+        clearProps: "transform",
       });
     });
     return () => media.revert();
