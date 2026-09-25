@@ -13,13 +13,19 @@ export class SubscriptionAiAllowanceError extends Error {
   }
 }
 
-/** Legacy companies remain unchanged; the database serializes paid reservations. */
+/** Legacy companies remain unchanged; the database serializes paid and explicitly classified Free reservations. */
 export async function reserveSubscriptionAi(db: Database, organizationId: string) {
-  const { rows } = await db.query<{ provider_subscription_id: string | null }>(
-    "select provider_subscription_id from org_subscriptions where organization_id=$1",
+  const { rows } = await db.query<{
+    provider_subscription_id: string | null;
+    classification: string | null;
+  }>(
+    `select provider_subscription_id, c.classification
+     from (select $1::uuid as id) o
+     left join org_subscriptions s on s.organization_id=o.id
+     left join org_commercial_accounts c on c.organization_id=o.id`,
     [organizationId],
   );
-  if (!rows[0]?.provider_subscription_id) return null;
+  if (!rows[0]?.provider_subscription_id && rows[0]?.classification !== "free_public") return null;
   const callId = randomUUID();
   try {
     const result = await db.query<{ reservation_id: string | null }>(
@@ -55,10 +61,17 @@ export async function recordSubscriptionAiEvidence(
   db: Database,
   organizationId: string,
   reservationId: string | null,
-  identity: { provider: string; model: string },
+  identity: { provider: string; model: string; usageKind?: "text" | "image" | "voice" | "other" },
   evidence: UsageEvidence | null,
 ) {
   if (!reservationId) return;
+  if (identity.usageKind) {
+    await db.query("select fn_record_subscription_ai_kind($1,$2,$3)", [
+      organizationId,
+      reservationId,
+      identity.usageKind,
+    ]);
+  }
   await db.query("select fn_record_subscription_ai_evidence($1,$2,$3,$4,$5::jsonb)", [
     organizationId,
     reservationId,

@@ -30,7 +30,7 @@ function poolQueGrava(
 ) {
   const inserts: Array<{ sql: string; params: unknown[] }> = [];
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
-    if (sql.startsWith("select provider_subscription_id from org_subscriptions")) {
+    if (sql.startsWith("select provider_subscription_id, c.classification")) {
       return { rows: allowance === "legacy" ? [] : [{ provider_subscription_id: "sub_paid" }] };
     }
     if (sql.includes("fn_reserve_subscription_ai")) {

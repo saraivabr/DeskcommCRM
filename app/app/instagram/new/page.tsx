@@ -16,6 +16,8 @@ export default async function Page({
   return (
     <CreatePost
       company={company}
+      firstPost={q.first_post === "1"}
+      canViewBilling={org.role === "admin"}
       initialBrief={typeof q.brief === "string" ? q.brief.slice(0, 3000) : ""}
       initialNiche={typeof q.niche === "string" ? q.niche.slice(0, 2000) : company.description}
     />

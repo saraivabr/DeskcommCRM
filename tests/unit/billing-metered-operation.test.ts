@@ -308,3 +308,53 @@ it("preserves the answer when final evidence persistence fails", async () => {
     reservation_id: expect.any(String),
   });
 });
+
+it("explicit Free accounts reserve even without a payment provider", async () => {
+  m.query.mockResolvedValueOnce({
+    rows: [{ provider_subscription_id: null, classification: "free_public" }],
+  });
+  await runMeteredOperation(
+    identity,
+    async () => result,
+    (r) => measuredTextUsage(r.usage),
+  );
+  expect(m.query).toHaveBeenCalledWith(
+    "select fn_reserve_subscription_ai($1,$2) as reservation_id",
+    [identity.organizationId, expect.any(String)],
+  );
+});
+it("disabled Free cannot silently become unmetered", async () => {
+  m.query.mockResolvedValueOnce({
+    rows: [{ provider_subscription_id: null, classification: "free_public" }],
+  });
+  m.query.mockRejectedValueOnce(Object.assign(new Error("disabled"), { code: "P4021" }));
+  const provider = vi.fn();
+  await expect(runMeteredOperation(identity, provider, () => null)).rejects.toMatchObject({
+    name: "subscription_ai_allowance",
+  });
+  expect(provider).not.toHaveBeenCalled();
+});
+it("records text classification before provider egress", async () => {
+  await runMeteredOperation(
+    identity,
+    async () => {
+      expect(m.query).toHaveBeenCalledWith("select fn_record_subscription_ai_kind($1,$2,$3)", [
+        identity.organizationId,
+        expect.any(String),
+        "text",
+      ]);
+      return result;
+    },
+    () => null,
+  );
+});
+it("a missing classification migration fails before provider egress", async () => {
+  m.query.mockRejectedValueOnce(
+    Object.assign(new Error("relation org_commercial_accounts does not exist"), { code: "42P01" }),
+  );
+  const provider = vi.fn();
+  await expect(runMeteredOperation(identity, provider, () => null)).rejects.toMatchObject({
+    code: "42P01",
+  });
+  expect(provider).not.toHaveBeenCalled();
+});

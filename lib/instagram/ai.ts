@@ -88,7 +88,15 @@ async function request(
     );
   const db = getRequestPool();
   const reservation = await reserveSubscriptionAi(db, org);
-  const identity = { provider: "openai", model: String(body.model) };
+  const identity = {
+    provider: "openai",
+    model: String(body.model),
+    usageKind: path.startsWith("images/")
+      ? ("image" as const)
+      : path === "responses"
+        ? ("text" as const)
+        : ("other" as const),
+  };
   let dispatched = false;
   let cost: number | null = null;
   try {

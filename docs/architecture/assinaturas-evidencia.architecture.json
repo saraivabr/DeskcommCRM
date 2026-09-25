@@ -116,6 +116,30 @@
       "type": "service",
       "label": "billing-sync → org_subscriptions",
       "sublabel": "Lock por empresa; pagamento e ciclo confirmados"
+    },
+    {
+      "id": "commercial-admin",
+      "lane": "ui",
+      "col": 0,
+      "type": "service",
+      "label": "Classificação comercial",
+      "sublabel": "Administração → Empresas → detalhe; admin completo"
+    },
+    {
+      "id": "commercial-accounts",
+      "lane": "storage",
+      "col": 1,
+      "type": "service",
+      "label": "org_commercial_accounts",
+      "sublabel": "Free explícito; legado preservado; período configurado"
+    },
+    {
+      "id": "first-post",
+      "lane": "ui",
+      "col": 0,
+      "type": "service",
+      "label": "Onboarding → Studio",
+      "sublabel": "Criação pedida pelo usuário; imagem + legenda → biblioteca"
     }
   ],
   "edges": [
@@ -208,6 +232,42 @@
       "from": "billing-sync",
       "to": "audit",
       "label": "billing.subscription_synced"
+    },
+    {
+      "id": "commercial-write",
+      "from": "commercial-admin",
+      "to": "commercial-accounts",
+      "label": "PATCH autenticado e auditado"
+    },
+    {
+      "id": "commercial-read",
+      "from": "commercial-accounts",
+      "to": "commercial-admin",
+      "label": "Configuração visível e renovação manual"
+    },
+    {
+      "id": "commercial-reserve",
+      "from": "commercial-accounts",
+      "to": "reservations",
+      "label": "Capacidades e reserva Free; pagos prevalecem"
+    },
+    {
+      "id": "commercial-balance",
+      "from": "commercial-accounts",
+      "to": "balance",
+      "label": "Beta e validade explícitos"
+    },
+    {
+      "id": "first-create",
+      "from": "first-post",
+      "to": "calls",
+      "label": "Geração explícita no Studio existente"
+    },
+    {
+      "id": "usage-return",
+      "from": "balance",
+      "to": "first-post",
+      "label": "Saldo compartilhado antes de nova criação"
     }
   ]
 }
