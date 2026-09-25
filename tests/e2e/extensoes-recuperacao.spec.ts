@@ -160,9 +160,12 @@ test("recupera preparação em HTTP real e mantém tema, idioma e fallback legí
     await capturar(page, testInfo, "recuperacao-dark.png");
 
     await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
-    await page.getByTestId("seletor-de-idioma").click();
+    await page.getByTestId("seletor-de-idioma").press("ArrowRight");
+    await expect(page.getByTestId("idioma-pt-BR")).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByTestId("idioma-es")).toBeFocused();
     const reloadEs = page.waitForEvent("load");
-    await page.getByTestId("idioma-es").click();
+    await page.keyboard.press("Enter");
     await reloadEs;
     await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
     await expect(page.getByTestId("seletor-de-idioma")).toContainText("ES");
@@ -176,9 +179,10 @@ test("recupera preparação em HTTP real e mantém tema, idioma e fallback legí
     await capturar(page, testInfo, "recuperacao-es-fallback.png");
 
     await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
-    await page.getByTestId("seletor-de-idioma").click();
+    await page.getByTestId("seletor-de-idioma").press("ArrowRight");
+    await expect(page.getByTestId("idioma-pt-BR")).toBeFocused();
     const reloadPt = page.waitForEvent("load");
-    await page.getByTestId("idioma-pt-BR").click();
+    await page.keyboard.press("Enter");
     await reloadPt;
     await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
     await expect(page.getByTestId("seletor-de-idioma")).toContainText("PT");

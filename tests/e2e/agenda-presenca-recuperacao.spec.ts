@@ -432,9 +432,12 @@ test.describe("datas do compromisso seguem idioma e fuso próprios", () => {
       if (locale === "es") {
         await page.keyboard.press("Escape");
         await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
-        await page.getByTestId("seletor-de-idioma").click();
+        await page.getByTestId("seletor-de-idioma").press("ArrowRight");
+        await expect(page.getByTestId("idioma-pt-BR")).toBeFocused();
+        await page.keyboard.press("ArrowDown");
+        await expect(page.getByTestId("idioma-es")).toBeFocused();
         const reload = page.waitForEvent("load");
-        await page.getByTestId("idioma-es").click();
+        await page.keyboard.press("Enter");
         await reload;
         await page.getByRole("button", { name: /Menu do usuário|Menú del usuario/ }).click();
         await expect(page.getByTestId("seletor-de-idioma")).toContainText("ES");
