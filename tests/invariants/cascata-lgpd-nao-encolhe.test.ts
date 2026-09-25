@@ -92,6 +92,7 @@ const TABELAS_NA_CASCATA = [
   // `lgpd-alcanca-prospeccao-de-quem-ja-era-contato.test.ts`.
   "prospecting_candidates",
   "voice_calls", //        0235 — o telefone de quem falou ao telefone
+  "whatsapp_history_messages", // 0403 — arquivo importado de conversas da pessoa
 ] as const;
 
 /**
