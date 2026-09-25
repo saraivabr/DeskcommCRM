@@ -8,6 +8,8 @@ Em 25/09/2026, a assinatura Azure for Students estava desativada e a VM de produ
 - Nginx: `/etc/nginx/sites-available/escreveai`; aplicação em `127.0.0.1:3124`, API Supabase em `127.0.0.1:8124`.
 - Domínios recuperados: `os.escreve.ai`, `crm.escreve.ai`, `crm.saraiva.ai`, `db.saraiva.ai`.
 - Certificados: Certbot, com renovação automática e recarga do Nginx.
+- Nginx usa `proxy_buffer_size 128k`, `proxy_buffers 4 256k`, `proxy_busy_buffers_size 256k` e `large_client_header_buffers 4 32k` para aceitar a renovação dos cookies de autenticação. Sem esses buffers, a sessão autenticada retornava 502 apesar do health check saudável.
+- A URL Postgres com usuário de tenant (`postgres.<tenant>`) aponta para `supavisor:5432`; não deve apontar diretamente para `db:5432`.
 - Backup após recuperação: `/opt/backups/escreveai/recovered-azure-20260925.dump`.
 - Contagem inicial recuperada: 4 organizações, 1 usuário de autenticação, 151 contatos e 458 objetos registrados no Storage.
 
@@ -16,6 +18,8 @@ O scheduler foi restaurado. A imagem do worker foi reconstruída no commit `97f8
 ## Deploy
 
 O workflow `deploy-production.yml` usa `PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_KEY` e `PRODUCTION_SSH_KNOWN_HOSTS`. A chave possui comando obrigatório e aceita somente uma tag hexadecimal de imagem. Não dá acesso a shell, encaminhamento de portas ou execução arbitrária.
+
+A tag SHA tem prioridade sobre `latest` nos metadados Docker para que o deploy receba a revisão imutável aceita pelo comando SSH.
 
 `scripts/deploy-irb.sh` é instalado, pertencente a root, em `/opt/escreveai/deploy-live.sh`. Ele salva um dump, baixa a imagem, troca apenas a aplicação e verifica saúde e login HTTPS. Em falha, restaura a configuração anterior. O Compose e as credenciais de produção nunca entram no Git.
 

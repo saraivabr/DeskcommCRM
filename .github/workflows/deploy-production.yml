@@ -39,7 +39,7 @@ jobs:
         with:
           images: ghcr.io/saraivabr/deskcomm-app
           tags: |
-            type=sha,format=short,prefix=
+            type=sha,format=short,prefix=,priority=1000
             type=raw,value=latest
 
       - name: Build e Push da imagem Docker
