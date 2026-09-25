@@ -9,7 +9,7 @@ import { finishOnboarding } from "@/app/actions/onboarding/finishOnboarding";
 import type { ItemDoResumo } from "@/lib/onboarding/passos";
 import type { PecaDoSistema } from "@/lib/onboarding/o-que-mais-existe";
 
-export function DoneClient({ itens, pecas }: { itens: ItemDoResumo[]; pecas: PecaDoSistema[] }) {
+export function DoneClient({ itens, pecas, needsPlan = false, canChoosePlan = false }: { itens: ItemDoResumo[]; pecas: PecaDoSistema[]; needsPlan?: boolean; canChoosePlan?: boolean }) {
   const t = useT();
   const [pending, startTransition] = useTransition();
   const pendentes = itens.filter((i) => !i.feito);
@@ -113,28 +113,30 @@ export function DoneClient({ itens, pecas }: { itens: ItemDoResumo[]; pecas: Pec
       </section>
 
       <section className="space-y-3 rounded-xl border p-5">
-        <h3 className="font-medium">{t("Sua primeira postagem com IA")}</h3>
+        <h3 className="font-medium">{t(needsPlan ? "Escolha seu plano para começar" : "Sua primeira postagem com IA")}</h3>
         <p className="text-sm text-muted-foreground">
-          {t(
-            "Conte o que sua empresa faz e transforme uma ideia em imagem e legenda no Studio. Você revisa antes de compartilhar.",
-          )}
+          {t(needsPlan
+            ? canChoosePlan
+              ? "A IA já faz parte de todos os planos. Escolha o que combina com sua equipe para ativar seu acesso."
+              : "A IA já faz parte de todos os planos. O responsável pela empresa precisa ativar o acesso."
+            : "Conte o que sua empresa faz e transforme uma ideia em imagem e legenda no Studio. Você revisa antes de compartilhar.")}
         </p>
         <Button
           type="button"
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              const res = await finishOnboarding("first_post");
+              const res = await finishOnboarding(needsPlan ? canChoosePlan ? "billing" : "workspace" : "first_post");
               if (res && !res.ok) toast.error(`${t("Falha:")} ${res.error}`);
             })
           }
         >
-          {pending ? t("Finalizando...") : t("Criar minha primeira postagem")}
+          {pending ? t("Finalizando...") : t(needsPlan ? canChoosePlan ? "Ver planos e contratar" : "Ir para meu espaço" : "Criar minha primeira postagem")}
         </Button>
         <p className="text-xs text-muted-foreground">
-          {t(
-            "Abrir o Studio não consome IA. A geração começa quando você confirmar o pedido e usa o saldo disponível da empresa.",
-          )}
+          {t(needsPlan
+            ? "Seu acesso começa quando o pagamento for confirmado. O Free beta é liberado separadamente por convite."
+            : "Abrir o Studio não consome IA. A geração começa quando você confirmar o pedido e usa o saldo disponível da empresa.")}
         </p>
       </section>
 

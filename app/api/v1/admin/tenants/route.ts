@@ -9,6 +9,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { createHash, randomUUID } from "node:crypto";
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { logger } from "@/lib/logger";
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -241,6 +243,16 @@ export async function POST(req: NextRequest) {
           issuedAt: org.issued_at,
           dispatch: org.created,
         });
+  if (ownerInvitation?.email_dispatched) {
+    try {
+      await getRequestPool().query(
+        "update sales_waitlist set invited_at=now(),invited_organization_id=$1,updated_at=now() where email=$2 and invited_at is null",
+        [org.id, request.owner_email],
+      );
+    } catch (error) {
+      logger.error("waitlist invitation state update failed", { organizationId: org.id, error });
+    }
+  }
   return ok(
     {
       id: org.id,

@@ -880,6 +880,7 @@ export const AUDIT_ACTIONS = [
   "registration.rejected",
   "whatsapp.history_sync",
   "whatsapp.history_analysis",
+  "sales.waitlist_requested",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */
