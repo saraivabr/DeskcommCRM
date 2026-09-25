@@ -4,6 +4,18 @@ O caminho normal de deploy **não constrói nada na VPS**: o CI publica a imagem
 GHCR e a VPS só puxa. Construir localmente é exceção de emergência, e tem custo —
 está documentado no fim.
 
+## CI do fork saraivabr/DeskcommCRM
+
+PRs e main executam `ci-rapido.yml`: tipos, lint, cercas, testes críticos e afetados,
+instalação/atualização PG17 e smoke de login, sessão, cobrança e Studio. Cada job
+pesado tem teto de 10 minutos. A seleção informa sua cobertura; não equivale à regressão completa.
+As suítes `ci.yml`, `e2e.yml` e `perf.yml` só rodam por **Run workflow**, quando solicitadas.
+
+O deploy de os.escreve.ai constrói a candidata em paralelo e só publica depois do CI
+rápido aprovado para o mesmo SHA e push da main. Confere digest e revisão atual antes
+do SSH; mantém backup/rollback remoto e atualiza `latest` após health confirmar a revisão.
+As imagens genéricas continuam sendo publicadas em main/tags, sem builds duplicados em PRs.
+
 ---
 
 ## 1. O comando

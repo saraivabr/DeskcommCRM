@@ -1,0 +1,91 @@
+name: CI rápido
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: ci-rapido-verify-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    env:
+      CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/preparar-node
+        timeout-minutes: 3
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Limites de arquitetura
+        run: |
+          pnpm lint:channels
+          pnpm lint:role-rank
+      - name: Controles críticos e testes afetados
+        run: node scripts/ci-rapido-run.mjs unit
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: ci-rapido-database-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    env:
+      CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      TEST_DB_IMAGE: pgvector/pgvector:pg17
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/preparar-node
+        timeout-minutes: 3
+      - name: Instalação, isolamento e atualização com dados
+        run: node scripts/ci-rapido-run.mjs database
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: ci-rapido-smoke-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar-node
+        timeout-minutes: 3
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.117.0
+      - name: Preparar Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Login, sessão e telas essenciais com banco real
+        run: bash scripts/ci-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ci-smoke-failure
+          path: test-results/
+          retention-days: 3
+  ci-rapido:
+    if: always()
+    needs: [verify, database, smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions: {}
+    steps:
+      - name: Exigir todas as verificações rápidas
+        env:
+          VERIFY: ${{ needs.verify.result }}
+          DATABASE: ${{ needs.database.result }}
+          SMOKE: ${{ needs.smoke.result }}
+        run: |
+          set -euo pipefail
+          test "$VERIFY" = success
+          test "$DATABASE" = success
+          test "$SMOKE" = success
