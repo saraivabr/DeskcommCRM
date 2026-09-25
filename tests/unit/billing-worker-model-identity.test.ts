@@ -12,8 +12,6 @@ import { invokeBot } from "@/workers/ai-response-worker";
 
 it("settles using the resolved provider and model, not the agent's saved model", async () => {
   m.query.mockImplementation(async (sql: string, params: unknown[]) => {
-    if (sql.includes("select provider_subscription_id"))
-      return { rows: [{ provider_subscription_id: "sub_paid" }] };
     if (sql.includes("fn_reserve_subscription_ai"))
       return { rows: [{ reservation_id: params[1] }] };
     if (sql.includes("from ai_models"))

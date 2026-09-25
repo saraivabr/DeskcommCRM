@@ -658,7 +658,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
     input.abortSignal?.throwIfAborted();
     allowanceReservation = await reserveSubscriptionAi(db, input.tenantId);
     await recordSubscriptionAiEvidence(db, input.tenantId, allowanceReservation,
-      { provider: config.provider, model }, null);
+      { provider: config.provider, model, usageKind: "text" }, null);
     // `system` aceita SystemModelMessage (com providerOptions de cache) — igual
     // em v6 e v7 (smoke prova que o cacheControl continua virando cache_control).
     allowanceDispatched = true;
@@ -727,7 +727,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
     cacheWriteTokens: result.usage.inputTokenDetails.cacheWriteTokens ?? 0,
   };
   await recordSubscriptionAiEvidence(db, input.tenantId, allowanceReservation,
-    { provider: config.provider, model }, usageEvidence(result)).catch(() => {
+    { provider: config.provider, model, usageKind: "text" }, usageEvidence(result)).catch(() => {
     (deps.log ?? console).error('llm: evidência de consumo pendente', {
       organization_id: input.tenantId, reservation_id: allowanceReservation,
     });

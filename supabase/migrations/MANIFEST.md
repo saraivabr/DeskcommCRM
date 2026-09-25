@@ -434,3 +434,8 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 | `20260925130000` | `0403_whatsapp_jev` | Classificação semântica de mensagens históricas pelo Jev em rótulos controlados de intenção e objeção. Resultado por mensagem separado do texto, RLS de manager, FK cascade na anonimização, isolamento de tenant via trigger e view de pendentes acessível somente ao serviço. A RPC formal de LGPD também declara a exclusão do arquivo histórico depois do gatilho que cria a supressão. |
 
 | `20260924083000` | `0399_instagram_publicacoes` | Publicação de imagens, Stories e carrosséis com intenção persistente, isolamento por organização e reconciliação de envios incertos. |
+
+| `20260925160000` | `0404_commercial_accounts` | Classificação explícita sem migrar legado; Free beta configurado pela administração, limites e reserva de IA no ledger existente. Mutex por organização serializa classificação inicial e recursos; assinatura confirmada prevalece. Renovação manual e proteção de snapshots e períodos usados. |
+| `20260925161000` | `0405_ai_usage_kind` | Tipo de operação no ledger: texto, imagem, voz ou outras. Registro imutável depois de definido, restrito ao serviço e à organização. |
+
+| `20260925162000` | `0406_self_service_free_and_renewal` | RPC service-only cria organização, primeiro admin e Free desabilitado na mesma transação para signup/recovery. Backfill único explicita legado sem converter contas existentes; bootstrap/admin/integrações preservados. Renovação aguarda vencimento mesmo sem consumo, em UPDATE e UPSERT. |

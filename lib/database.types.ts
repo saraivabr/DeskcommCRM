@@ -9234,6 +9234,10 @@ export type Database = {
       }
     }
     Functions: {
+      fn_provision_self_service_tenant: {
+        Args: { p_slug: string; p_name: string; p_owner: string }
+        Returns: { organization_id: string; organization_slug: string; provisioned: boolean }[]
+      }
       fn_reconcile_subscription_ai: {
         Args: { p_org: string; p_call: string; p_actor: string; p_cost_usd_cents: number; p_reference: string; p_request_id: string }
         Returns: number

@@ -11,6 +11,7 @@ export interface AiAllowanceView {
   periodEnd: string | null;
 }
 interface Row {
+  source?: "paid" | "free";
   status: string;
   current_period_start: Date | string | null;
   current_period_end: Date | string | null;
@@ -51,15 +52,31 @@ export function allowanceView(row: Row, now = Date.now()): AiAllowanceView {
     periodEnd: confirmed ? new Date(end).toISOString() : null,
   };
 }
+/** Paid subscriptions win; only explicitly classified Free accounts use the Free cycle. */
+const allowanceSource = `with allowance_source as (
+ select s.organization_id,s.provider_subscription_id,s.status,s.current_period_start,s.current_period_end,
+   l.ai_credit_cents as budget,l.ai_usd_to_brl_rate as rate,'paid'::text as source
+ from org_subscriptions s
+ left join subscription_plan_limits l on l.plan_id=s.plan_id
+ where s.organization_id=$1 and s.provider_subscription_id is not null
+ union all
+ select c.organization_id,'free:'||c.organization_id::text,
+   case when c.free_enabled then 'active' else 'pending' end,
+   c.free_period_start,c.free_period_end,c.free_ai_credit_cents,c.free_ai_usd_to_brl_rate,'free'::text
+ from org_commercial_accounts c
+ where c.organization_id=$1 and c.classification='free_public'
+   and not exists(select 1 from org_subscriptions s where s.organization_id=c.organization_id
+     and s.provider_subscription_id is not null)
+)`;
 export async function readAiAllowance(db: Pick<pg.Pool, "query">, organizationId: string) {
   const { rows } = await db.query<Row>(
-    `select s.status,s.current_period_start,s.current_period_end,
-       coalesce(p.budget_brl_cents,l.ai_credit_cents) as budget,
-       coalesce(p.usd_to_brl_rate,l.ai_usd_to_brl_rate) as rate,
+    `${allowanceSource}
+     select s.source,s.status,s.current_period_start,s.current_period_end,
+       coalesce(p.budget_brl_cents,s.budget) as budget,
+       coalesce(p.usd_to_brl_rate,s.rate) as rate,
        coalesce(a.used,0) as used,coalesce(a.reserved,0) as reserved,
        coalesce(a.unknown_count,0) as unknown_count
-     from org_subscriptions s
-     left join subscription_plan_limits l on l.plan_id=s.plan_id
+     from allowance_source s
      left join subscription_ai_periods p on p.organization_id=s.organization_id
        and p.provider_subscription_id=s.provider_subscription_id
        and p.period_start=s.current_period_start
@@ -69,9 +86,74 @@ export async function readAiAllowance(db: Pick<pg.Pool, "query">, organizationId
               count(*) filter(where status='unknown') as unknown_count
        from subscription_ai_reservations
        where organization_id=s.organization_id and period_id=p.id
-     ) a on true
-     where s.organization_id=$1 and s.provider_subscription_id is not null`,
+     ) a on true`,
     [organizationId],
   );
-  return rows[0] ? allowanceView(rows[0]) : null;
+  const row = rows[0];
+  // A disabled Free invitation can exist before its allowance has been configured.
+  if (
+    row?.source === "free" &&
+    row.status === "pending" &&
+    (row.budget === null || row.rate === null)
+  )
+    return null;
+  return row ? allowanceView(row) : null;
+}
+
+export interface AiUsageBreakdown {
+  kind: "text" | "image" | "voice" | "other";
+  operations: number;
+  settledOperations: number;
+  pendingOperations: number;
+  commercialUsedBrlCents: number;
+  reservedBrlCents: number;
+  knownProviderCostUsdCents: number;
+}
+/** A partial known supplier cost is never represented as the full cost or commercial credit. */
+export async function readAiUsageBreakdown(
+  db: Pick<pg.Pool, "query">,
+  organizationId: string,
+): Promise<AiUsageBreakdown[]> {
+  const { rows } = await db.query<{
+    kind: AiUsageBreakdown["kind"];
+    operations: string;
+    settled: string;
+    pending: string;
+    commercial: string;
+    reserved: string;
+    provider_cost: string;
+  }>(
+    `${allowanceSource}
+    select coalesce(r.usage_kind,'other') as kind,count(*) as operations,
+      count(*) filter(where r.status='settled') as settled,
+      count(*) filter(where r.status<>'settled') as pending,
+      coalesce(sum(r.charged_brl_cents) filter(where r.status='settled'),0) as commercial,
+      coalesce(sum(r.reserved_brl_cents) filter(where r.status<>'settled'),0) as reserved,
+      coalesce(sum(r.cost_usd_cents) filter(where r.status='settled'),0) as provider_cost
+    from allowance_source s
+    join subscription_ai_periods p on p.organization_id=s.organization_id
+      and p.provider_subscription_id=s.provider_subscription_id and p.period_start=s.current_period_start
+    join subscription_ai_reservations r on r.organization_id=s.organization_id and r.period_id=p.id
+    group by coalesce(r.usage_kind,'other') order by kind`,
+    [organizationId],
+  );
+  return rows.map((row) => {
+    const result: AiUsageBreakdown = {
+      kind: row.kind,
+      operations: Number(row.operations),
+      settledOperations: Number(row.settled),
+      pendingOperations: Number(row.pending),
+      commercialUsedBrlCents: Number(row.commercial),
+      reservedBrlCents: Number(row.reserved),
+      knownProviderCostUsdCents: Number(row.provider_cost),
+    };
+    if (
+      Object.entries(result).some(
+        ([key, value]) =>
+          key !== "kind" && (typeof value !== "number" || !Number.isFinite(value) || value < 0),
+      )
+    )
+      throw new Error("Invalid AI usage snapshot");
+    return result;
+  });
 }
