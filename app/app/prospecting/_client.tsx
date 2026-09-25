@@ -360,7 +360,7 @@ export function ProspectingClient() {
                 {source === "instagram" && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     {t(
-                      "Busca perfis públicos por segmento e região, sem garantir localização. A abordagem usa WhatsApp quando há telefone público. O Instagram via Zernio não permite iniciar DM para perfis coletados; respostas e automações de comentários ficam na central do Instagram.",
+                      "Busca perfis públicos por segmento e região, sem garantir localização. A abordagem usa WhatsApp quando há telefone público. A integração do Instagram não permite iniciar DM para perfis coletados; respostas e automações de comentários ficam na central do Instagram.",
                     )}{" "}
                     <Link href="/app/instagram" className="underline">
                       {t("Abrir Instagram")}

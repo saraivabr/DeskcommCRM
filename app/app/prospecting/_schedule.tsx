@@ -39,6 +39,7 @@ export function ProspectingScheduleForm({
   );
   const setSearch = (patch: Partial<ScheduleConfig["search"]>) =>
     setDraft((d) => ({ ...d, search: { ...d.search, ...patch } }));
+  const hasUnsavedChanges = JSON.stringify(draft) !== JSON.stringify(schedule?.schedule_config);
   return (
     <details className="rounded-xl border p-5">
       <summary className="cursor-pointer font-medium">
@@ -64,7 +65,7 @@ export function ProspectingScheduleForm({
       {draft.search.source === "instagram" && (
         <p className="mt-2 text-sm text-muted-foreground">
           {t(
-            "Busca perfis públicos por segmento e região, sem garantir localização. A abordagem usa WhatsApp quando há telefone público. O Instagram via Zernio não permite iniciar DM para perfis coletados; respostas e automações de comentários ficam na central do Instagram.",
+            "Busca perfis públicos por segmento e região, sem garantir localização. A abordagem usa WhatsApp quando há telefone público. A integração do Instagram não permite iniciar DM para perfis coletados; respostas e automações de comentários ficam na central do Instagram.",
           )}
         </p>
       )}
@@ -225,7 +226,9 @@ export function ProspectingScheduleForm({
           </Button>
           <Button
             type="button"
-            disabled={busy || !schedule?.schedule_config || schedule?.schedule_enabled}
+            disabled={
+              busy || hasUnsavedChanges || !schedule?.schedule_config || schedule?.schedule_enabled
+            }
             onClick={() =>
               perform(
                 { action: "enable_schedule" },

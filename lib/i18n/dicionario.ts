@@ -801,8 +801,8 @@ export const DICIONARIO: Traducoes = {
   "Parar recorrência": { es: "Detener recurrencia" },
   "Onde buscar": { es: "Dónde buscar" },
   "Abrir Instagram": { es: "Abrir Instagram" },
-  "Busca perfis públicos por segmento e região, sem garantir localização. A abordagem usa WhatsApp quando há telefone público. O Instagram via Zernio não permite iniciar DM para perfis coletados; respostas e automações de comentários ficam na central do Instagram.": {
-    es: "Busca perfiles públicos por segmento y región, sin garantizar la ubicación. El contacto usa WhatsApp cuando hay un teléfono público. Instagram mediante Zernio no permite iniciar mensajes directos a perfiles recopilados; las respuestas y automatizaciones de comentarios están en la central de Instagram.",
+  "Busca perfis públicos por segmento e região, sem garantir localização. A abordagem usa WhatsApp quando há telefone público. A integração do Instagram não permite iniciar DM para perfis coletados; respostas e automações de comentários ficam na central do Instagram.": {
+    es: "Busca perfiles públicos por segmento y región, sin garantizar la ubicación. El contacto usa WhatsApp cuando hay un teléfono público. La integración de Instagram no permite iniciar mensajes directos a perfiles recopilados; las respuestas y automatizaciones de comentarios están en la central de Instagram.",
   },
   "A chave fica cifrada no servidor. Cada busca tem seu próprio limite de gasto.": { es: "La clave queda cifrada en el servidor. Cada búsqueda tiene su propio límite de gasto." },
   "1. Encontrar empresas": { es: "1. Encontrar empresas" },
