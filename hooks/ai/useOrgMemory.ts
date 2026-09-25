@@ -18,7 +18,7 @@ export interface OrgMemoryVersionMeta {
  * `agent` é o que a ferramenta MCP `crm_save_org_memory` grava. Par cobrado por
  * tests/unit/memoria-da-org-origem-cabe-no-check.test.ts.
  */
-export type OrigemDaMemoria = "manual" | "flywheel" | "agent";
+export type OrigemDaMemoria = "manual" | "flywheel" | "agent" | "whatsapp_history";
 
 export interface OrgMemoryEntryRow {
   id: string;

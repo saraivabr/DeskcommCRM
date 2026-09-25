@@ -10,6 +10,8 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/$/,
   /^\/login(\/.*)?$/,
   /^\/signup$/,
+  /^\/lista-de-espera$/,
+  /^\/api\/v1\/sales\/waitlist$/,
   /^\/auth\/confirm$/,
   // Public landing only; reconnects navigation, never grants access or links an account.
   /^\/auth\/social-return$/,

@@ -503,6 +503,16 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "whatsapp_history_playbook",
+    rotulo: "Preparar playbook do histórico",
+    oQueFaz: "Lê uma amostra anonimizada de conversas já importadas e propõe um roteiro de atendimento para revisão.",
+    papel: "melhorar",
+    exige: {},
+    emissor: "lib/channels/whatsapp-history-playbook.ts",
+    sintomaDeFalha: "O histórico continua disponível, mas o rascunho do playbook não é criado até a próxima tentativa.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "flywheel_distiller",
     rotulo: "Extrair a lição",
     oQueFaz:

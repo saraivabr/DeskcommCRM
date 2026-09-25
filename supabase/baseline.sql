@@ -38195,6 +38195,178 @@ create trigger validate_commercial_account before insert or update of classifica
 
 notify pgrst, 'reload schema';
 
+-- ---- Classificação da criação administrativa por convite (migration 0408) ----
+alter table public.org_commercial_accounts add column if not exists pending_owner_email text;
+create or replace function public.fn_create_tenant_with_owner(
+  p_actor uuid, p_key uuid, p_request jsonb, p_hash text
+) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  prior public.idempotency_keys%rowtype;
+  org public.organizations%rowtype;
+  result jsonb;
+  dono_e_outra_pessoa boolean;
+begin
+  if not exists (select 1 from public.platform_admins where user_id = p_actor
+    and revoked_at is null and scope = 'full') then
+    raise exception 'platform_admin_required' using errcode = '42501';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(p_actor::text || ':' || p_key::text, 0));
+  select * into prior from public.idempotency_keys
+    where key = p_key::text and endpoint = '/api/v1/admin/tenants:' || p_actor::text
+      and expires_at > now() and tenant_creation_trusted;
+  if found then
+    if prior.request_hash <> decode(p_hash, 'hex') then
+      raise exception 'idempotency_conflict' using errcode = '22023';
+    end if;
+    if prior.response_body->>'id' is distinct from prior.organization_id::text
+      or not exists (select 1 from public.organizations where id = prior.organization_id and created_by = p_actor) then
+      raise exception 'idempotency_provenance_invalid' using errcode = '22023';
+    end if;
+    return prior.response_body || jsonb_build_object('created', false);
+  end if;
+
+  -- A MESMA comparação que já decidia `interface_settings`, agora com nome e
+  -- guardada. Era ela que sabia a resposta e não a anotava em lugar nenhum.
+  dono_e_outra_pessoa := lower(p_request->>'owner_email') is distinct from
+    (select lower(email) from auth.users where id = p_actor);
+
+  insert into public.organizations(display_name, slug, legal_name, cnpj, status, settings, created_by)
+    values (p_request->>'display_name', p_request->>'slug', coalesce(nullif(p_request->>'legal_name', ''), p_request->>'display_name'),
+      p_request->>'cnpj', 'active', jsonb_build_object('plan', p_request->>'plan'), p_actor)
+    returning * into org;
+  insert into public.user_organizations(organization_id, user_id, role, accepted_at, interface_settings, provisional_until_handover)
+    values (org.id, p_actor, 'admin', now(),
+      case when dono_e_outra_pessoa
+        then '{"preset":"completa"}'::jsonb
+        else coalesce(p_request->'owner_interface_settings', '{"preset":"completa"}'::jsonb) end,
+      dono_e_outra_pessoa);
+  -- A venda por convite nasce sem franquia até pagamento ou Free liberado.
+  -- A mesma transação protege criação, vínculo e classificação comercial.
+  insert into public.org_commercial_accounts(organization_id, classification, free_enabled, pending_owner_email)
+    values (org.id, 'free_public', false, case when dono_e_outra_pessoa then lower(btrim(p_request->>'owner_email')) else null end);
+  result := jsonb_build_object('id', org.id, 'slug', org.slug, 'display_name', org.display_name,
+    'invite_id', gen_random_uuid(), 'issued_at', floor(extract(epoch from now()))::bigint);
+  insert into public.idempotency_keys(organization_id, key, endpoint, request_hash, status_code, response_body, tenant_creation_trusted)
+    values (org.id, p_key::text, '/api/v1/admin/tenants:' || p_actor::text,
+      decode(p_hash, 'hex'), 201, result, true);
+  return result || jsonb_build_object('created', true);
+end $$;
+
+revoke all on function public.fn_create_tenant_with_owner(uuid, uuid, jsonb, text) from public, anon, authenticated;
+grant execute on function public.fn_create_tenant_with_owner(uuid, uuid, jsonb, text) to service_role;
+
+create or replace function public.fn_subscription_resource_limit()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare
+  target_org uuid := new.organization_id;
+  counted_new boolean;
+  counted_old boolean := false;
+  sub public.org_subscriptions%rowtype;
+  account public.org_commercial_accounts%rowtype;
+  free_account boolean := false;
+  capacity integer;
+  used_slots bigint;
+  resource_label text;
+begin
+  -- Classification is service-only; confirmed provider subscriptions always win.
+  insert into public.org_commercial_locks(organization_id,revision) values(target_org,1)
+   on conflict(organization_id) do update set revision=org_commercial_locks.revision+1;
+  select * into account from public.org_commercial_accounts where organization_id=target_org;
+  free_account := coalesce(account.classification='free_public',false) and not exists(
+    select 1 from public.org_subscriptions where organization_id=target_org and provider_subscription_id is not null);
+  if tg_table_name='ai_agents' and free_account then
+    counted_new := new.archived_at is null and new.published_version_id is not null;
+    if tg_op='UPDATE' then counted_old := old.archived_at is null and old.published_version_id is not null; end if;
+  elsif tg_table_name='user_organizations' then
+    counted_new := new.revoked_at is null;
+    if tg_op='UPDATE' then counted_old := old.revoked_at is null; end if;
+  elsif tg_table_name in ('ai_agents','channel_sessions') then
+    counted_new := new.archived_at is null;
+    if tg_op='UPDATE' then counted_old := old.archived_at is null; end if;
+  else raise exception 'unsupported_subscription_resource';
+  end if;
+  -- Editing an existing resource and releasing capacity must remain possible,
+  -- including after downgrade, overdue payment or cancellation.
+  if not counted_new then return new; end if;
+  if tg_op='UPDATE' and counted_old and old.organization_id=target_org then return new; end if;
+
+  -- The invited owner replaces the provisional creator in one transaction.
+  -- The protected e-mail, not the tenant-editable membership flag, authorizes
+  -- this single identity. It also works when a one-seat Free/paid plan is active.
+  if tg_table_name='user_organizations' and account.pending_owner_email is not null then
+    if new.role='admin' and new.invited_by is not null
+       and exists(select 1 from auth.users u where u.id=new.user_id
+         and lower(u.email)=account.pending_owner_email)
+       and exists(select 1 from public.organizations o
+         join public.user_organizations owner on owner.organization_id=o.id
+         where o.id=target_org and o.created_by=new.invited_by
+           and owner.user_id=new.invited_by and owner.provisional_until_handover
+           and owner.revoked_at is null)
+    then
+      -- Transfer the existing seat before checking capacity. Rollback restores
+      -- the creator if the insert fails. Direct INSERT cannot leave two seats.
+      delete from public.attendant_availability av
+        where av.organization_id=target_org and av.user_id=new.invited_by;
+      delete from public.user_organizations owner
+        where owner.organization_id=target_org and owner.user_id=new.invited_by
+          and owner.provisional_until_handover and owner.revoked_at is null;
+      return new;
+    end if;
+  end if;
+
+  update public.org_subscriptions set quota_revision=quota_revision+1
+   where organization_id=target_org and provider_subscription_id is not null
+   returning * into sub;
+  if not found and not free_account then return new; end if; -- legacy stays unchanged
+  if free_account then
+    if not account.free_enabled or account.free_period_start>now() or account.free_period_end<=now() then
+      raise exception 'Free beta indisponível. Peça ao administrador para habilitar ou renovar o período.' using errcode='P4020';
+    end if;
+  else
+
+  if sub.status not in ('active','trialing') or sub.current_period_end is null or sub.current_period_end<=now() then
+    raise exception 'Regularize sua assinatura para adicionar novos recursos. Seus recursos atuais foram preservados.' using errcode='P4020';
+  end if;
+  end if;
+  if tg_table_name='ai_agents' then
+    select agents into capacity from public.subscription_plan_limits where plan_id=sub.plan_id;
+    if free_account then capacity:=account.free_agents; end if;
+    select count(*) into used_slots from public.ai_agents where organization_id=target_org and archived_at is null and (not free_account or published_version_id is not null);
+    resource_label := 'agentes';
+  elsif tg_table_name='channel_sessions' then
+    select channels into capacity from public.subscription_plan_limits where plan_id=sub.plan_id;
+    if free_account then capacity:=account.free_channels; end if;
+    select count(*) into used_slots from public.channel_sessions where organization_id=target_org and archived_at is null;
+    resource_label := 'canais';
+  else
+    select seats into capacity from public.subscription_plan_limits where plan_id=sub.plan_id;
+    if free_account then capacity:=account.free_seats; end if;
+    select count(*) into used_slots from public.user_organizations where organization_id=target_org and revoked_at is null;
+    resource_label := 'pessoas';
+  end if;
+  if capacity is null or used_slots>=capacity then
+    raise exception 'Seu plano atingiu o limite de %. Gerencie sua assinatura para adicionar mais.',resource_label using errcode='P4020';
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.fn_subscription_resource_limit() from public, anon, authenticated;
+
+create or replace function public.fn_validar_whatsapp_history_playbook_draft()
+returns trigger language plpgsql set search_path=public as $$
+begin
+  if not exists(select 1 from public.channel_sessions s
+    where s.id=new.channel_session_id and s.organization_id=new.organization_id) then
+    raise exception 'history_playbook_session_tenant_mismatch' using errcode='23514';
+  end if;
+  if new.memory_entry_id is not null and not exists(select 1 from public.org_memory_entries e
+    where e.id=new.memory_entry_id and e.organization_id=new.organization_id) then
+    raise exception 'history_playbook_memory_tenant_mismatch' using errcode='23514';
+  end if;
+  return new;
+end;$$;
+revoke all on function public.fn_validar_whatsapp_history_playbook_draft() from public,anon,authenticated;
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
@@ -38943,7 +39115,7 @@ alter table public.org_memory_entries
   drop constraint if exists org_memory_entries_source_check;
 alter table public.org_memory_entries
   add constraint org_memory_entries_source_check
-  check (source in ('manual', 'flywheel', 'agent'));
+  check (source in ('manual', 'flywheel', 'agent', 'whatsapp_history'));
 
 -- ---- o produto ganha foto (migration 0390, ideia de @vgamkt, #1130) ----
 -- Caminhos em storage/catalog-photos (<org>/<produto>/<uuid>.<jpg|png>); a ordem
@@ -38963,6 +39135,40 @@ on conflict (id) do update
   set public             = excluded.public,
       file_size_limit    = excluded.file_size_limit,
       allowed_mime_types = excluded.allowed_mime_types;
+
+-- Diagnóstico gerado depois da importação: rascunho por conexão, nunca uma
+-- instrução ativa antes da revisão de um administrador da organização.
+create table if not exists public.whatsapp_history_playbook_drafts (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  channel_session_id uuid not null unique references public.channel_sessions(id) on delete cascade,
+  status text not null default 'draft' check (status in ('draft', 'approved')),
+  content text not null check (length(content) between 1 and 10000),
+  evidence jsonb not null default '[]'::jsonb,
+  source_message_count integer not null check (source_message_count >= 0),
+  model text not null,
+  memory_entry_id uuid references public.org_memory_entries(id) on delete set null,
+  generated_at timestamptz not null default now(),
+  reviewed_at timestamptz,
+  reviewed_by uuid
+);
+create index if not exists whatsapp_history_playbook_org_idx
+  on public.whatsapp_history_playbook_drafts(organization_id, generated_at desc);
+alter table public.whatsapp_history_playbook_drafts enable row level security;
+revoke all on public.whatsapp_history_playbook_drafts from anon, authenticated;
+grant select on public.whatsapp_history_playbook_drafts to authenticated;
+grant all on public.whatsapp_history_playbook_drafts to service_role;
+drop policy if exists tenant_isolation_whatsapp_history_playbook_drafts on public.whatsapp_history_playbook_drafts;
+create policy tenant_isolation_whatsapp_history_playbook_drafts
+  on public.whatsapp_history_playbook_drafts for select to authenticated
+  using (organization_id in (select public.fn_user_org_ids())
+    and public.fn_role_at_least(organization_id, 'manager'));
+
+drop trigger if exists trg_validar_whatsapp_history_playbook_draft on public.whatsapp_history_playbook_drafts;
+create trigger trg_validar_whatsapp_history_playbook_draft before insert or update
+  on public.whatsapp_history_playbook_drafts for each row
+  execute function public.fn_validar_whatsapp_history_playbook_draft();
+
 
 -- ---- módulos instalados são reaplicados, depois de toda tabela do núcleo (migration 0340) ----
 --
@@ -39122,6 +39328,24 @@ alter table public.prospecting_settings add constraint prospecting_schedule_limi
 );
 -- Credentials and scheduling remain server-only under the existing tenant boundary.
 revoke all on public.prospecting_settings from anon, authenticated;
+-- ---- sales waitlist (migration 0409) ----
+-- Platform prospect intake exists before any tenant/account: intentionally no organization_id.
+create table if not exists public.sales_waitlist (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(name) between 2 and 120),
+  email text not null unique check (email = lower(btrim(email)) and char_length(email) between 3 and 254),
+  company text not null default '' check (char_length(company) <= 160),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  invited_at timestamptz,
+  invited_organization_id uuid references public.organizations(id) on delete set null
+);
+alter table public.sales_waitlist enable row level security;
+revoke all on table public.sales_waitlist from public, anon, authenticated, service_role;
+grant select, insert, update on table public.sales_waitlist to service_role;
+create index if not exists sales_waitlist_invited_organization_idx
+  on public.sales_waitlist(invited_organization_id) where invited_organization_id is not null;
+comment on table public.sales_waitlist is 'Platform sales waitlist; intake never provisions users, tenants or invitations. Service role only; platform admin guards protect the operator view.';
 
 -- ---- Shared knowledge pages (migration 0411) ----
 -- Shared documents; all mutations go through the revision-checked transaction.

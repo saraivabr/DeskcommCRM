@@ -884,6 +884,7 @@ export const AUDIT_ACTIONS = [
   "mcp.connection_created",
   "mcp.connection_revoked",
   "mcp.action_approved",
+  "sales.waitlist_requested",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

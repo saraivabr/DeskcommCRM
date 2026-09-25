@@ -76,6 +76,7 @@ CRONS="
 */10 * * * *|60|api/v1/cron/contact-avatars
 */5 * * * *|120|api/v1/cron/whatsapp-history
 * * * * *|90|api/v1/cron/whatsapp-history-analysis
+*/15 * * * *|120|api/v1/cron/whatsapp-history-playbook
 */10 * * * *|60|api/v1/cron/agenda-google-refresh
 */15 * * * *|90|api/v1/cron/agenda-google-sync
 # A IDA. Cadência mais curta que a volta de propósito: quem marcou pela tela

@@ -283,6 +283,9 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
       <p className="text-sm text-muted-foreground">
         {t("Novos canais começam em modo de teste, sem respostas automáticas até você autorizar números ou liberar o público.")}
       </p>
+      <p className="text-sm text-muted-foreground">
+        {t("Ao conectar, as conversas anteriores são importadas e uma amostra com dados de contato removidos é analisada pelo provedor de IA configurado para preparar um playbook. Você revisa o rascunho antes de ele orientar os agentes.")}
+      </p>
 
       {list.length > 0 ? (
         <ParaIntegrar
