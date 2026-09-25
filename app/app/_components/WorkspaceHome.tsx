@@ -2,21 +2,30 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ArrowUp,
-  ArrowUpRight,
-  MessageCircle,
-  BookOpen,
-  PanelsTopLeft,
-  Plus,
-  LoaderCircle,
-} from "lucide-react";
+import { ArrowUp, ArrowUpRight, MessageCircle, BookOpen, PanelsTopLeft, Plus } from "lucide-react";
 import { useT } from "@/hooks/i18n/useT";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { searchable } from "@/lib/navigation/registry";
 import { Button } from "@/components/ui/button";
 import { askWorkspace } from "../_workspace-action";
 import type { WorkspaceReply, WorkspaceScope } from "@/lib/workspace/schema";
+import motion from "./workspace-motion.module.css";
+
+/** A malha radial acompanha só a consulta real, sem inventar etapas do modelo. */
+function ActivityDots() {
+  return (
+    <span aria-hidden="true" className={motion.dots}>
+      {Array.from({ length: 9 }, (_, index) => (
+        <span
+          key={index}
+          style={{
+            animationDelay: `${Math.hypot((index % 3) - 1, Math.floor(index / 3) - 1) * 350}ms`,
+          }}
+        />
+      ))}
+    </span>
+  );
+}
 
 type Turn = { question: string; reply: Extract<WorkspaceReply, { ok: true }> };
 export function WorkspaceHome() {
@@ -93,15 +102,19 @@ function WorkspaceSession() {
         <span>{t("WhatsApp · Instagram · Conteúdos")}</span>
       </div>
       <header className="relative mb-9">
-        <Image src="/brand/agent-studio-art.png" width={1536} height={1024} alt="" className="artisan-illustration float-right hidden w-64 rounded-3xl lg:block" />
+        <Image
+          src="/brand/agent-studio-art.png"
+          width={1536}
+          height={1024}
+          alt=""
+          className={`artisan-illustration float-right hidden w-64 rounded-3xl lg:block ${motion.illustration}`}
+        />
         <p className="mb-4 text-sm text-muted-foreground">{t("Tudo conectado. Do seu jeito.")}</p>
         <h1 className="artisan-title text-4xl font-medium tracking-[-0.055em] sm:text-5xl">
           {t("O que vamos resolver hoje?")}
         </h1>
         <p className="mt-5 max-w-lg text-sm leading-6 text-muted-foreground">
-          {t(
-            "Converse com o conteúdo do seu negócio.",
-          )}
+          {t("Converse com o conteúdo do seu negócio.")}
         </p>
       </header>
       {!!turns.length && (
@@ -111,7 +124,10 @@ function WorkspaceSession() {
           className="mb-6 space-y-8"
         >
           {turns.map((turn, index) => (
-            <article key={index} className="space-y-4">
+            <article
+              key={index}
+              className={`space-y-4 ${index === turns.length - 1 ? motion.answer : ""}`}
+            >
               <p className="ml-auto max-w-[90%] rounded-2xl bg-muted px-5 py-3 text-sm break-words">
                 {turn.question}
               </p>
@@ -123,7 +139,10 @@ function WorkspaceSession() {
                 {!!turn.reply.sources.length && (
                   <ul aria-label={t("Fontes consultadas")} className="mt-4 flex flex-wrap gap-2">
                     {turn.reply.sources.map((source) => (
-                      <li key={source.id}>
+                      <li
+                        key={source.id}
+                        className={index === turns.length - 1 ? motion.source : undefined}
+                      >
                         <Link
                           href={source.href}
                           className="inline-flex max-w-full items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs"
@@ -150,7 +169,8 @@ function WorkspaceSession() {
           e.preventDefault();
           void send();
         }}
-        className="rounded-3xl border bg-card p-4 shadow-[0_8px_40px_-20px_rgba(0,0,0,0.14)] sm:p-5"
+        className={`rounded-3xl border bg-card p-4 shadow-[0_8px_40px_-20px_rgba(0,0,0,0.14)] sm:p-5 ${motion.composer}`}
+        data-busy={busy}
       >
         <label htmlFor="workspace-question" className="sr-only">
           {t("O que você quer saber sobre seu CRM?")}
@@ -166,9 +186,14 @@ function WorkspaceSession() {
           placeholder={t("Pergunte sobre uma conversa, uma oportunidade ou um conteúdo…")}
           className="w-full resize-none rounded-lg bg-transparent text-base leading-7 outline-hidden placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            if (
+              e.key === "Enter" &&
+              !e.shiftKey &&
+              !e.nativeEvent.isComposing &&
+              e.nativeEvent.keyCode !== 229
+            ) {
               e.preventDefault();
-              void send();
+              if (!e.repeat) void send();
             }
           }}
         />
@@ -193,19 +218,16 @@ function WorkspaceSession() {
             size="icon"
             aria-label={t(busy ? "Consultando" : "Enviar pergunta")}
             disabled={busy || !question.trim()}
-            className="h-10 w-10 rounded-full"
+            className={`h-10 w-10 rounded-full ${motion.send}`}
           >
-            {busy ? (
-              <LoaderCircle size={19} className="animate-spin" aria-hidden />
-            ) : (
-              <ArrowUp size={20} aria-hidden />
-            )}
+            {busy ? <ActivityDots /> : <ArrowUp size={20} aria-hidden />}
           </Button>
         </div>
       </form>
       {busy && (
-        <p role="status" className="mt-3 text-sm text-muted-foreground">
-          {t("Consultando o conteúdo do seu espaço…")}
+        <p role="status" className={`mt-3 text-sm text-muted-foreground ${motion.activity}`}>
+          <ActivityDots />
+          <span className={motion.shimmer}>{t("Consultando o conteúdo do seu espaço…")}</span>
         </p>
       )}
       {error && (
@@ -231,7 +253,7 @@ function WorkspaceSession() {
                 setScope(nextScope);
                 input.current?.focus();
               }}
-              className="flex items-center gap-2 rounded-full border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+              className={`flex items-center gap-2 rounded-full border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-card hover:text-foreground ${motion.suggestion}`}
             >
               <Icon size={15} strokeWidth={1.7} aria-hidden />
               {t(text)}

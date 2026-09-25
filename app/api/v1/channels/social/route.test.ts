@@ -19,6 +19,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
 vi.mock("@/lib/audit", () => ({ audit: h.audit }));
 vi.mock("@/lib/ai/dispatcher/rate-limit", () => ({ checkRateLimit: h.limit }));
 vi.mock("@/lib/channels/social/store", () => ({
+  centralSocialAvailable: () => false,
   readSocialIntegration: h.read,
   configureSocialIntegration: h.configure,
   socialChannels: h.channels,

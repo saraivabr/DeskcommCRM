@@ -43,6 +43,7 @@ vi.mock("@/lib/ai/gateway", async (orig) => {
     ...real,
     // O padrão devolve um objeto reconhecível, para os testes distinguirem
     // "caiu no padrão" de "usou o binding" sem depender do SDK.
+    resolveLanguageModel: (m: string) => ({ __padrao: true, modelId: m }),
     resolveLanguageModelWithProvider: (m: string) => ({ model: { __padrao: true, modelId: m }, provider: "openrouter" }),
   };
 });

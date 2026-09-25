@@ -199,18 +199,18 @@ describe("medição da folga (pergunta de aceite da issue #1341)", () => {
     expect(itensNoMenuLateral(combinarInterfaces(completa, completa))).toBe(15);
   });
 
-  it("configuração SIMPLIFICADA (empresa escolhe o preset): 6 itens, folga 9", () => {
+  it("configuração SIMPLIFICADA (empresa escolhe o preset): 12 itens (inclui Instagram e início), folga 3", () => {
     const itens = itensNoMenuLateral(combinarInterfaces(simplificada, completa));
-    expect(itens).toBe(6);
-    expect(15 - itens).toBe(9);
+    expect(itens).toBe(12);
+    expect(15 - itens).toBe(3);
   });
 
-  it("configuração MÍNIMA (empresa escolhe 1 porta): 1 item, folga 14", () => {
+  it("configuração MÍNIMA (empresa escolhe 1 porta): 2 itens (inbox e início), folga 13", () => {
     const minima = combinarInterfaces({ preset: "completa", destinos: ["/app/inbox"] }, completa);
     expect(interfaceTemDestino(minima, "admin")).toBe(true); // a guarda exige ≥1 porta
     const itens = itensNoMenuLateral(minima);
-    expect(itens).toBe(1);
-    expect(15 - itens).toBe(14);
+    expect(itens).toBe(2);
+    expect(15 - itens).toBe(13);
   });
 
   it("nenhuma escolha da empresa pode AUMENTAR o menu (é interseção, não soma)", () => {

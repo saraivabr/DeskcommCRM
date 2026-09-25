@@ -21,6 +21,21 @@ function send() {
   fireEvent.click(screen.getByRole("button", { name: "Enviar pergunta" }));
 }
 describe("espaço conversacional", () => {
+  it("Enter envia uma vez; Shift, composição e repetição preservam a edição", async () => {
+    mocks.ask.mockResolvedValue({ ok: true, answer: "Resposta", sources: [], notice: "" });
+    render(<WorkspaceHome />);
+    const input = screen.getByLabelText("O que você quer saber sobre seu CRM?");
+    fireEvent.change(input, { target: { value: "Resumo" } });
+    for (const options of [{ shiftKey: true }, { isComposing: true }, { repeat: true }]) {
+      fireEvent.keyDown(input, { key: "Enter", ...options });
+    }
+    expect(mocks.ask).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await screen.findByText("Resposta");
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(input).toHaveValue("");
+  });
   it("sugestão preenche a pergunta sem executar chamada", () => {
     render(<WorkspaceHome />);
     fireEvent.click(screen.getByRole("button", { name: "Resuma as conversas recentes" }));

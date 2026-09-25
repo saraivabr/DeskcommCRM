@@ -37,6 +37,390 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "A IA ainda precisa ser preparada pelo administrador. Você pode configurar o agente manualmente enquanto isso.":
+    {
+      es: "La IA aún debe ser preparada por el administrador. Mientras tanto, puedes configurar el agente manualmente.",
+    },
+  Assistente: { es: "Asistente" },
+  "Ao revisar, o texto da proposta atualiza nome, descrição e instruções. Suas escolhas de modelo, número, limites e capacidades já configuradas são preservadas.":
+    {
+      es: "Al revisar, el texto de la propuesta actualiza el nombre, la descripción y las instrucciones. Se conservan tus elecciones de modelo, número, límites y capacidades ya configuradas.",
+    },
+  "Transforme comentários em conversas.": { es: "Convierte comentarios en conversaciones." },
+  "Escolha uma postagem e as palavras que enviam sua resposta no Direct.": {
+    es: "Elige una publicación y las palabras que envían tu respuesta por mensaje directo.",
+  },
+  "Conectar Instagram": { es: "Conectar Instagram" },
+  "Atualizar resultados": { es: "Actualizar resultados" },
+  "Carregando suas automações…": { es: "Cargando tus automatizaciones…" },
+  "Nenhuma automação ainda. Conecte uma conta e escolha sua primeira postagem.": {
+    es: "Aún no hay automatizaciones. Conecta una cuenta y elige tu primera publicación.",
+  },
+  "Todas as postagens": { es: "Todas las publicaciones" },
+  "Palavras:": { es: "Palabras:" },
+  "Qualquer comentário": { es: "Cualquier comentario" },
+  "enviados ·": { es: "enviados ·" },
+  "falhas ·": { es: "fallos ·" },
+  lidos: { es: "leídos" },
+  "Ver resultados": { es: "Ver resultados" },
+  "Resultados ·": { es: "Resultados ·" },
+  "Nenhuma execução registrada.": { es: "No hay ejecuciones registradas." },
+  "Resposta pública:": { es: "Respuesta pública:" },
+  "Editor de automação": { es: "Editor de automatización" },
+  "Conta do Instagram": { es: "Cuenta de Instagram" },
+  "Postagem que receberá os comentários": { es: "Publicación que recibirá los comentarios" },
+  "Escolha uma postagem": { es: "Elige una publicación" },
+  Postagem: { es: "Publicación" },
+  "Palavras-chave, separadas por vírgula": { es: "Palabras clave, separadas por comas" },
+  "QUERO, PREÇO": { es: "QUIERO, PRECIO" },
+  "Quando responder": { es: "Cuándo responder" },
+  "A palavra aparece no comentário": { es: "La palabra aparece en el comentario" },
+  "O comentário contém o texto": { es: "El comentario contiene el texto" },
+  "O comentário é exatamente o texto": { es: "El comentario es exactamente el texto" },
+  "Mensagem no Direct": { es: "Mensaje directo" },
+  "Resposta pública após o Direct (opcional)": {
+    es: "Respuesta pública después del mensaje directo (opcional)",
+  },
+  "Te enviei os detalhes no Direct.": { es: "Te envié los detalles por mensaje directo." },
+  "Ao salvar uma nova regra, ela fica ativa. O envio depende das permissões e limites do Instagram; acompanhe recusas em Ver resultados.":
+    {
+      es: "Al guardar una nueva regla, queda activa. El envío depende de los permisos y límites de Instagram; consulta los rechazos en Ver resultados.",
+    },
+  "O que você quer contar?": { es: "¿Qué quieres contar?" },
+  "Uma ideia já é um começo. Descreva do seu jeito; a imagem nasce daqui.": {
+    es: "Una idea ya es un comienzo. Descríbela a tu manera; la imagen nace de aquí.",
+  },
+  "Criando para": { es: "Creando para" },
+  "Ajustar contexto da empresa": { es: "Ajustar el contexto de la empresa" },
+  "O que sua empresa faz?": { es: "¿A qué se dedica tu empresa?" },
+  "Ex.: confeitaria artesanal": { es: "Ej.: pastelería artesanal" },
+  "Esse contexto será reaproveitado nas próximas criações.": {
+    es: "Este contexto se reutilizará en las próximas creaciones.",
+  },
+  "Contexto encontrado na descrição do seu agente. Você pode ajustar aqui.": {
+    es: "Contexto encontrado en la descripción de tu agente. Puedes ajustarlo aquí.",
+  },
+  "Usar meu logo como referência": { es: "Usar mi logo como referencia" },
+  "Quero mostrar meu bolo de chocolate e convidar as pessoas para encomendar no fim de semana. Cores quentes, estilo artesanal…":
+    {
+      es: "Quiero mostrar mi pastel de chocolate e invitar a las personas a hacer pedidos para el fin de semana. Colores cálidos, estilo artesanal…",
+    },
+  "Onde essa ideia vai aparecer?": { es: "¿Dónde aparecerá esta idea?" },
+  "Abrir minhas criações": { es: "Abrir mis creaciones" },
+  "Criando sua imagem…": { es: "Creando tu imagen…" },
+  "Gerar minha imagem": { es: "Generar mi imagen" },
+  "A imagem pode levar alguns minutos. Seu pedido já fica na biblioteca. Você não precisa enviar novamente.":
+    {
+      es: "La imagen puede tardar unos minutos. Tu solicitud ya está en la biblioteca. No necesitas enviarla de nuevo.",
+    },
+  "GPT Image 2.5 · A imagem fica salva para você revisar e baixar. Nada é publicado automaticamente.":
+    {
+      es: "GPT Image 2.5 · La imagen queda guardada para revisarla y descargarla. Nada se publica automáticamente.",
+    },
+  "Aqui nasce": { es: "Aquí nace" },
+  "sua próxima ideia.": { es: "tu próxima idea." },
+  "Dica: conte o que quer mostrar, para quem e qual sensação a imagem deve passar.": {
+    es: "Consejo: cuenta qué quieres mostrar, a quién y qué sensación debe transmitir la imagen.",
+  },
+  Post: { es: "Publicación" },
+  "Story (9:16)": { es: "Historia (9:16)" },
+  "Quadrado (1:1)": { es: "Cuadrado (1:1)" },
+  "Vertical (4:5)": { es: "Vertical (4:5)" },
+  "Central Integrada de Instagram": { es: "Central integrada de Instagram" },
+  "Crie posts com IA e converta comentários em vendas.": {
+    es: "Crea publicaciones con IA y convierte comentarios en ventas.",
+  },
+  "A inteligência artificial cria suas imagens e legendas em segundos. Enquanto isso, o motor de Growth responde comentários de Reels e Posts via DM instantânea e cadastra leads no CRM.":
+    {
+      es: "La inteligencia artificial crea tus imágenes y textos en segundos. Mientras tanto, el motor de Growth responde comentarios de Reels y publicaciones mediante mensajes directos instantáneos y registra leads en el CRM.",
+    },
+  "Criar postagem com IA": { es: "Crear publicación con IA" },
+  "Automações de Comentários": { es: "Automatizaciones de comentarios" },
+  "Ver resultados da conta": { es: "Ver resultados de la cuenta" },
+  "Seu Instagram": { es: "Tu Instagram" },
+  "Motor de Vendas Ativo": { es: "Motor de ventas activo" },
+  "💬 Comentário no Reel:": { es: "💬 Comentario en el Reel:" },
+  '"EU QUERO o link!"': { es: '"¡QUIERO el enlace!"' },
+  "⚡ DM Automática disparada:": { es: "⚡ Mensaje directo automático enviado:" },
+  '"Olá! Aqui está o link que você pediu..."': {
+    es: '"¡Hola! Aquí está el enlace que pediste..."',
+  },
+  "Lead gerado no Funil": { es: "Lead generado en el embudo" },
+  "+1 lead": { es: "+1 lead" },
+  "Criações no Estúdio": { es: "Creaciones en el estudio" },
+  "Ver todas": { es: "Ver todas" },
+  Gerenciar: { es: "Gestionar" },
+  automáticas: { es: "automáticas" },
+  "Ver no CRM": { es: "Ver en el CRM" },
+  "Últimas Postagens": { es: "Últimas publicaciones" },
+  "Seus criativos, artes e legendas gerados para o Instagram.": {
+    es: "Tus creatividades, diseños y textos generados para Instagram.",
+  },
+  Prontas: { es: "Listas" },
+  "Em geração": { es: "En generación" },
+  "Ver todas na biblioteca": { es: "Ver todas en la biblioteca" },
+  Pronta: { es: "Lista" },
+  "Gerando imagem…": { es: "Generando imagen…" },
+  "A IA está desenhando sua imagem…": { es: "La IA está dibujando tu imagen…" },
+  "Não foi possível gerar a imagem": { es: "No se pudo generar la imagen" },
+  "Imagem temporariamente indisponível": { es: "Imagen temporalmente no disponible" },
+  "Atualiza automaticamente quando pronta": {
+    es: "Se actualiza automáticamente cuando está lista",
+  },
+  "Clique para conferir os detalhes": { es: "Haz clic para consultar los detalles" },
+  "Abrir e Revisar": { es: "Abrir y revisar" },
+  "Ver legenda inteira": { es: "Ver el texto completo" },
+  "Copiada!": { es: "¡Copiado!" },
+  "Copiar Legenda": { es: "Copiar texto" },
+  "Sua primeira criação começa aqui.": { es: "Tu primera creación empieza aquí." },
+  "Conte em poucas palavras o que sua empresa quer anunciar e a IA cuidará da imagem e da legenda.":
+    {
+      es: "Cuenta en pocas palabras lo que tu empresa quiere anunciar y la IA se encargará de la imagen y del texto.",
+    },
+  "Peça acesso de criação à equipe ou explore ideias inspiradoras abaixo.": {
+    es: "Pide acceso de creación al equipo o explora ideas inspiradoras a continuación.",
+  },
+  "Criar minha primeira postagem": { es: "Crear mi primera publicación" },
+  "Ou comece rápido com uma destas ideias:": {
+    es: "O empieza rápidamente con una de estas ideas:",
+  },
+  "Oferta ou Lançamento": { es: "Oferta o lanzamiento" },
+  "Condição especial para seguidores com chamada para comentar 'EU QUERO' e receber DM.": {
+    es: "Condición especial para seguidores con una invitación a comentar 'YO QUIERO' y recibir un mensaje directo.",
+  },
+  "Dica de Especialista": { es: "Consejo de especialista" },
+  "Post educativo ensinando como resolver um problema frequente do seu cliente.": {
+    es: "Publicación educativa que enseña a resolver un problema frecuente de tu cliente.",
+  },
+  "Prova Social": { es: "Prueba social" },
+  "Destaque um resultado real de cliente que comprou e amou a experiência.": {
+    es: "Destaca un resultado real de un cliente que compró y disfrutó de la experiencia.",
+  },
+  "Automações de Comentários & Vendas": { es: "Automatizaciones de comentarios y ventas" },
+  "Responda automaticamente quem comenta nos seus posts com mensagens no direct e gere leads no CRM.":
+    {
+      es: "Responde automáticamente a quienes comentan en tus publicaciones con mensajes directos y genera leads en el CRM.",
+    },
+  "Nova Regra de Comentário": { es: "Nueva regla de comentario" },
+  "Carregando automações de Instagram…": { es: "Cargando automatizaciones de Instagram…" },
+  "Nenhuma regra de automação ativa": { es: "Ninguna regla de automatización activa" },
+  'Configure gatilhos para palavras como "EU QUERO", "PREÇO" ou "AULA" e envie seu link de vendas ou agendamento automaticamente por DM.':
+    {
+      es: 'Configura disparadores para palabras como "YO QUIERO", "PRECIO" o "CLASE" y envía tu enlace de ventas o reservas automáticamente por mensaje directo.',
+    },
+  "DMs ·": { es: "DMs ·" },
+  "Sem ideia do que postar? ↗": { es: "¿Sin ideas para publicar? ↗" },
+  "Pesquise referências de outros perfis e temas em alta para o seu segmento.": {
+    es: "Busca referencias de otros perfiles y temas en tendencia para tu sector.",
+  },
+  "Métricas & Desempenho ↗": { es: "Métricas y rendimiento ↗" },
+  "Acompanhe o alcance, visualizações e pessoas que interagiram na sua conta conectada.": {
+    es: "Sigue el alcance, las visualizaciones y las personas que interactuaron con tu cuenta conectada.",
+  },
+  "Sua ideia está ganhando forma. Isso pode levar alguns minutos.": {
+    es: "Tu idea está tomando forma. Esto puede tardar unos minutos.",
+  },
+  "Entenda o que está chegando às pessoas.": { es: "Entiende qué está llegando a las personas." },
+  "Resultados reais da conta conectada, nos últimos 30 dias. Os dados podem levar até 48 horas para atualizar.":
+    {
+      es: "Resultados reales de la cuenta conectada en los últimos 30 días. Los datos pueden tardar hasta 48 horas en actualizarse.",
+    },
+  "Conecte sua conta para ver os resultados.": { es: "Conecta tu cuenta para ver los resultados." },
+  "A criação de imagens continua disponível. Para consultar as métricas, conecte sua conta profissional e autorize o acesso aos resultados.":
+    {
+      es: "La creación de imágenes sigue disponible. Para consultar las métricas, conecta tu cuenta profesional y autoriza el acceso a los resultados.",
+    },
+  "Período:": { es: "Período:" },
+  "A conta não disponibilizou essa métrica neste período.": {
+    es: "La cuenta no proporcionó esta métrica para este período.",
+  },
+  "Use o alcance para avaliar a distribuição do conteúdo e as interações para entender a resposta do público. Esses números, sozinhos, não comprovam vendas.":
+    {
+      es: "Usa el alcance para evaluar la distribución del contenido y las interacciones para entender la respuesta del público. Estos números, por sí solos, no demuestran ventas.",
+    },
+  "Uma boa referência vira uma ideia sua.": {
+    es: "Una buena referencia se convierte en una idea tuya.",
+  },
+  "Explore assuntos do seu nicho e perfis que você admira. A pesquisa procura fontes públicas; adicionar um perfil não segue nem envia mensagens a ele.":
+    {
+      es: "Explora temas de tu nicho y perfiles que admiras. La búsqueda utiliza fuentes públicas; añadir un perfil no lo sigue ni le envía mensajes.",
+    },
+  "Qual é o seu nicho?": { es: "¿Cuál es tu nicho?" },
+  "Ex.: estética, imobiliária, confeitaria…": { es: "Ej.: estética, inmobiliaria, pastelería…" },
+  "Sobre o que você quer encontrar ideias?": { es: "¿Sobre qué quieres encontrar ideas?" },
+  "Ex.: ideias recentes para mostrar bastidores e atrair encomendas": {
+    es: "Ej.: ideas recientes para mostrar el detrás de cámaras y atraer pedidos",
+  },
+  "Buscar inspirações": { es: "Buscar inspiración" },
+  "As sugestões mostram as fontes. Popularidade só é afirmada quando houver evidência.": {
+    es: "Las sugerencias muestran las fuentes. Solo se afirma la popularidad cuando hay evidencia.",
+  },
+  "Quem inspira você?": { es: "¿Quién te inspira?" },
+  "Guarde até 10 perfis para orientar suas pesquisas.": {
+    es: "Guarda hasta 10 perfiles para orientar tus búsquedas.",
+  },
+  "Perfil de referência": { es: "Perfil de referencia" },
+  "@perfil": { es: "@perfil" },
+  "A pesquisa pode levar alguns minutos. Ela ficará guardada aqui quando terminar.": {
+    es: "La búsqueda puede tardar unos minutos. Quedará guardada aquí cuando termine.",
+  },
+  "Ideias para": { es: "Ideas para" },
+  "Pesquisado em": { es: "Buscado el" },
+  "Confira as fontes": { es: "Consulta las fuentes" },
+  "Adaptar para meu negócio": { es: "Adaptar a mi negocio" },
+  "Pesquisas anteriores": { es: "Búsquedas anteriores" },
+  Pesquisa: { es: "Búsqueda" },
+  "Suas ideias, guardadas.": { es: "Tus ideas, guardadas." },
+  "Abra uma criação para revisar, ajustar a legenda e baixar a imagem.": {
+    es: "Abre una creación para revisar, ajustar el texto y descargar la imagen.",
+  },
+  "Sua biblioteca começa com uma ideia.": { es: "Tu biblioteca empieza con una idea." },
+  "As imagens que você criar ficam aqui, junto com seus pedidos e legendas.": {
+    es: "Las imágenes que crees quedan aquí, junto con tus solicitudes y textos.",
+  },
+  "Publicar no Instagram": { es: "Publicar en Instagram" },
+  "Conectar ou trocar minha conta": { es: "Conectar o cambiar mi cuenta" },
+  "Conta que vai publicar": { es: "Cuenta que publicará" },
+  "Selecione sua conta": { es: "Selecciona tu cuenta" },
+  "Montar carrossel com minhas criações": { es: "Crear carrusel con mis creaciones" },
+  "Selecione até 10 imagens. A ordem de seleção será a ordem do carrossel.": {
+    es: "Selecciona hasta 10 imágenes. El orden de selección será el orden del carrusel.",
+  },
+  "Gerar outra imagem para o carrossel": { es: "Generar otra imagen para el carrusel" },
+  "Stories ficam disponíveis por 24 horas e não exibem a legenda.": {
+    es: "Las historias están disponibles durante 24 horas y no muestran el texto.",
+  },
+  "Publicar agora": { es: "Publicar ahora" },
+  "este Story": { es: "esta historia" },
+  "esta imagem": { es: "esta imagen" },
+  "Sem legenda": { es: "Sin texto" },
+  "O conteúdo ficará visível na conta escolhida.": {
+    es: "El contenido será visible en la cuenta elegida.",
+  },
+  "Confirmar publicação": { es: "Confirmar publicación" },
+  "Voltar à revisão": { es: "Volver a la revisión" },
+  "Revisar publicação": { es: "Revisar publicación" },
+  "Preparando imagens": { es: "Preparando imágenes" },
+  "Confirmando envio": { es: "Confirmando envío" },
+  "Processando no Instagram": { es: "Procesando en Instagram" },
+  "Revisar nova tentativa": { es: "Revisar nuevo intento" },
+  "Ver no Instagram": { es: "Ver en Instagram" },
+  "Criar automação para esta postagem": { es: "Crear automatización para esta publicación" },
+  "Atualizar resultado": { es: "Actualizar resultado" },
+  "Revisar postagem": { es: "Revisar publicación" },
+  "Agora, deixe com a sua cara.": { es: "Ahora, dale tu toque." },
+  "Confira a imagem, ajuste a legenda e leve sua ideia para o Instagram.": {
+    es: "Revisa la imagen, ajusta el texto y lleva tu idea a Instagram.",
+  },
+  "Sua imagem está sendo criada. Você pode voltar pela biblioteca.": {
+    es: "Tu imagen se está creando. Puedes volver desde la biblioteca.",
+  },
+  "Não foi possível abrir a imagem. Atualize a página para renovar o acesso.": {
+    es: "No se pudo abrir la imagen. Actualiza la página para renovar el acceso.",
+  },
+  "Sua ideia": { es: "Tu idea" },
+  "Legenda da postagem": { es: "Texto de la publicación" },
+  "Escreva o convite para quem vai ver sua postagem…": {
+    es: "Escribe la invitación para quienes verán tu publicación…",
+  },
+  "/2.200 caracteres": { es: "/2.200 caracteres" },
+  "Salvar legenda": { es: "Guardar texto" },
+  "Baixar imagem": { es: "Descargar imagen" },
+  "Copiar legenda": { es: "Copiar texto" },
+  "Legenda salva com sucesso.": { es: "Texto guardado correctamente." },
+  "Legenda copiada.": { es: "Texto copiado." },
+  "Criar outra versão": { es: "Crear otra versión" },
+  "Baixar ou salvar não publica a postagem. Você escolhe quando compartilhar.": {
+    es: "Descargar o guardar no publica el contenido. Tú eliges cuándo compartirlo.",
+  },
+  "Carregando conta do Instagram": { es: "Cargando cuenta de Instagram" },
+  "Gerenciar conta": { es: "Gestionar cuenta" },
+  "Reconectar conta": { es: "Reconectar cuenta" },
+  "Ver minha conta": { es: "Ver mi cuenta" },
+  "Conectar minha conta": { es: "Conectar mi cuenta" },
+  "Preparando seu espaço…": { es: "Preparando tu espacio…" },
+  "Sua imagem está sendo criada…": { es: "Tu imagen se está creando…" },
+  "Pedido preservado": { es: "Solicitud conservada" },
+  Criação: { es: "Creación" },
+  "Pronta para revisar": { es: "Lista para revisar" },
+  "Precisa de atenção": { es: "Necesita atención" },
+  "Onde estão as oportunidades?": { es: "¿Dónde están las oportunidades?" },
+  "O BDR encontra e inicia conversas com novas empresas. Use um SDR quando a operação for receber e qualificar quem já demonstrou interesse.":
+    {
+      es: "El BDR encuentra e inicia conversaciones con nuevas empresas. Usa un SDR cuando la operación sea recibir y calificar a quienes ya mostraron interés.",
+    },
+  "O funcionário escolhido abre a conversa, acompanha as respostas e move o lead no funil. As proteções do canal continuam valendo.":
+    {
+      es: "El empleado elegido abre la conversación, sigue las respuestas y mueve al lead en el embudo. Las protecciones del canal siguen vigentes.",
+    },
+  "Não foi possível confirmar. Os dados foram preservados. Atualize a lista antes de tentar novamente.":
+    {
+      es: "No se pudo confirmar. Los datos se conservaron. Actualiza la lista antes de intentarlo de nuevo.",
+    },
+  "Enquanto a IA atende, parte do saldo fica reservada. Ao concluir, descontamos o consumo e liberamos a diferença.":
+    {
+      es: "Mientras la IA atiende, parte del saldo queda reservada. Al terminar, descontamos el consumo y liberamos la diferencia.",
+    },
+  "Mensalidade em reais. A franquia de IA é compartilhada pelos agentes da empresa e varia conforme o modelo e o volume de texto. Não representa uma quantidade garantida de mensagens.":
+    {
+      es: "Mensualidad en reales. La cuota de IA es compartida por los agentes de la empresa y varía según el modelo y el volumen de texto. No representa una cantidad garantizada de mensajes.",
+    },
+  "Tarifas cobradas pela Meta e por outros provedores de canal são separadas. A conexão do Instagram depende das permissões e da aprovação da Meta.":
+    {
+      es: "Las tarifas de Meta y de otros proveedores de canal se cobran por separado. La conexión de Instagram depende de los permisos y de la aprobación de Meta.",
+    },
+  "Estes são os novos planos. Sua conta e seus acessos atuais permanecem como estão até a contratação ser concluída.":
+    {
+      es: "Estos son los nuevos planes. Tu cuenta y tus accesos actuales permanecen como están hasta que se complete la contratación.",
+    },
+  "Um administrador precisa ativar as chamadas em Segurança e confirmar o aviso sobre o risco de bloqueio do WhatsApp. Depois, volte aqui para conectar o aparelho pelo QR Code.":
+    {
+      es: "Un administrador debe activar las llamadas en Seguridad y confirmar el aviso sobre el riesgo de bloqueo de WhatsApp. Después, vuelve aquí para conectar el dispositivo mediante el código QR.",
+    },
+  "Abra uma conversa da lista para ver o histórico e responder. Você também pode navegar com J e K.":
+    {
+      es: "Abre una conversación de la lista para ver el historial y responder. También puedes navegar con J y K.",
+    },
+  "Buscar por nome, objetivo ou função (ex: leads, agenda, prompt, whatsapp)...": {
+    es: "Buscar por nombre, objetivo o función (ej.: leads, agenda, prompt, whatsapp)...",
+  },
+  "Tente buscar por outro termo ou selecione 'Todas' nas categorias.": {
+    es: "Intenta buscar otro término o selecciona 'Todas' en las categorías.",
+  },
+  ferramenta: { es: "herramienta" },
+  ferramentas: { es: "herramientas" },
+  "Use as setas ↑↓ e Enter para navegar": { es: "Usa las flechas ↑↓ y Enter para navegar" },
+  "ESC para fechar": { es: "ESC para cerrar" },
+  Instagram: { es: "Instagram" },
+  "Crie imagens, encontre referências e entenda seus resultados.": {
+    es: "Crea imágenes, encuentra referencias y comprende tus resultados.",
+  },
+  "Criar postagem": { es: "Crear publicación" },
+  "Conte sua ideia e gere uma imagem para revisar e baixar.": {
+    es: "Cuenta tu idea y genera una imagen para revisar y descargar.",
+  },
+  "Minhas criações": { es: "Mis creaciones" },
+  "Imagens e legendas salvas para o seu Instagram.": {
+    es: "Imágenes y textos guardados para tu Instagram.",
+  },
+  Inspirações: { es: "Inspiraciones" },
+  "Pesquise ideias do seu nicho e guarde perfis de referência.": {
+    es: "Busca ideas de tu sector y guarda perfiles de referencia.",
+  },
+  "Meus resultados": { es: "Mis resultados" },
+  "Consulte alcance, visualizações e interações do Instagram.": {
+    es: "Consulta el alcance, las visualizaciones y las interacciones de Instagram.",
+  },
+  "Converse com o conteúdo do seu CRM e encontre seu próximo passo.": {
+    es: "Conversa con el contenido de tu CRM y encuentra tu próximo paso.",
+  },
+  "Encontre empresas, delegue a um BDR e acompanhe cada conversa até o funil.": {
+    es: "Encuentra empresas, delega en un BDR y sigue cada conversación hasta el embudo.",
+  },
+  "Não foi possível adicionar este recurso ao plano atual. Peça ao administrador para conferir os limites e o pagamento em Configurações → Planos e assinatura. Seus recursos existentes foram preservados.":
+    {
+      es: "No se pudo agregar este recurso al plan actual. Pide al administrador que revise los límites y el pago en Configuración → Planes y suscripción. Tus recursos existentes se han conservado.",
+    },
   "Sobre a empresa": { es: "Sobre la empresa" },
   "Não foi possível carregar o enriquecimento.": { es: "No se pudo cargar el enriquecimiento." },
   "Sem dados de enriquecimento para este contato.": { es: "Sin datos de enriquecimiento para este contacto." },

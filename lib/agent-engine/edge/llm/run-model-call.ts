@@ -41,7 +41,6 @@ import {
 import { meteredUsageCostCents } from './catalog-pricing';
 import { measuredGeneration } from '@/lib/billing/measured-usage';
 import { reserveSubscriptionAi, settleSubscriptionAi, recordSubscriptionAiEvidence, SubscriptionAiAllowanceError } from '@/lib/billing/ai-allowance';
-import { costCents } from './pricing';
 import { chaveDeOrcamentoDaInstalacao } from '../../../instalacao/comportamento';
 import { createDefaultRegistry, type ProviderRegistry } from './providers';
 import { buildStablePrefix } from './stable-prefix';
@@ -737,11 +736,10 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   const subscriptionCost = measured === null
     ? null
     : await meteredUsageCostCents(db, config.provider, model, measured, cfg.cacheTtl ?? '1h');
-  // O TTL é o MESMO que gravou o prefixo estável acima: a gravação de cache custa
-  // 1.25× a entrada em 5m e 2× em 1h, e supor a doutrina superfaturaria 60% da
-  // parcela de cache write em quem usa o knob.
-  const cost = subscriptionCost ?? costCents(model, usage, cfg.cacheTtl ?? '1h');
-  await settleSubscriptionAi(db, input.tenantId, allowanceReservation, subscriptionCost ?? cost).catch(() => {
+  // Só o consumo medido pode liquidar a reserva. Uso ausente permanece null
+  // para conciliação; os contadores normalizados para log não provam custo zero.
+  const cost = subscriptionCost;
+  await settleSubscriptionAi(db, input.tenantId, allowanceReservation, cost).catch(() => {
     // Keep the generated answer and the held credit; reconciliation can retry later.
     (deps.log ?? console).error('llm: conciliação da franquia pendente', { organization_id: input.tenantId });
   });

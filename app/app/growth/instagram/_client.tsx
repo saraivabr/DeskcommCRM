@@ -9,6 +9,8 @@ import type {
   InstagramPost,
   InstagramAutomationLog,
 } from "@/lib/channels/social/instagram-management";
+import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
+import { useT } from "@/hooks/i18n/useT";
 import { randomId } from "@/lib/random-id";
 
 type State = {
@@ -34,6 +36,8 @@ async function api<T>(query = "", body?: unknown): Promise<T> {
 }
 const field = "w-full rounded-xl border bg-background p-3";
 export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
+  const t = useT();
+  const idioma = useTagDeIdioma();
   const [state, setState] = useState<State>();
   const editorRef = useRef<HTMLElement>(null);
   const logsRef = useRef<HTMLElement>(null);
@@ -106,14 +110,14 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
     <main className="mx-auto w-full max-w-5xl space-y-7 p-5 sm:p-8">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">Instagram</p>
-          <h1 className="text-3xl font-semibold">Transforme comentários em conversas.</h1>
+          <p className="text-sm text-muted-foreground">{t("Instagram")}</p>
+          <h1 className="text-3xl font-semibold">{t("Transforme comentários em conversas.")}</h1>
           <p className="mt-3 max-w-xl text-muted-foreground">
-            Escolha uma postagem e as palavras que enviam sua resposta no Direct.
+            {t("Escolha uma postagem e as palavras que enviam sua resposta no Direct.")}
           </p>
         </div>
         <Link href="/app/connections?aba=sociais" className="text-sm underline">
-          Conectar Instagram
+          {t("Conectar Instagram")}
         </Link>
       </header>
       {error && (
@@ -126,19 +130,19 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
           disabled={!state?.can_edit || busy || !state.accounts.some((a) => a.active)}
           onClick={() => edit("new")}
         >
-          Nova automação
+          {t("Nova automação")}
         </Button>
         <Button variant="outline" disabled={busy} onClick={() => void run(load)}>
-          Atualizar resultados
+          {t("Atualizar resultados")}
         </Button>
       </div>
-      {!state && !error && <p role="status">Carregando suas automações…</p>}
+      {!state && !error && <p role="status">{t("Carregando suas automações…")}</p>}
       {state && (
         <div className="grid grid-cols-3 gap-3">
           {[
             ["Ativas", state.automations.filter((a) => a.isActive).length],
             ["Directs enviados", state.automations.reduce((n, a) => n + a.stats.dmsSent, 0)],
-            ["Falhas", state.automations.reduce((n, a) => n + a.stats.dmsFailed, 0)],
+            [t("Falhas"), state.automations.reduce((n, a) => n + a.stats.dmsFailed, 0)],
           ].map(([label, value]) => (
             <div key={label} className="rounded-2xl border p-4">
               <p className="text-sm text-muted-foreground">{label}</p>
@@ -149,7 +153,7 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
       )}
       {state?.automations.length === 0 && (
         <p className="rounded-2xl border p-8">
-          Nenhuma automação ainda. Conecte uma conta e escolha sua primeira postagem.
+          {t("Nenhuma automação ainda. Conecte uma conta e escolha sua primeira postagem.")}
         </p>
       )}
       <div className="space-y-4">
@@ -161,15 +165,17 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
             </div>
             <p className="text-sm text-muted-foreground">
               {rule.postTitle ||
-                (rule.platformPostId ? `Postagem ${rule.platformPostId}` : "Todas as postagens")}
+                (rule.platformPostId ? `Postagem ${rule.platformPostId}` : t("Todas as postagens"))}
             </p>
-            <p className="text-sm">Palavras: {rule.keywords.join(", ") || "Qualquer comentário"}</p>
+            <p className="text-sm">
+              {t("Palavras:")} {rule.keywords.join(", ") || t("Qualquer comentário")}
+            </p>
             <p className="rounded-xl bg-muted/40 p-3 text-sm whitespace-pre-wrap">
               {rule.dmMessage}
             </p>
             <p className="text-sm text-muted-foreground">
-              {rule.stats.dmsSent} enviados · {rule.stats.dmsFailed} falhas · {rule.stats.read}{" "}
-              lidos
+              {rule.stats.dmsSent} {t("enviados ·")} {rule.stats.dmsFailed} {t("falhas ·")}{" "}
+              {rule.stats.read} {t("lidos")}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -182,12 +188,12 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
                   })
                 }
               >
-                Ver resultados
+                {t("Ver resultados")}
               </Button>
               {state.can_edit && (
                 <>
                   <Button variant="outline" disabled={busy} onClick={() => edit(rule)}>
-                    Editar
+                    {t("Editar")}
                   </Button>
                   <Button
                     variant="outline"
@@ -210,30 +216,34 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
       {logs && (
         <section ref={logsRef} className="scroll-mt-24 space-y-3 rounded-2xl border p-5">
           <div className="flex justify-between gap-3">
-            <h2 className="font-semibold">Resultados · {logs.name}</h2>
+            <h2 className="font-semibold">
+              {t("Resultados ·")} {logs.name}
+            </h2>
             <Button variant="ghost" onClick={() => setLogs(null)}>
-              Fechar
+              {t("Fechar")}
             </Button>
           </div>
-          {logs.rows.length === 0 && <p>Nenhuma execução registrada.</p>}
+          {logs.rows.length === 0 && <p>{t("Nenhuma execução registrada.")}</p>}
           {logs.rows.map((log) => (
             <div key={log.id} className="space-y-1 border-t py-3 text-sm">
               <p>
-                {new Date(log.createdAt).toLocaleString("pt-BR")} ·{" "}
+                {new Date(log.createdAt).toLocaleString(idioma)} ·{" "}
                 {(
                   {
                     sent: "Enviado",
-                    failed: "Falhou",
+                    failed: t("Falhou"),
                     pending: "Aguardando envio",
                     skipped: "Ignorado",
-                    gated: "Aguardando confirmação",
+                    gated: t("Aguardando confirmação"),
                   } as Record<string, string>
                 )[log.status] ?? log.status}
               </p>
               <p>{log.commentText}</p>
               {log.error && <p className="text-destructive">{log.error}</p>}
               {log.commentReplyError && (
-                <p className="text-destructive">Resposta pública: {log.commentReplyError}</p>
+                <p className="text-destructive">
+                  {t("Resposta pública:")} {log.commentReplyError}
+                </p>
               )}
             </div>
           ))}
@@ -243,10 +253,10 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
         <section
           className="scroll-mt-24 rounded-2xl border bg-card p-5 sm:p-7"
           ref={editorRef}
-          aria-label="Editor de automação"
+          aria-label={t("Editor de automação")}
         >
           <h2 className="mb-5 text-xl font-semibold">
-            {editing === "new" ? "Nova automação" : "Editar automação"}
+            {editing === "new" ? t("Nova automação") : t("Editar automação")}
           </h2>
           <form
             className="space-y-4"
@@ -275,7 +285,7 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
             }}
           >
             <label className="block space-y-2">
-              <span>Nome da automação</span>
+              <span>{t("Nome da automação")}</span>
               <Input
                 required
                 maxLength={120}
@@ -284,7 +294,7 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
               />
             </label>
             <label className="block space-y-2">
-              <span>Conta do Instagram</span>
+              <span>{t("Conta do Instagram")}</span>
               <select
                 className={field}
                 value={account}
@@ -305,7 +315,7 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
               </select>
             </label>
             <label className="block space-y-2">
-              <span>Postagem que receberá os comentários</span>
+              <span>{t("Postagem que receberá os comentários")}</span>
               <select
                 required
                 className={field}
@@ -314,10 +324,12 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
                 onChange={(e) => setPost(e.target.value)}
               >
                 <option value="">
-                  {editing === "new" ? "Escolha uma postagem" : "Todas as postagens"}
+                  {editing === "new" ? t("Escolha uma postagem") : t("Todas as postagens")}
                 </option>
                 {post && !posts.some((p) => p.id === post) && (
-                  <option value={post}>Postagem {post}</option>
+                  <option value={post}>
+                    {t("Postagem")} {post}
+                  </option>
                 )}
                 {posts.map((p) => (
                   <option value={p.id} key={p.id}>
@@ -327,24 +339,24 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
               </select>
             </label>
             <label className="block space-y-2">
-              <span>Palavras-chave, separadas por vírgula</span>
+              <span>{t("Palavras-chave, separadas por vírgula")}</span>
               <Input
                 required
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
-                placeholder="QUERO, PREÇO"
+                placeholder={t("QUERO, PREÇO")}
               />
             </label>
             <label className="block space-y-2">
-              <span>Quando responder</span>
+              <span>{t("Quando responder")}</span>
               <select className={field} value={mode} onChange={(e) => setMode(e.target.value)}>
-                <option value="word">A palavra aparece no comentário</option>
-                <option value="contains">O comentário contém o texto</option>
-                <option value="exact">O comentário é exatamente o texto</option>
+                <option value="word">{t("A palavra aparece no comentário")}</option>
+                <option value="contains">{t("O comentário contém o texto")}</option>
+                <option value="exact">{t("O comentário é exatamente o texto")}</option>
               </select>
             </label>
             <label className="block space-y-2">
-              <span id="instagram-dm-label">Mensagem no Direct</span>
+              <span id="instagram-dm-label">{t("Mensagem no Direct")}</span>
               <Textarea
                 aria-labelledby="instagram-dm-label"
                 required
@@ -355,22 +367,29 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
               />
             </label>
             <label className="block space-y-2">
-              <span id="instagram-reply-label">Resposta pública após o Direct (opcional)</span>
+              <span id="instagram-reply-label">
+                {t("Resposta pública após o Direct (opcional)")}
+              </span>
               <Textarea
                 aria-labelledby="instagram-reply-label"
                 maxLength={1000}
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
-                placeholder="Te enviei os detalhes no Direct."
+                placeholder={t("Te enviei os detalhes no Direct.")}
               />
             </label>
             <p className="text-sm text-muted-foreground">
-              Ao salvar uma nova regra, ela fica ativa. O envio depende das permissões e limites do
-              Instagram; acompanhe recusas em Ver resultados.
+              {t(
+                "Ao salvar uma nova regra, ela fica ativa. O envio depende das permissões e limites do Instagram; acompanhe recusas em Ver resultados.",
+              )}
             </p>
             <div className="flex gap-3">
               <Button disabled={busy} type="submit">
-                {busy ? "Salvando…" : editing === "new" ? "Salvar e ativar" : "Salvar alterações"}
+                {busy
+                  ? "Salvando…"
+                  : editing === "new"
+                    ? "Salvar e ativar"
+                    : t("Salvar alterações")}
               </Button>
               <Button
                 disabled={busy}
@@ -378,7 +397,7 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
                 type="button"
                 onClick={() => setEditing(null)}
               >
-                Cancelar
+                {t("Cancelar")}
               </Button>
             </div>
           </form>

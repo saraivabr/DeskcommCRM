@@ -45,7 +45,7 @@ const CONFIGURACOES = "/app/settings/tenant";
  * O login é o do projeto, não um escrito aqui.
  *
  * A conta de teste tem SEGUNDO FATOR: um `fill` + `click` escrito à mão para em
- * `/login/mfa` e o `waitForURL(/\/app\//)` estoura em 30 s. Medido no job
+ * `/login/mfa` e o `waitForURL(/\/app(?:\/|$|\?)/)` estoura em 30 s. Medido no job
  * 106138530381 — foi exatamente assim que este arquivo reprovou da primeira vez.
  * `loginComoAdmin` resolve o TOTP e devolve as credenciais (o segredo ROTACIONA
  * entre rodadas, então o retorno é que vale, não o `lerCreds` do início).

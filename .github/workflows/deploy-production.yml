@@ -15,13 +15,20 @@ jobs:
   build-and-deploy:
     name: Build da Imagem e Deploy no IRB
     runs-on: ubuntu-latest
+    timeout-minutes: 65
     permissions:
       contents: read
+      actions: read
       packages: write
 
     steps:
       - name: Checkout do repositorio
         uses: actions/checkout@v4
+
+      - name: Exigir verificações da revisão antes de publicar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/require-production-checks.mjs
 
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -71,15 +78,18 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "$IMAGE_TAG"
 
       - name: Validar Saude em Producao (Smoke Test)
+        env:
+          IMAGE_TAG: ${{ steps.meta.outputs.version }}
         run: |
           echo "Consultando health check publico..."
           for i in {1..15}; do
-            RESPONSE=$(curl -s https://os.escreve.ai/api/v1/health || curl -s https://crm.escreve.ai/api/v1/health || true)
+            RESPONSE=$(curl --fail --silent --show-error --max-time 15 https://os.escreve.ai/api/v1/health || true)
             echo "Resposta: $RESPONSE"
-            if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
-              echo "OS.ESCREVE.AI ATUALIZADO E 100% OPERACIONAL!"
+            if echo "$RESPONSE" | jq -e --arg version "$IMAGE_TAG" '.data.status == "healthy" and .data.version == $version' >/dev/null; then
+              echo "Saúde da revisão publicada confirmada."
               exit 0
             fi
             sleep 3
           done
           echo "Aviso: Nao foi possivel confirmar o status healthy imediatamente."
+          exit 1

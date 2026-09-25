@@ -60,7 +60,7 @@ async function login(page: Page, email: string): Promise<void> {
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(creds.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.waitForURL(/\/app\//);
+  await page.waitForURL(/\/app(?:\/|$|\?)/);
 }
 
 async function loginWithTotp(page: Page, email: string, secret: string): Promise<void> {
@@ -80,7 +80,7 @@ async function loginWithTotp(page: Page, email: string, secret: string): Promise
     await firstDigit.click();
     await page.keyboard.type(code, { delay: 40 });
     try {
-      await page.waitForURL(/\/app\//, { timeout: 8_000 });
+      await page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: 8_000 });
       return;
     } catch {
       // código rejeitado — espera a próxima janela e tenta de novo

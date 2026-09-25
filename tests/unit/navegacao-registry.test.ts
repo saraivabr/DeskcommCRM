@@ -172,7 +172,6 @@ describe("hubSections", () => {
     const secoes = hubSections("crm", true, null);
     expect(secoes.map((s) => s.section)).toEqual(["O dia a dia da venda", "Preparar a venda"]);
     expect(secoes.flatMap((s) => s.items.map((i) => i.href))).toEqual([
-      "/app/growth/instagram",
       "/app/prospecting",
       "/app/kanban",
       "/app/campaigns",

@@ -2,11 +2,11 @@
 
 ## Repositório e versões
 
-- Repositório privado: [saraivabr/escreve.ai](https://github.com/saraivabr/escreve.ai).
-- `versao-atual`: branch padrão, com as personalizações existentes.
-- `integracao-oficial`: incorpora as atualizações do projeto original; sua validação completa continua pendente no PR de integração.
-- [PR de integração](https://github.com/saraivabr/escreve.ai/pull/1): não significa publicação em produção.
-- O nome da marca é **escreve.ai**, sempre em minúsculas. A instalação existente está em [crm.escreve.ai](https://crm.escreve.ai).
+- Repositório de trabalho e produção: [saraivabr/DeskcommCRM](https://github.com/saraivabr/DeskcommCRM).
+- `main`: destino da consolidação e base para novos trabalhos depois do merge.
+- `feat/saraiva-ai-consolidacao`: branch de integração do [PR #2](https://github.com/saraivabr/DeskcommCRM/pull/2).
+- Produção: [os.escreve.ai](https://os.escreve.ai), hospedada no IRB; operação e recuperação em [Produção no IRB](recovery/producao-irb-20260925.md).
+- Confira a revisão publicada em `/api/v1/health` e compare com o SHA no GitHub. PR aberto não significa merge nem publicação.
 
 ## Origem e licença
 
@@ -16,14 +16,15 @@ Changelogs, handoffs, planos, relatórios e fragmentos de releases anteriores s�
 
 ## Desenvolvimento e contribuição
 
-Clone esta edição com acesso à conta autorizada no GitHub:
+Clone a edição e crie uma branch de trabalho a partir da `main` atualizada:
 
 ```bash
-git clone --branch versao-atual https://github.com/saraivabr/escreve.ai.git
-cd escreve.ai
+git clone https://github.com/saraivabr/DeskcommCRM.git
+cd DeskcommCRM
+git switch -c codex/minha-alteracao
 ```
 
-Crie branches de trabalho a partir de `versao-atual`; abra PRs contra essa branch. Para continuar a integração oficial, use `integracao-oficial`. As menções a `main`, publicações automáticas e políticas do mantenedor original nos guias herdados descrevem o upstream e não substituem este fluxo.
+Abra PRs contra `main`. Preserve alterações locais em outros worktrees e não misture implementações alternativas sem revisão.
 
 Mantenha o upstream separado:
 
@@ -38,7 +39,7 @@ Em clones existentes, atualize apenas o remote que apontava para `saraivabr/sara
 
 Os scripts em `hostgator-setup-kit/` são herdados do projeto original. URLs de instaladores, imagens Docker, releases e atualizadores que apontam para `melgarafael/DeskcommCRM` instalam ou atualizam a distribuição original; não garantem as personalizações escreve.ai.
 
-Para distribuir esta edição, é necessário compilar a revisão escolhida, selecionar a imagem própria e validar banco, workers e canais antes de atualizar uma instalação. Este repositório ainda não anuncia um instalador ou imagem pública escreve.ai. As GitHub Actions estão desativadas; um push não publica uma versão nem executa CI automaticamente.
+Para distribuir esta edição, é necessário compilar a revisão escolhida, selecionar a imagem própria e validar banco, workers e canais antes de atualizar uma instalação. A aplicação usa a imagem `ghcr.io/saraivabr/deskcomm-app:<sha>`. As GitHub Actions executam CI, E2E e build. O deploy exige sucesso dessas verificações e da validação das imagens para a mesma revisão antes de publicar no IRB. O script salva backup e reverte a aplicação se a saúde falhar.
 
 Parcerias, SLAs, badges de CI e promessas de publicação descritos em documentos herdados pertencem ao projeto original, salvo configuração explícita desta edição.
 

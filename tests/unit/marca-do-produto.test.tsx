@@ -78,8 +78,9 @@ describe("marcaEhADoProduto", () => {
 
 describe("o desenho na barra lateral", () => {
   it("aberta e sem marca própria, mostra a assinatura escreve.ai", () => {
+    contexto = { user: usuario, activeOrg: null };
     renderSidebar(PADRAO, false);
-    expect(screen.getByRole("img", { name: "escreve.ai" })).toHaveAttribute(
+    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME })).toHaveAttribute(
       "viewBox",
       "140 155 1870 410",
     );
@@ -91,8 +92,9 @@ describe("o desenho na barra lateral", () => {
   });
 
   it("recolhida, mostra a assinatura curta escreve.ai", () => {
+    contexto = { user: usuario, activeOrg: null };
     renderSidebar(PADRAO, true);
-    expect(screen.getByRole("img", { name: "escreve.ai" })).toHaveAttribute(
+    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME })).toHaveAttribute(
       "viewBox",
       "140 155 410 410",
     );

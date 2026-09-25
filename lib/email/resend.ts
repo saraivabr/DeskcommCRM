@@ -78,7 +78,7 @@ function criarCliente(key: string | null): Resend | null {
  * que o operador digita numa tela.
  */
 export function fromAddress(remetente?: string | null, fromName?: string): string | null {
-  const endereco = (remetente ?? (env.BREVO_API_KEY?.trim() ? env.BREVO_FROM_EMAIL ?? "" : env.RESEND_FROM_EMAIL) ?? "").trim();
+  const endereco = (remetente ?? "").trim();
   if (endereco.length === 0) return null;
   // ⚠️ O ENDEREÇO também é entrada não confiável desde a 0341, e antes não era.
   //
@@ -194,7 +194,9 @@ async function sendWithBrevo(args: SendArgs): Promise<SendResult> {
         htmlContent: args.html,
         ...(args.text ? { textContent: args.text } : {}),
         ...(args.replyTo ? { replyTo: { email: args.replyTo } } : {}),
-        ...(args.tags?.length ? { tags: args.tags.map(({ name, value }) => `${name}:${value}`) } : {}),
+        ...(args.tags?.length
+          ? { tags: args.tags.map(({ name, value }) => `${name}:${value}`) }
+          : {}),
       }),
       signal: AbortSignal.timeout(15_000),
       redirect: "error",
@@ -207,8 +209,13 @@ async function sendWithBrevo(args: SendArgs): Promise<SendResult> {
       };
     }
     const result: unknown = await response.json();
-    if (!result || typeof result !== "object" || !("messageId" in result)
-      || typeof result.messageId !== "string" || !result.messageId.trim()) {
+    if (
+      !result ||
+      typeof result !== "object" ||
+      !("messageId" in result) ||
+      typeof result.messageId !== "string" ||
+      !result.messageId.trim()
+    ) {
       return { ok: false, error: "send_failed", details: "Brevo response missing messageId" };
     }
     return { ok: true, id: result.messageId };

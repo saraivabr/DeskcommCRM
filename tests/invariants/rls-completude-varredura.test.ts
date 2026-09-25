@@ -76,6 +76,10 @@ interface Excecao {
  */
 const PROVA_PROPRIA: readonly Excecao[] = [
   {
+    tabela: "instagram_publications",
+    razao: "tests/invariants/instagram-publications.test.ts — leitura local com JWT, isolamento entre tenants e escrita vedada ao navegador.",
+  },
+  {
     tabela: "growth_instagram_triggers",
     razao:
       "tests/invariants/recovery-native-modules.test.ts — admin da organização " +

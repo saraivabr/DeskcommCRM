@@ -7,6 +7,9 @@ const config = vi.hoisted(() => ({
   RESEND_FROM_EMAIL: "",
 }));
 vi.mock("@/lib/env", () => ({ env: config }));
+vi.mock("@/lib/instalacao/config", () => ({
+  valorDaInstalacao: async (key: keyof typeof config) => ({ valor: config[key] || null }),
+}));
 const resendSend = vi.hoisted(() => vi.fn());
 vi.mock("resend", () => ({ Resend: class { emails = { send: resendSend }; } }));
 import { fromAddress, isEmailConfigured, sendEmail } from "@/lib/email/resend";
@@ -28,7 +31,7 @@ describe("Brevo transactional delivery", () => {
     config.BREVO_FROM_EMAIL = "";
     config.RESEND_API_KEY = "legacy-resend-key";
     config.RESEND_FROM_EMAIL = "legacy@example.com";
-    expect(isEmailConfigured()).toBe(false);
+    expect(await isEmailConfigured()).toBe(false);
     expect(fromAddress()).toBeNull();
     expect(await sendEmail(request)).toEqual({ ok: false, error: "not_configured" });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -78,7 +81,7 @@ describe("Brevo transactional delivery", () => {
     config.RESEND_API_KEY = "legacy-resend-key";
     config.RESEND_FROM_EMAIL = "legacy@example.com";
     resendSend.mockResolvedValue({ data: { id: "legacy-id" }, error: null });
-    expect(isEmailConfigured()).toBe(true);
+    expect(await isEmailConfigured()).toBe(true);
     expect(await sendEmail(request)).toEqual({ ok: true, id: "legacy-id" });
     expect(fetchMock).not.toHaveBeenCalled();
   });

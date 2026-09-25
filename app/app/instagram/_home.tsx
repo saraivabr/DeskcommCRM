@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { copyToClipboard } from "@/lib/clipboard";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -86,7 +87,7 @@ export function InstagramHome() {
   const handleCopyCaption = async (id: string, caption: string) => {
     if (!caption) return;
     try {
-      await navigator.clipboard.writeText(caption);
+      if (!(await copyToClipboard(caption))) return;
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2500);
     } catch {
@@ -104,15 +105,15 @@ export function InstagramHome() {
   return (
     <StudioShell>
       {/* Hero Principal Unificado */}
-      <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card to-muted/40 p-6 sm:p-10 shadow-xs">
+      <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card to-muted/40 p-6 shadow-xs sm:p-10">
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-pink-500/20 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-amber-500/10 px-3 py-1 text-xs font-semibold text-foreground">
-              <span className="flex h-2 w-2 rounded-full bg-pink-500 animate-pulse" />
+              <span className="flex h-2 w-2 animate-pulse rounded-full bg-pink-500" />
               <InstagramLogo size={15} weight="bold" className="text-pink-500" />
               {t("Central Integrada de Instagram")}
             </div>
-            <h1 className="font-serif text-3xl font-normal tracking-tight sm:text-4xl lg:text-5xl text-foreground">
+            <h1 className="font-serif text-3xl font-normal tracking-tight text-foreground sm:text-4xl lg:text-5xl">
               {t("Crie posts com IA e converta comentários em vendas.")}
             </h1>
             <p className="text-base leading-relaxed text-muted-foreground">
@@ -151,21 +152,23 @@ export function InstagramHome() {
                     <InstagramLogo size={18} weight="bold" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold leading-tight">{t("Seu Instagram")}</p>
-                    <p className="text-[10px] text-muted-foreground">{t("Motor de Vendas Ativo")}</p>
+                    <p className="text-xs leading-tight font-semibold">{t("Seu Instagram")}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {t("Motor de Vendas Ativo")}
+                    </p>
                   </div>
                 </div>
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
               </div>
               <div className="space-y-2 py-3 text-xs">
                 <div className="rounded-lg bg-muted/60 p-2.5">
-                  <p className="font-medium text-foreground">💬 Comentário no Reel:</p>
-                  <p className="text-muted-foreground italic">"EU QUERO o link!"</p>
+                  <p className="font-medium text-foreground">{t("💬 Comentário no Reel:")}</p>
+                  <p className="text-muted-foreground italic">{t('"EU QUERO o link!"')}</p>
                 </div>
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5">
-                  <p className="font-medium text-primary">⚡ DM Automática disparada:</p>
-                  <p className="line-clamp-2 text-muted-foreground text-[11px]">
-                    "Olá! Aqui está o link que você pediu..."
+                  <p className="font-medium text-primary">{t("⚡ DM Automática disparada:")}</p>
+                  <p className="line-clamp-2 text-[11px] text-muted-foreground">
+                    {t('"Olá! Aqui está o link que você pediu..."')}
                   </p>
                 </div>
               </div>
@@ -174,7 +177,7 @@ export function InstagramHome() {
                   <CheckCircle size={14} weight="fill" />
                   {t("Lead gerado no Funil")}
                 </span>
-                <span className="font-bold">+1 lead</span>
+                <span className="font-bold">{t("+1 lead")}</span>
               </div>
             </div>
           </div>
@@ -183,13 +186,13 @@ export function InstagramHome() {
 
       {/* Linha de KPIs e Métricas da Matriz */}
       <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs sm:text-sm font-medium">{t("Criações no Estúdio")}</span>
+            <span className="text-xs font-medium sm:text-sm">{t("Criações no Estúdio")}</span>
             <Sparkle size={18} className="text-purple-500" />
           </div>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight">{posts.length}</span>
+            <span className="text-2xl font-bold tracking-tight sm:text-3xl">{posts.length}</span>
             <Link
               href="/app/instagram/library"
               className="text-xs text-muted-foreground hover:underline"
@@ -199,13 +202,13 @@ export function InstagramHome() {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs sm:text-sm font-medium">{t("Gatilhos Ativos")}</span>
+            <span className="text-xs font-medium sm:text-sm">{t("Gatilhos Ativos")}</span>
             <Lightning size={18} className="text-amber-500" />
           </div>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight">
+            <span className="text-2xl font-bold tracking-tight sm:text-3xl">
               {loadingGrowth ? "…" : activeTriggersCount}
             </span>
             <Link
@@ -217,26 +220,26 @@ export function InstagramHome() {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs sm:text-sm font-medium">{t("DMs Disparadas")}</span>
+            <span className="text-xs font-medium sm:text-sm">{t("DMs Disparadas")}</span>
             <ChatCircleDots size={18} className="text-blue-500" />
           </div>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight">
+            <span className="text-2xl font-bold tracking-tight sm:text-3xl">
               {loadingGrowth ? "…" : totalDms}
             </span>
             <span className="text-xs text-muted-foreground">{t("automáticas")}</span>
           </div>
         </div>
 
-        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs sm:text-sm font-medium">{t("Leads Gerados")}</span>
+            <span className="text-xs font-medium sm:text-sm">{t("Leads Gerados")}</span>
             <Users size={18} className="text-emerald-500" />
           </div>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            <span className="text-2xl font-bold tracking-tight text-emerald-600 sm:text-3xl dark:text-emerald-400">
               {loadingGrowth ? "…" : totalLeads}
             </span>
             <Link href="/app/kanban" className="text-xs text-muted-foreground hover:underline">
@@ -248,10 +251,10 @@ export function InstagramHome() {
 
       {/* Destaque Principal: Últimas Postagens */}
       <section className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+        <div className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-serif text-2xl sm:text-3xl font-normal text-foreground">
+              <h2 className="font-serif text-2xl font-normal text-foreground sm:text-3xl">
                 {t("Últimas Postagens")}
               </h2>
               {posts.length > 0 && (
@@ -260,7 +263,7 @@ export function InstagramHome() {
                 </span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="mt-1 text-sm text-muted-foreground">
               {t("Seus criativos, artes e legendas gerados para o Instagram.")}
             </p>
           </div>
@@ -305,7 +308,7 @@ export function InstagramHome() {
         ) : error ? (
           <Notice error>
             {error}{" "}
-            <button onClick={() => void reload()} className="underline font-medium">
+            <button onClick={() => void reload()} className="font-medium underline">
               {t("Tentar novamente")}
             </button>
           </Notice>
@@ -321,7 +324,7 @@ export function InstagramHome() {
               return (
                 <div
                   key={item.id}
-                  className="group flex flex-col justify-between overflow-hidden rounded-3xl border border-border bg-card shadow-xs transition hover:shadow-md hover:border-primary/30"
+                  className="group flex flex-col justify-between overflow-hidden rounded-3xl border border-border bg-card shadow-xs transition hover:border-primary/30 hover:shadow-md"
                 >
                   {/* Cabeçalho do Card */}
                   <div className="flex items-center justify-between border-b border-border/60 bg-muted/20 px-4 py-3 text-xs">
@@ -333,7 +336,7 @@ export function InstagramHome() {
                         isReady
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                           : isGenerating
-                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse"
+                            ? "animate-pulse bg-amber-500/10 text-amber-600 dark:text-amber-400"
                             : "bg-destructive/10 text-destructive"
                       }`}
                     >
@@ -393,11 +396,11 @@ export function InstagramHome() {
                   </Link>
 
                   {/* Conteúdo / Briefing e Legenda */}
-                  <div className="flex flex-1 flex-col justify-between p-4 space-y-3">
+                  <div className="flex flex-1 flex-col justify-between space-y-3 p-4">
                     <div className="space-y-1.5">
                       <Link
                         href={`/app/instagram/posts/${item.id}`}
-                        className="line-clamp-2 text-sm font-medium hover:underline text-foreground"
+                        className="line-clamp-2 text-sm font-medium text-foreground hover:underline"
                       >
                         {brief}
                       </Link>
@@ -418,10 +421,8 @@ export function InstagramHome() {
                         {item.caption.length > 90 && (
                           <button
                             type="button"
-                            onClick={() =>
-                              setExpandedCaptionId(isCaptionExpanded ? null : item.id)
-                            }
-                            className="mt-1 font-medium text-foreground underline text-[11px]"
+                            onClick={() => setExpandedCaptionId(isCaptionExpanded ? null : item.id)}
+                            className="mt-1 text-[11px] font-medium text-foreground underline"
                           >
                             {isCaptionExpanded ? t("Recolher") : t("Ver legenda inteira")}
                           </button>
@@ -430,7 +431,7 @@ export function InstagramHome() {
                     )}
 
                     {/* Barra de Ações Rápidas */}
-                    <div className="flex items-center justify-between border-t border-border/60 pt-3 gap-2">
+                    <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3">
                       {item.caption ? (
                         <Button
                           type="button"
@@ -442,7 +443,7 @@ export function InstagramHome() {
                           {isCopied ? (
                             <>
                               <Check size={14} className="text-emerald-500" />
-                              <span className="text-emerald-600 font-medium">{t("Copiada!")}</span>
+                              <span className="font-medium text-emerald-600">{t("Copiada!")}</span>
                             </>
                           ) : (
                             <>
@@ -468,11 +469,11 @@ export function InstagramHome() {
           </div>
         ) : (
           /* Empty State Inspirador com Ideias Prontas */
-          <div className="rounded-3xl border border-dashed border-border bg-card/60 p-8 sm:p-12 text-center space-y-6">
+          <div className="space-y-6 rounded-3xl border border-dashed border-border bg-card/60 p-8 text-center sm:p-12">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
               <Sparkle size={28} className="text-purple-500" />
             </div>
-            <div className="max-w-md mx-auto space-y-2">
+            <div className="mx-auto max-w-md space-y-2">
               <h3 className="font-serif text-2xl font-normal text-foreground">
                 {t("Sua primeira criação começa aqui.")}
               </h3>
@@ -498,10 +499,10 @@ export function InstagramHome() {
 
             {/* Sugestões em 1 Clique */}
             <div className="border-t border-border pt-8">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+              <p className="mb-4 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 {t("Ou comece rápido com uma destas ideias:")}
               </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 text-left">
+              <div className="grid grid-cols-1 gap-4 text-left sm:grid-cols-3">
                 <Link
                   href="/app/instagram/new?brief=Post%20chamativo%20anunciando%20uma%20condição%20especial%20exclusiva%20para%20seguidores%20com%20chamada%20para%20comentar%20EU%20QUERO"
                   className="rounded-2xl border border-border bg-card p-4 transition hover:border-primary/40 hover:bg-muted/30"
@@ -526,7 +527,9 @@ export function InstagramHome() {
                     {t("Dica de Especialista")}
                   </h4>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {t("Post educativo ensinando como resolver um problema frequente do seu cliente.")}
+                    {t(
+                      "Post educativo ensinando como resolver um problema frequente do seu cliente.",
+                    )}
                   </p>
                 </Link>
 
@@ -549,8 +552,8 @@ export function InstagramHome() {
       </section>
 
       {/* Seção Integrada de Automações & Growth */}
-      <section className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-6 shadow-xs">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+      <section className="space-y-6 rounded-3xl border border-border bg-card p-6 shadow-xs sm:p-8">
+        <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Lightning size={22} weight="bold" className="text-amber-500" />
@@ -603,7 +606,7 @@ export function InstagramHome() {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm line-clamp-1">{trigger.name}</span>
+                    <span className="line-clamp-1 text-sm font-semibold">{trigger.name}</span>
                     <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
                       {t("Ativo")}
                     </span>
@@ -615,13 +618,14 @@ export function InstagramHome() {
                       {trigger.keywords.slice(0, 3).join(", ")}
                     </span>
                   </div>
-                  <p className="line-clamp-2 text-xs italic text-muted-foreground">
+                  <p className="line-clamp-2 text-xs text-muted-foreground italic">
                     "{trigger.dm_response_template}"
                   </p>
                 </div>
                 <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2 text-xs">
                   <span className="font-medium text-foreground">
-                    {trigger.executions_count} DMs · {trigger.leads_generated_count} Leads
+                    {trigger.executions_count} {t("DMs ·")} {trigger.leads_generated_count}{" "}
+                    {t("Leads")}
                   </span>
                   <Link
                     href="/app/instagram/growth"
@@ -646,10 +650,10 @@ export function InstagramHome() {
             <Lightbulb size={24} weight="bold" />
           </div>
           <div className="space-y-1">
-            <h3 className="font-serif text-xl font-normal text-foreground group-hover:text-primary transition">
+            <h3 className="font-serif text-xl font-normal text-foreground transition group-hover:text-primary">
               {t("Sem ideia do que postar? ↗")}
             </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               {t("Pesquise referências de outros perfis e temas em alta para o seu segmento.")}
             </p>
           </div>
@@ -663,10 +667,10 @@ export function InstagramHome() {
             <Eye size={24} weight="bold" />
           </div>
           <div className="space-y-1">
-            <h3 className="font-serif text-xl font-normal text-foreground group-hover:text-primary transition">
+            <h3 className="font-serif text-xl font-normal text-foreground transition group-hover:text-primary">
               {t("Métricas & Desempenho ↗")}
             </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               {t(
                 "Acompanhe o alcance, visualizações e pessoas que interagiram na sua conta conectada.",
               )}

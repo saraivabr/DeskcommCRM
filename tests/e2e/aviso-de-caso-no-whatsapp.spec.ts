@@ -122,7 +122,7 @@ async function loginComTotp(page: Page, email: string, secret: string): Promise<
     await primeiroDigito.click();
     await page.keyboard.type(generateTotp(secret), { delay: 40 });
     try {
-      await page.waitForURL(/\/app\//, { timeout: 30_000 });
+      await page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: 30_000 });
       return;
     } catch {
       await page.waitForTimeout(msUntilNextTotpWindow() + 200);

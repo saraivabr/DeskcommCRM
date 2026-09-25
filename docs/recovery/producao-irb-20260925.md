@@ -24,3 +24,9 @@ A tag SHA tem prioridade sobre `latest` nos metadados Docker para que o deploy r
 `scripts/deploy-irb.sh` é instalado, pertencente a root, em `/opt/escreveai/deploy-live.sh`. Ele salva um dump, baixa a imagem, troca apenas a aplicação e verifica saúde e login HTTPS. Em falha, restaura a configuração anterior. O Compose e as credenciais de produção nunca entram no Git.
 
 Os serviços anteriores do IRB foram preservados. O disco da Azure permanece como origem de recuperação; reativar a VM antiga requer cuidado para evitar dois schedulers ou duas sessões de WhatsApp concorrentes.
+
+A entrega aguarda `ci`, `e2e`, `perf` e `publish-image` aprovados para o mesmo SHA. Falha, cancelamento, resultado ausente ou tempo esgotado impedem a troca da aplicação. O smoke público confere saúde **e versão**, sem aceitar a versão anterior como prova do deploy.
+
+Na consolidação da PR #2, os arquivos de migrations do fork receberam os sufixos livres 0400 (Instagram Studio), 0401 (missões de voz) e 0402 (Growth/auditoria). Seus timestamps e conteúdos SQL foram preservados; as identidades já aplicadas no Supabase não mudaram. Os sufixos 0321–0323 conflitavam com migrations recebidas do upstream.
+
+O chat com efeitos de atividade e Enter para enviar foi incorporado da área `melhoria-no-chat-com-IA`. A implementação alternativa de Meta nativa, ainda não commitada na cópia Orca principal, permanece preservada naquela área e fora desta entrega com Zernio.

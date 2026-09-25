@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/hooks/i18n/useT";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ const labels: Record<Publication["status"], string> = {
   uncertain: "Aguardando confirmação",
 };
 export function PublishPost({ item, caption }: { item: StudioItem; caption: string }) {
+  const t = useT();
   const [state, setState] = useState<State>();
   const [account, setAccount] = useState("");
   const [library, setLibrary] = useState<StudioItem[]>([]);
@@ -75,22 +77,22 @@ export function PublishPost({ item, caption }: { item: StudioItem; caption: stri
   }
   return (
     <section className="space-y-4 rounded-2xl border p-5">
-      <h2 className="font-semibold">Publicar no Instagram</h2>
+      <h2 className="font-semibold">{t("Publicar no Instagram")}</h2>
       <Link href="/app/connections?aba=sociais" className="text-sm underline">
-        Conectar ou trocar minha conta
+        {t("Conectar ou trocar minha conta")}
       </Link>
       {error && <Notice error>{error}</Notice>}
       {state && (
         <>
           <label className="block space-y-2">
-            <span className="text-sm">Conta que vai publicar</span>
+            <span className="text-sm">{t("Conta que vai publicar")}</span>
             <select
               className="w-full rounded-xl border bg-background p-3"
               disabled={busy || reviewing}
               value={account}
               onChange={(e) => setAccount(e.target.value)}
             >
-              <option value="">Selecione sua conta</option>
+              <option value="">{t("Selecione sua conta")}</option>
               {state.accounts
                 .filter((a) => a.active)
                 .map((a) => (
@@ -120,10 +122,10 @@ export function PublishPost({ item, caption }: { item: StudioItem; caption: stri
               }}
             >
               <summary className="cursor-pointer text-sm underline">
-                Montar carrossel com minhas criações
+                {t("Montar carrossel com minhas criações")}
               </summary>
               <p className="my-3 text-sm text-muted-foreground">
-                Selecione até 10 imagens. A ordem de seleção será a ordem do carrossel.
+                {t("Selecione até 10 imagens. A ordem de seleção será a ordem do carrossel.")}
               </p>
               <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto">
                 {library.map((i) => (
@@ -155,43 +157,46 @@ export function PublishPost({ item, caption }: { item: StudioItem; caption: stri
                         alt={i.input.kind === "post" ? i.input.brief : "Criação"}
                         width={120}
                         height={150}
-                        className="aspect-[4/5] w-full rounded object-cover"
+                        className="aspect-[4/5] w-full rounded-md object-cover"
                       />
                     )}
                   </label>
                 ))}
               </div>
               <Link href="/app/instagram/new" className="mt-3 inline-block text-sm underline">
-                Gerar outra imagem para o carrossel
+                {t("Gerar outra imagem para o carrossel")}
               </Link>
             </details>
           )}
           {story && (
             <p className="text-sm text-muted-foreground">
-              Stories ficam disponíveis por 24 horas e não exibem a legenda.
+              {t("Stories ficam disponíveis por 24 horas e não exibem a legenda.")}
             </p>
           )}
           {reviewing ? (
             <div className="space-y-3 rounded-xl bg-muted/40 p-4">
               <p>
-                Publicar agora{" "}
+                {t("Publicar agora")}{" "}
                 {selected.length > 1
                   ? `um carrossel com ${selected.length} imagens`
                   : story
-                    ? "este Story"
-                    : "esta imagem"}{" "}
-                em <strong>@{state.accounts.find((a) => a.id === account)?.username}</strong>?
+                    ? t("este Story")
+                    : t("esta imagem")}{" "}
+                {t("em")} <strong>@{state.accounts.find((a) => a.id === account)?.username}</strong>
+                ?
               </p>
-              {!story && <p className="text-sm whitespace-pre-wrap">{caption || "Sem legenda"}</p>}
+              {!story && (
+                <p className="text-sm whitespace-pre-wrap">{caption || t("Sem legenda")}</p>
+              )}
               <p className="text-xs text-muted-foreground">
-                O conteúdo ficará visível na conta escolhida.
+                {t("O conteúdo ficará visível na conta escolhida.")}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button disabled={busy || unresolved} onClick={() => void publish()}>
-                  {busy ? "Publicando…" : "Confirmar publicação"}
+                  {busy ? t("Publicando…") : t("Confirmar publicação")}
                 </Button>
                 <Button variant="outline" disabled={busy} onClick={() => setReviewing(false)}>
-                  Voltar à revisão
+                  {t("Voltar à revisão")}
                 </Button>
               </div>
             </div>
@@ -202,12 +207,12 @@ export function PublishPost({ item, caption }: { item: StudioItem; caption: stri
               }
               onClick={() => setReviewing(true)}
             >
-              Revisar publicação
+              {t("Revisar publicação")}
             </Button>
           )}
           {publications.map((p) => (
             <div key={p.id} className="space-y-2 border-t pt-3 text-sm">
-              <p className="font-medium">{labels[p.status]}</p>
+              <p className="font-medium">{t(labels[p.status])}</p>
               {p.error && <p role="status">{p.error}</p>}
               {p.status === "failed" && state.can_publish && (
                 <Button
@@ -218,17 +223,17 @@ export function PublishPost({ item, caption }: { item: StudioItem; caption: stri
                     setReviewing(true);
                   }}
                 >
-                  Revisar nova tentativa
+                  {t("Revisar nova tentativa")}
                 </Button>
               )}
               {p.permalink && (
                 <a href={p.permalink} rel="noreferrer" target="_blank" className="underline">
-                  Ver no Instagram
+                  {t("Ver no Instagram")}
                 </a>
               )}
               {p.status === "published" && (
                 <Link href="/app/growth/instagram" className="block underline">
-                  Criar automação para esta postagem
+                  {t("Criar automação para esta postagem")}
                 </Link>
               )}
             </div>
@@ -262,7 +267,7 @@ export function PublishPost({ item, caption }: { item: StudioItem; caption: stri
               })()
             }
           >
-            Atualizar resultado
+            {t("Atualizar resultado")}
           </Button>
         </>
       )}

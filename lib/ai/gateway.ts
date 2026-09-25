@@ -19,7 +19,8 @@ import { env } from "@/lib/env";
 
 /** Endpoint da OpenRouter. Compatível com a API da OpenAI, então o provider
  *  `@ai-sdk/openai` fala com ela sem dependência nova. */
-export const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL?.trim() || "https://openrouter.ai/api/v1";
+export const OPENROUTER_BASE_URL =
+  process.env.OPENROUTER_BASE_URL?.trim() || "https://openrouter.ai/api/v1";
 
 export type ModelId =
   | "anthropic/claude-sonnet-5"
@@ -79,6 +80,7 @@ export function resolveLanguageModel(model: ModelId): LanguageModel | null {
 export function resolveLanguageModelWithProvider(model: ModelId): ResolvedLanguageModel | null {
   const id = String(model);
   if (gatewayConfig()) return { model: id as LanguageModel, provider: "vercel" };
+  if (env.OPENROUTER_API_KEY)
     return {
       model: createOpenAI({
         apiKey: env.OPENROUTER_API_KEY,

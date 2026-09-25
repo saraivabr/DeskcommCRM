@@ -14,7 +14,11 @@ A conversa fica apenas na sessão da tela; trocar de organização, papel, usuá
 
 ## Interface
 
+No campo de pergunta, Enter envia e Shift+Enter quebra a linha. A confirmação de composição de texto (IME) não envia a pergunta.
+
 Geist substitui a fonte de interface e IBM Plex Mono permanece para dados técnicos. A casca tem tokens neutros locais, conserva o destaque da marca e respeita o branding personalizado. Ícones Lucide na navegação e GSAP para recolher a barra e entrar na tela. `prefers-reduced-motion` desliga os movimentos. O histórico e os controles continuam utilizáveis por teclado.
+
+`WorkspaceHome` usa `workspace-motion.module.css` para efeitos inspirados no AICSS: malha de pontos e brilho durante a consulta real, borda luminosa no compositor, entrada da resposta/fontes e movimento leve na ilustração e nos controles. As dimensões, posições e conteúdo da tela são preservados. Os efeitos respeitam `prefers-reduced-motion`; não simulam streaming nem etapas do modelo. Esta apresentação usa o estado existente de `askWorkspace`, sem novos eventos, permissões ou conexões no mapa.
 
 ## Checklist do sistema vivo
 

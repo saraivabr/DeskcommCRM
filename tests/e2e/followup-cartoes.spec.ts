@@ -55,7 +55,7 @@ async function login(page: Page, email: string): Promise<void> {
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(creds.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.waitForURL(/\/app\//, { timeout: PRAZO });
+  await page.waitForURL(/\/app(?:\/|$|\?)/, { timeout: PRAZO });
 }
 
 async function novoFluxo(page: Page, nome: string): Promise<string> {
