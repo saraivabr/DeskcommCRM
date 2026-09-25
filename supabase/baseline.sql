@@ -38195,7 +38195,6 @@ create trigger validate_commercial_account before insert or update of classifica
 
 notify pgrst, 'reload schema';
 
-<<<<<<< HEAD
 -- ---- Classificação da criação administrativa por convite (migration 0408) ----
 alter table public.org_commercial_accounts add column if not exists pending_owner_email text;
 create or replace function public.fn_create_tenant_with_owner(
@@ -38353,7 +38352,6 @@ end;
 $$;
 revoke all on function public.fn_subscription_resource_limit() from public, anon, authenticated;
 
-=======
 create or replace function public.fn_validar_whatsapp_history_playbook_draft()
 returns trigger language plpgsql set search_path=public as $$
 begin
@@ -38368,7 +38366,6 @@ begin
   return new;
 end;$$;
 revoke all on function public.fn_validar_whatsapp_history_playbook_draft() from public,anon,authenticated;
->>>>>>> ec8e13498 (feat: prepare WhatsApp history playbook for review)
 
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
