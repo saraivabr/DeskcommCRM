@@ -52,4 +52,11 @@ describe("playbook do histórico do WhatsApp", () => {
       journey: [], questions: [], objections: [], tone: "Direto", unknowns: [], evidence: ["C1", "C2"] });
     expect(() => parseBusinessDraft(payload, ["C1", "C2"])).toThrow("history_playbook_business_not_identified");
   });
+
+  it("rejeita a síntese que esconde ofertas observadas entre as dúvidas", () => {
+    const payload = JSON.stringify({ business: "Serviços digitais", audience: "Empresas", offer: "Jingles comerciais",
+      journey: [], questions: [], objections: [], tone: "Direto",
+      unknowns: ["Há outras ofertas registradas, como sites e atendimento com IA."], evidence: ["C1", "C2"] });
+    expect(() => parseBusinessDraft(payload, ["C1", "C2"])).toThrow("history_playbook_offers_omitted");
+  });
 });

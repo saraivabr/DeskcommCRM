@@ -106,6 +106,8 @@ export function parseBusinessDraft(raw: string, caseIds: string[]): { content: s
   if (evidenceIds.length < 2) throw new Error("history_playbook_insufficient_evidence");
   if ([parsed.business, parsed.audience, parsed.offer].some((value) => /n[aã]o identificad|n[aã]o foi poss[ií]vel identificar|desconhecid|indefinid/i.test(value)))
     throw new Error("history_playbook_business_not_identified");
+  if (parsed.unknowns.some((value) => /outr[ao]s? (?:ofertas?|produtos?|servi[cç]os?) (?:registrad|observad|encontrad)/i.test(value)))
+    throw new Error("history_playbook_offers_omitted");
   const lines = (heading: string, values: string[]) => values.length
     ? `## ${heading}\n${values.map((value) => `- ${value}`).join("\n")}` : "";
   const content = [
@@ -175,7 +177,8 @@ export async function generateWhatsappHistoryPlaybook(): Promise<{ created: numb
       parsed = parseBusinessDraft(response.result.text ?? "", cases.map((c) => c.id));
       break;
     } catch (error) {
-      if (attempt === 1 && error instanceof Error && error.message === "history_playbook_business_not_identified")
+      if (attempt === 1 && error instanceof Error &&
+          ["history_playbook_business_not_identified", "history_playbook_offers_omitted"].includes(error.message))
         return { created: 0, insufficient: 1, waiting: 0 };
       if (attempt === 1 || !(error instanceof z.ZodError || error instanceof SyntaxError ||
         (error instanceof Error && error.message.startsWith("history_playbook_")))) throw error;
