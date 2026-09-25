@@ -143,6 +143,17 @@ describe("as cores do desenho", () => {
     }
   });
 
+  it("a arte própria ganha contraste no escuro sem moldura nem mudança de geometria", () => {
+    render(<LogotipoDoProduto nome="Marca X" />);
+    const classes = screen.getByRole("img", { name: "Marca X" }).getAttribute("class");
+    expect(classes).toContain("dark:brightness-0");
+    expect(classes).toContain("dark:invert");
+    expect(classes).not.toMatch(/dark:(?:bg-|p-)/);
+    cleanup();
+    render(<SimboloDoProduto nome="Marca X" />);
+    expect(screen.getByRole("img", { name: "Marca X" }).getAttribute("class")).toContain("dark:invert");
+  });
+
   it("decorativo esconde do leitor de tela; sem isso, nomeia a marca", () => {
     render(<SimboloDoProduto nome="Marca X" decorativo />);
     expect(document.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");

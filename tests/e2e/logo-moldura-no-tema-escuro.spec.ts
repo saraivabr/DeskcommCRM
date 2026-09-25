@@ -350,9 +350,9 @@ function anotar(nome: string, dado: unknown): void {
   fs.writeFileSync(evidencia(nome), JSON.stringify(dado, null, 2) + "\n", "utf8");
 }
 
-/** O cabeçalho da barra lateral: o primeiro filho do `<aside>` (`h-14`, `border-b`). */
+/** O cabeçalho da barra lateral é o link da marca, acima do seletor da empresa. */
 function cabecalhoDaBarra(page: Page): Locator {
-  return page.locator("aside > div").first();
+  return page.locator('aside > a[href="/app"]').first();
 }
 
 async function medirCaixa(alvo: Locator): Promise<Caixa> {
@@ -582,9 +582,8 @@ test.describe("a moldura do logo no tema escuro", () => {
       `o cabeçalho da barra MUDOU de retângulo entre os temas numa instalação SEM logo ` +
         `enviado — claro=${JSON.stringify(claro)} escuro=${JSON.stringify(escuro)}`,
     ).toEqual(claro);
-    // E ele continua sendo o `h-14` de sempre, no topo: a igualdade acima passaria
-    // se os DOIS tivessem mudado junto.
-    expect(escuro.altura, "o cabeçalho deixou de ser `h-14` (56px)").toBe(56);
+    // A altura aprovada da nova sidebar é 92px em ambos os temas.
+    expect(escuro.altura, "o cabeçalho deixou a altura aprovada (92px)").toBe(92);
     expect(escuro.y, "o cabeçalho saiu do topo da barra").toBe(0);
   });
 

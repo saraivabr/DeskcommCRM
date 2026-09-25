@@ -139,7 +139,7 @@ async function textosVisiveis(page: Page): Promise<string[]> {
 }
 
 /**
- * Põe a interface no idioma pedido, clicando como uma pessoa clicaria.
+ * Põe a interface no idioma pedido pelo menu, usando a navegação por teclado.
  *
  * Independente do estado inicial DE PROPÓSITO: o banco do e2e é compartilhado e
  * sobrevive entre execuções, então a preferência do `e2e-admin` é o que a
@@ -167,8 +167,14 @@ async function porIdiomaEm(page: Page, codigo: "pt-BR" | "es"): Promise<void> {
   await page.evaluate(() => {
     (window as unknown as { __antesDaTroca?: boolean }).__antesDaTroca = true;
   });
-  await botao.click();
-  await page.getByTestId(`idioma-${codigo}`).click();
+  // O submenu abre para a esquerda junto à borda da tela. Navegar por teclado
+  // evita depender do corredor de hover entre os dois menus portados e também
+  // prova que a preferência continua acessível sem mouse.
+  await botao.press("ArrowRight");
+  await expect(page.getByTestId("idioma-pt-BR")).toBeFocused();
+  if (codigo === "es") await page.keyboard.press("ArrowDown");
+  await expect(page.getByTestId(`idioma-${codigo}`)).toBeFocused();
+  await page.keyboard.press("Enter");
   await page.waitForFunction(
     () => !(window as unknown as { __antesDaTroca?: boolean }).__antesDaTroca,
     undefined,

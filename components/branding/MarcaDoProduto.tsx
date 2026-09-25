@@ -31,7 +31,7 @@ export function SimboloDoProduto({ nome, className, decorativo = false }: Props)
   return (
     <svg
       viewBox="140 155 410 410"
-      className={cn("shrink-0", className)}
+      className={cn("shrink-0 dark:brightness-0 dark:invert", className)}
       {...acessibilidade(nome, decorativo)}
     >
       <image href="/brand/escreve-ai.png" width="2161" height="728" />
@@ -43,7 +43,7 @@ export function LogotipoDoProduto({ nome, className, decorativo = false }: Props
   return (
     <svg
       viewBox="140 155 1870 410"
-      className={cn("shrink-0 rounded-md dark:bg-white dark:p-1", className)}
+      className={cn("shrink-0 dark:brightness-0 dark:invert", className)}
       {...acessibilidade(nome, decorativo)}
     >
       <image href="/brand/escreve-ai.png" width="2161" height="728" />
