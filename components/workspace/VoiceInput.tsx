@@ -24,10 +24,12 @@ type VoiceWindow = Window & {
 /** Browser-managed dictation. Never starts on mount and never submits a question. */
 export function VoiceInput({
   disabled,
+  recordingActive,
   onTranscript,
   onListeningChange,
 }: {
   disabled: boolean;
+  recordingActive: boolean;
   onTranscript: (text: string) => void;
   onListeningChange: (value: boolean) => void;
 }) {
@@ -42,9 +44,11 @@ export function VoiceInput({
         recognition.current.onerror = null;
         recognition.current.onend = null;
         recognition.current.abort();
+        recognition.current = null;
+        onListeningChange(false);
       }
     },
-    [],
+    [onListeningChange],
   );
   function start() {
     if (recognition.current) {
@@ -101,7 +105,7 @@ export function VoiceInput({
         type="button"
         variant="ghost"
         size="sm"
-        disabled={disabled}
+        disabled={disabled || (recordingActive && !listening)}
         onClick={start}
         aria-pressed={listening}
         title={t(

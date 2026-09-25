@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useCallback,
   useRef,
   useState,
   type ReactNode,
@@ -34,6 +35,8 @@ type Assistant = {
   scope: WorkspaceScope;
   setScope: (value: WorkspaceScope) => void;
   busy: boolean;
+  listening: boolean;
+  setListening: (value: boolean) => void;
   canKnowledge: boolean;
   openAssistant: (question?: string, scope?: WorkspaceScope) => void;
   send: () => Promise<void>;
@@ -70,6 +73,12 @@ function AssistantSession({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sending = useRef(false);
+  const recording = useRef(false);
+  const [listening, setListeningState] = useState(false);
+  const setListening = useCallback((value: boolean) => {
+    recording.current = value;
+    setListeningState(value);
+  }, []);
   function openAssistant(text?: string, requestedScope?: WorkspaceScope) {
     const nextScope = requestedScope ?? routeScope(pathname);
     setScope(nextScope === "knowledge" && !canKnowledge ? "all" : nextScope);
@@ -78,7 +87,7 @@ function AssistantSession({ children }: { children: ReactNode }) {
   }
   async function send() {
     const text = question.trim();
-    if (!text || sending.current) return;
+    if (!text || sending.current || recording.current) return;
     sending.current = true;
     setBusy(true);
     setOpen(true);
@@ -110,7 +119,18 @@ function AssistantSession({ children }: { children: ReactNode }) {
   }
   return (
     <Context.Provider
-      value={{ question, setQuestion, scope, setScope, busy, canKnowledge, openAssistant, send }}
+      value={{
+        question,
+        setQuestion,
+        scope,
+        setScope,
+        busy,
+        listening,
+        setListening,
+        canKnowledge,
+        openAssistant,
+        send,
+      }}
     >
       <Sheet open={open} onOpenChange={(value) => (value ? openAssistant() : setOpen(false))}>
         {children}
@@ -209,9 +229,17 @@ export function WorkspaceAssistantTrigger() {
 }
 export function WorkspaceComposer({ compact = false }: { compact?: boolean }) {
   const t = useT();
-  const { question, setQuestion, scope, setScope, busy, canKnowledge, send } =
-    useWorkspaceAssistant();
-  const [listening, setListening] = useState(false);
+  const {
+    question,
+    setQuestion,
+    scope,
+    setScope,
+    busy,
+    listening,
+    setListening,
+    canKnowledge,
+    send,
+  } = useWorkspaceAssistant();
   return (
     <form
       className="rounded-2xl border bg-card p-4 shadow-sm"
@@ -256,6 +284,7 @@ export function WorkspaceComposer({ compact = false }: { compact?: boolean }) {
           {canKnowledge && <option value="knowledge">{t("Conteúdos")}</option>}
         </select>
         <VoiceInput
+          recordingActive={listening}
           onListeningChange={setListening}
           disabled={busy}
           onTranscript={(text) =>

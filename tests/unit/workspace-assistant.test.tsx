@@ -138,11 +138,19 @@ describe("assistente global", () => {
     }
     Object.defineProperty(window, "SpeechRecognition", { configurable: true, value: Recognition });
     const view = render(<App />);
-    open();
     expect(start).not.toHaveBeenCalled();
-    fireEvent.change(input(), { target: { value: "Texto inicial" } });
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Falar" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Texto inicial" } });
+    fireEvent.click(screen.getByRole("button", { name: "Falar" }));
     expect(start).toHaveBeenCalledOnce();
+    open();
+    expect(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Enviar pergunta" }),
+    ).toBeDisabled();
+    expect(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Falar" }),
+    ).toBeDisabled();
+    fireEvent.keyDown(input(), { key: "Enter" });
+    expect(m.ask).not.toHaveBeenCalled();
     fireEvent.change(input(), { target: { value: "Texto revisado" } });
     act(() => {
       session.onresult({ results: [[{ transcript: "Minhas oportunidades" }]] });
