@@ -103,6 +103,8 @@ test.describe("J6.8 — anti-SSRF do outbound call_webhook (real, ponta a ponta)
     try {
       // --- fonte inbound (para gerar o lead que dispara a regra) ---
       await login(page, creds.users.manager!.email);
+      await page.getByRole("link", { name: "Todas as ferramentas" }).click();
+      await page.waitForURL(/\/app\/ferramentas/);
       await page.getByRole("link", { name: "Webhooks" }).click();
       await page.waitForURL(/\/app\/webhooks/);
       await page.getByRole("button", { name: /Nova fonte|Criar primeira fonte/ }).click();

@@ -67,7 +67,12 @@ export function SidebarContent({
         ) : logo && !collapsed ? (
           <div className="rounded-lg dark:bg-white dark:p-1 dark:shadow-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logo} alt={name} className="h-7 max-w-40 object-contain" />
+            <img
+              data-brand-layer="platform"
+              src={logo}
+              alt={name}
+              className="h-7 max-w-40 object-contain"
+            />
           </div>
         ) : (
           <span className="text-[22px] font-semibold tracking-[-0.06em]">
@@ -133,7 +138,7 @@ export function SidebarContent({
           </Link>
         </div>
       </nav>
-      <div className="shrink-0 px-3 pb-3 md:pb-[59px]">
+      <div className="shrink-0 px-3 pb-3 md:[@media(min-height:950px)]:pb-[59px]">
         {destinations.some((d) => d.group === "organizacao") && (
           <Link
             href="/app/settings"
@@ -146,7 +151,12 @@ export function SidebarContent({
             {!collapsed && <span>{t("Configurações")}</span>}
           </Link>
         )}
-        <div className={cn("mt-4 flex items-center justify-between gap-1 border-t border-border pt-3", collapsed && "flex-col")}>
+        <div
+          className={cn(
+            "mt-4 flex items-center justify-between gap-1 border-t border-border pt-3",
+            collapsed && "flex-col",
+          )}
+        >
           <VersionFooter collapsed={collapsed} onNavigate={onNavigate} />
           {showCollapseControl && (
             <button

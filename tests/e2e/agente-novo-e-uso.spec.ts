@@ -122,12 +122,15 @@ test.describe("Criar um agente pela tela", () => {
     }
     for (const id of ["model", "credential_id"]) {
       const gatilho = page.locator(`#${id}`);
-      if ((await gatilho.count()) === 0) continue;
+      // O catálogo chega por HTTP. "Carregando…" não é um modelo escolhido:
+      // o seletor só habilita quando há opções disponíveis para a pessoa.
+      await expect(gatilho).toBeEnabled();
       if (!/Selecione|Escolha/.test((await gatilho.textContent()) ?? "")) continue;
       await gatilho.click();
       const opcoes = page.getByRole("option");
       await expect(opcoes.first()).toBeVisible();
       await opcoes.first().click();
+      await expect(gatilho).not.toHaveText(/Selecione|Escolha|Carregando/);
     }
     // A draft deliberately has no connected channel and cannot start attending.
     const avancadas = page.locator("details").filter({ has: page.locator("#max_steps") });

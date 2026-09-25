@@ -32,6 +32,7 @@ export function TenantSwitcher({
         <div className="rounded-md dark:bg-white dark:p-1 dark:shadow-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
+            data-brand-layer="organization"
             src={active.marca.logoUrl}
             alt={active.marca.nome ?? active.name}
             className="h-7 w-7 rounded-md object-contain"

@@ -3,12 +3,12 @@
  *
  * O motor (`fn_activity_report`, migration 0217) já tem invariante contra
  * Postgres real. O que nunca tinha sido feito é o que este spec faz: abrir a
- * tela pela BARRA LATERAL, ler os números, trocar o período e conferir que a
+ * tela por TODAS AS FERRAMENTAS, ler os números, trocar o período e conferir que a
  * troca chegou ao servidor, e sair de uma linha do relatório para o negócio de
  * onde ela veio.
  *
  * ─── O que a tela precisa responder, e como se mede ────────────────────────
- *  · A PORTA existe: item "Atividades" no grupo Análise, e clicar nele leva à
+ *  · A PORTA existe: item "Atividades" na categoria Operação, e clicar nele leva à
  *    tela — não basta a rota responder a quem digita a URL.
  *  · Os TRÊS NÚMEROS (equipe / agentes / automático) somam o total. É a
  *    afirmação central da tela: um mês atendido pela IA e um mês atendido pela
@@ -20,20 +20,8 @@
  *    dias atrás só entram na conta do período maior.
  *  · Cada linha LEVA ao negócio. Relatório que só lista é decorativo.
  *
- * ─── ⚠️ O que este spec NÃO afirma, e por quê ──────────────────────────────
- * Que o item novo CABE na barra lateral. Não cabia: medido em 1280×900, logado
- * como admin, `nav.scrollHeight` = 776 contra `clientHeight` = 763 — 13 px de
- * excesso, com "Audit Log" abaixo da dobra. Removendo do DOM só o `<a>` de
- * `/app/activities` a mesma medida devolvia 763 contra 763: a barra cabia com
- * margem NENHUMA e este item era o que a estourava.
- *
- * O conserto NÃO foi raspar densidade, e sim `/app/analise` — o hub do grupo,
- * pela mesma regra que o comentário de `Sidebar.tsx` já escrevia (grupo sem hub
- * que passa de quatro telas ganha um). Evolução da IA e Audit Log saíram do
- * menu para dentro dele; Atividades ficou, e sobrou 19px de folga. Quem guarda
- * o invariante da dobra continua sendo `navegacao.spec.ts` ("nenhum grupo fica
- * fora da dobra, e em 900px o menu não rola") — duplicar a asserção aqui só
- * faria dois vermelhos para o mesmo fato.
+ * A altura da barra lateral é medida por `navegacao.spec.ts`; aqui a prova
+ * é descobrir e abrir o relatório pelo catálogo, incluindo o acesso viewer.
  *
  * Pré-requisitos (banco local do baseline, app buildada):
  *   pnpm e2e:env && pnpm e2e:build
@@ -274,7 +262,7 @@ test.describe("Relatório de atividades — o período, pela tela", () => {
     await limparFixtures();
   });
 
-  test("a porta existe na barra lateral, no grupo Análise, e leva à tela", async ({ page }) => {
+  test("a porta existe em Todas as ferramentas, na categoria Operação, e leva à tela", async ({ page }) => {
     const errosDeConsole: string[] = [];
     page.on("console", (m) => {
       if (m.type() === "error") errosDeConsole.push(m.text());
@@ -283,24 +271,17 @@ test.describe("Relatório de atividades — o período, pela tela", () => {
     await login(page, creds.users.manager!.email, creds.password);
 
     const sidebar = page.getByRole("navigation", { name: "Navegação principal" });
-    const item = sidebar.getByRole("link", { name: "Atividades", exact: true });
+    await sidebar.getByRole("link", { name: "Todas as ferramentas", exact: true }).click();
+    await page.waitForURL(/\/app\/ferramentas/);
+    const operacao = page.getByRole("region", { name: "Operação", exact: true });
+    const item = operacao.getByRole("link", { name: /^Atividades\b/ });
     await expect(item, "tela sem porta é tela que só existe para quem digita a URL").toBeVisible({
       timeout: 30_000,
     });
     expect(await item.getAttribute("href")).toBe("/app/activities");
 
-    // O grupo importa: "Atividades" é irmã de Desempenho e Audit Log, não de
-    // Inbox. Ir parar no grupo errado é a diferença entre achar e caçar.
-    const grupo = await item.evaluate((a) => {
-      let el: Element | null = a;
-      while (el && el.previousElementSibling === null) el = el.parentElement;
-      // sobe até achar o cabeçalho de grupo mais próximo acima
-      const titulos = [...document.querySelectorAll('nav[aria-label="Navegação principal"] h2')];
-      const y = a.getBoundingClientRect().top;
-      const acima = titulos.filter((h) => h.getBoundingClientRect().top < y);
-      return (acima[acima.length - 1]?.textContent ?? "").trim();
-    });
-    expect(grupo, "Atividades pertence ao grupo Análise").toMatch(/an[áa]lise/i);
+    // A categoria mantém o relatório junto aos números da operação.
+    await expect(operacao.getByRole("heading", { name: "Operação", exact: true })).toBeVisible();
 
     await item.click();
     await page.waitForURL(/\/app\/activities/, { timeout: 30_000 });
@@ -435,11 +416,13 @@ test.describe("Relatório de atividades — o período, pela tela", () => {
     // rota é `viewer` de propósito: um piso mais alto esconderia da pessoa as
     // atividades dela mesma.
     const sidebar = page.getByRole("navigation", { name: "Navegação principal" });
-    await expect(sidebar.getByRole("link", { name: "Atividades", exact: true })).toBeVisible({
-      timeout: 30_000,
-    });
-
-    await page.goto("/app/activities");
+    await sidebar.getByRole("link", { name: "Todas as ferramentas", exact: true }).click();
+    await page.waitForURL(/\/app\/ferramentas/);
+    const item = page.getByRole("region", { name: "Operação", exact: true })
+      .getByRole("link", { name: /^Atividades\b/ });
+    await expect(item).toBeVisible({ timeout: 30_000 });
+    await item.click();
+    await page.waitForURL(/\/app\/activities/);
     await expect(page.getByRole("heading", { name: "Atividades", level: 1 })).toBeVisible({
       timeout: 30_000,
     });

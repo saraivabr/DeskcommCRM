@@ -196,6 +196,7 @@ async function connectHandles(
   const target = page.locator(
     `.react-flow__node[data-id="${targetNodeId}"] .react-flow__handle.target`,
   );
+  const edgesBefore = await page.locator(".react-flow__edge").count();
   const sBox = await source.boundingBox();
   const tBox = await target.boundingBox();
   if (!sBox || !tBox) throw new Error(`handle não encontrado: ${sourceNodeId} -> ${targetNodeId}`);
@@ -204,7 +205,12 @@ async function connectHandles(
   await page.mouse.move(sBox.x + sBox.width / 2 + 5, sBox.y + sBox.height / 2 + 5, { steps: 3 });
   await page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2, { steps: 12 });
   await page.mouse.up();
-  await page.waitForTimeout(200);
+  // Uma falha no gesto deve apontar o par que faltou, sem deslocar os IDs
+  // usados pelo editor de condições mais adiante.
+  await expect(page.locator(".react-flow__edge"), `${sourceNodeId} -> ${targetNodeId}`)
+    .toHaveCount(edgesBefore + 1);
+  await expect(page.locator(".react-flow__edge").last())
+    .toHaveAttribute("aria-label", `Edge from ${sourceNodeId} to ${targetNodeId}`);
 }
 
 /** Flow-space position from the node's own transform — not the viewport box. */
@@ -693,6 +699,8 @@ test.describe("followup flow builder — editor de condição de aresta / ai_cla
   test("ai_classify só publica depois de configurar class_match/no_reply/always nas arestas de saída", async ({
     page,
   }) => {
+    // O grafo de seis nós precisa de espaço para a ligação manual e seus rótulos.
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await login(page, creds.users.manager!.email);
 
     await page.goto("/app/ai/followups");
@@ -739,15 +747,19 @@ test.describe("followup flow builder — editor de condição de aresta / ai_cla
 
     // 1b. Spread the 6 nodes into a real branching layout (source above target, siblings
     // apart on X) — see `moveNodeTo` for why the default add-grid can't be used here.
-    const canvasBox = await page.getByTestId("flow-canvas").boundingBox();
+    const canvasBox = await page.locator(".react-flow").boundingBox();
     if (!canvasBox) throw new Error("flow-canvas sem bounding box");
-    const at = (dx: number, dy: number): [number, number] => [canvasBox.x + dx, canvasBox.y + dy];
-    await moveNodeTo(page, triggerId, ...at(150, 60));
-    await moveNodeTo(page, classifyId, ...at(150, 220));
-    await moveNodeTo(page, action1Id, ...at(50, 420));
-    await moveNodeTo(page, action2Id, ...at(400, 420));
-    await moveNodeTo(page, end1Id, ...at(225, 620));
-    await moveNodeTo(page, end2Id, ...at(650, 220));
+    const viewport = page.viewportSize()!;
+    const visibleHeight = Math.min(canvasBox.height, viewport.height - canvasBox.y);
+    const at = (x: number, y: number): [number, number] => [
+      canvasBox.x + canvasBox.width * x, canvasBox.y + visibleHeight * y,
+    ];
+    await moveNodeTo(page, triggerId, ...at(0.3, 0.08));
+    await moveNodeTo(page, classifyId, ...at(0.3, 0.22));
+    await moveNodeTo(page, action1Id, ...at(0.15, 0.61));
+    await moveNodeTo(page, action2Id, ...at(0.6, 0.61));
+    await moveNodeTo(page, end1Id, ...at(0.38, 0.87));
+    await moveNodeTo(page, end2Id, ...at(0.85, 0.3));
 
     // 2. Configure ai_classify classes = positivo, objecao (no lugar do padrão Interessado/Sem interesse).
     await page.locator(`[data-testid="node-card-${classifyId}"]`).click();
