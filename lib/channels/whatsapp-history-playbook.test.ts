@@ -31,4 +31,25 @@ describe("playbook do histórico do WhatsApp", () => {
     expect(valid.evidenceIds).toEqual(["C1", "C2"]);
     expect(valid.content).toContain("## Jornada de atendimento observada");
   });
+
+  it("identifica ofertas enviadas mesmo sem resposta, deduplica campanhas e exclui resumos automáticos", () => {
+    const rows = [
+      row("s1", "lead-a", "outbound", "Criei um sistema de atendimento com agentes de IA para empresas. Posso te mostrar uma demonstração?"),
+      row("s2", "lead-b", "outbound", "Criei um sistema de atendimento com agentes de IA para empresas. Posso te mostrar uma demonstração?"),
+      row("s3", "lead-c", "outbound", "Criamos páginas para negócios locais. Posso enviar um exemplo de site para a sua empresa?"),
+      row("s4", "lead-d", "outbound", "🤖 Resumo da conversa: o cliente falou de atendimento, empresa e sistema de IA."),
+      row("s5", "lead-e", "outbound", "Estamos combinando de nos encontrar com a família no sábado à tarde."),
+    ];
+    const selected = selectBusinessCases(rows, "BR");
+    expect(selected).toHaveLength(2);
+    expect(selected.map((item) => item.messageIds)).toEqual([["s1"], ["s3"]]);
+    expect(selected.every((item) => item.kind === "offer")).toBe(true);
+    expect(selected[0]?.text).toContain("Oferta enviada pela empresa");
+  });
+
+  it("rejeita negócio não identificado quando existem ofertas comprovadas", () => {
+    const payload = JSON.stringify({ business: "não identificado", audience: "Empresas", offer: "não identificado",
+      journey: [], questions: [], objections: [], tone: "Direto", unknowns: [], evidence: ["C1", "C2"] });
+    expect(() => parseBusinessDraft(payload, ["C1", "C2"], true)).toThrow("history_playbook_business_not_identified");
+  });
 });
