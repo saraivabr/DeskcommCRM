@@ -57,10 +57,12 @@ begin
   if not exists(select 1 from public.channel_sessions s where s.id=new.channel_session_id and s.organization_id=new.organization_id) then
     raise exception 'history_session_tenant_mismatch' using errcode='23514';
   end if;
-  if tg_table_name='whatsapp_history_messages' and not exists(
-    select 1 from public.contacts c where c.id=new.contact_id and c.organization_id=new.organization_id and not c.is_anonymized
-  ) then
-    raise exception 'history_contact_unavailable' using errcode='23514';
+  if tg_table_name='whatsapp_history_messages' then
+    if not exists(
+      select 1 from public.contacts c where c.id=new.contact_id and c.organization_id=new.organization_id and not c.is_anonymized
+    ) then
+      raise exception 'history_contact_unavailable' using errcode='23514';
+    end if;
   end if;
   return new;
 end;$$;

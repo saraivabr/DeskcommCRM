@@ -36856,10 +36856,12 @@ begin
   if not exists(select 1 from public.channel_sessions s where s.id=new.channel_session_id and s.organization_id=new.organization_id) then
     raise exception 'history_session_tenant_mismatch' using errcode='23514';
   end if;
-  if tg_table_name='whatsapp_history_messages' and not exists(
-    select 1 from public.contacts c where c.id=new.contact_id and c.organization_id=new.organization_id and not c.is_anonymized
-  ) then
-    raise exception 'history_contact_unavailable' using errcode='23514';
+  if tg_table_name='whatsapp_history_messages' then
+    if not exists(
+      select 1 from public.contacts c where c.id=new.contact_id and c.organization_id=new.organization_id and not c.is_anonymized
+    ) then
+      raise exception 'history_contact_unavailable' using errcode='23514';
+    end if;
   end if;
   return new;
 end;$$;
@@ -37846,6 +37848,24 @@ create or replace view public.whatsapp_history_pending_analysis with (security_i
   where h.direction='inbound' and a.message_id is null;
 revoke all on public.whatsapp_history_pending_analysis from anon,authenticated;
 grant select on public.whatsapp_history_pending_analysis to service_role;
+
+-- A RPC formal de LGPD deve declarar explicitamente o arquivo histórico na cascata.
+-- O gatilho da ficha já apaga e cria a supressão; este passo é idempotente depois dele.
+do $history_cascade$
+declare
+  definition text;
+  marker text := '  -- 2. conversations metadata + preview strip';
+begin
+  select pg_get_functiondef('public.fn_lgpd_cascade_redact_contact(uuid,uuid,uuid)'::regprocedure) into definition;
+  if position('delete from public.whatsapp_history_messages' in definition) > 0 then return; end if;
+  if position(marker in definition) = 0 then
+    raise exception 'history_cascade_marker_missing';
+  end if;
+  definition := replace(definition, marker,
+    '  delete from public.whatsapp_history_messages where organization_id = p_organization_id and contact_id = p_contact_id;'
+    || E'\n\n' || marker);
+  execute definition;
+end $history_cascade$;
 
 
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----

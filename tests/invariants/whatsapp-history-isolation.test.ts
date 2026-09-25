@@ -11,6 +11,8 @@ beforeAll(() => {
       insert into public.user_organizations(user_id,organization_id,role,accepted_at) values ('${x.user}','${x.org}','manager',now()) on conflict do nothing;
       insert into public.channel_sessions(id,organization_id,waha_session_name,webhook_secret_encrypted) values ('${x.session}','${x.org}','history-${label}','\\x00'::bytea);
       insert into public.contacts(id,organization_id,display_name) values ('${x.contact}','${x.org}','Pessoa ${label}') on conflict do nothing;
+      insert into public.whatsapp_history_syncs(organization_id,channel_session_id,status) values ('${x.org}','${x.session}','complete');
+      insert into public.whatsapp_history_erased_chats(organization_id,salt,chat_hash) values ('${x.org}',extensions.gen_random_bytes(32),extensions.gen_random_bytes(32));
       insert into public.whatsapp_history_messages(organization_id,channel_session_id,contact_id,chat_id,external_id,direction,body,sent_at)
        values ('${x.org}','${x.session}','${x.contact}','5511999999999@c.us','msg-${label}','inbound','segredo ${label}',now());
       insert into public.whatsapp_history_analysis(message_id,organization_id,intent,objection,confidence)
@@ -36,6 +38,17 @@ describe("histórico importado isolado e redigido", () => {
       select set_config('request.jwt.claims','{"sub":"${a.user}"}',false);
       select count(*) from public.whatsapp_history_analysis;`).trim().split("\n").at(-1);
     expect(analysis).toBe("1");
+    const syncs = sql(`set role authenticated;
+      select set_config('request.jwt.claims','{"sub":"${a.user}"}',false);
+      select count(*) from public.whatsapp_history_syncs;`).trim().split("\n").at(-1);
+    expect(syncs).toBe("1");
+    let erasedReadError = "";
+    try {
+      sql(`set role authenticated;
+        select set_config('request.jwt.claims','{"sub":"${a.user}"}',false);
+        select count(*) from public.whatsapp_history_erased_chats;`);
+    } catch (error) { erasedReadError = motivoDoErro(error); }
+    expect(erasedReadError).toMatch(/permission denied/);
   });
 
   it("FK de outra organização é recusada mesmo via service role", () => {
