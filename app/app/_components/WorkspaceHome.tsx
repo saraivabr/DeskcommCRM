@@ -15,6 +15,7 @@ export function WorkspaceHome() {
 function WorkspaceSession() {
   const t = useT();
   const { user } = useAuth();
+  const firstName = user.full_name?.trim().split(/\s+/)[0];
   const { openAssistant, busy } = useWorkspaceAssistant();
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
@@ -31,9 +32,8 @@ function WorkspaceSession() {
       <div className={styles.welcome}>
         <span>
           {now
-            ? t(now.getHours() < 12 ? "Bom dia" : now.getHours() < 18 ? "Boa tarde" : "Boa noite")
+            ? `${t(now.getHours() < 12 ? "Bom dia" : now.getHours() < 18 ? "Boa tarde" : "Boa noite")}${firstName ? `, ${firstName}` : ""}.`
             : "\u00a0"}
-          {now ? `${user.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}.` : ""}
         </span>
         <span className={styles.date}>
           {now?.toLocaleDateString(user.idioma, {
