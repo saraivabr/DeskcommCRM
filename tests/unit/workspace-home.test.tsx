@@ -2,89 +2,91 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { WorkspaceHome } from "@/app/app/_components/WorkspaceHome";
 const mocks = vi.hoisted(() => ({
-  ask: vi.fn(),
-  auth: {
-    user: { id: "u1", is_platform_admin: false },
-    activeOrg: { orgId: "org1", name: "Empresa", role: "admin" },
-  },
+  overview: vi.fn(),
+  open: vi.fn(),
+  auth: { user: { id: "u1" }, activeOrg: { orgId: "org1", name: "Empresa", role: "admin" } },
 }));
-vi.mock("@/app/app/_workspace-action", () => ({ askWorkspace: mocks.ask }));
+vi.mock("@/app/app/_home-action", () => ({ getHomeOverview: mocks.overview }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({ useAuth: () => mocks.auth }));
+vi.mock("@/components/workspace/WorkspaceAssistant", () => ({
+  WorkspaceComposer: () => <div>Composer compartilhado</div>,
+  useWorkspaceAssistant: () => ({ openAssistant: mocks.open, canKnowledge: true, busy: false }),
+}));
+function response(canSeeTeam = false) {
+  return {
+    ok: true,
+    data: {
+      scope: "mine",
+      canSeeTeam,
+      updatedAt: "2026-09-25T12:00:00Z",
+      attention: [
+        {
+          id: "tasks",
+          label: "Tarefas atrasadas",
+          description: "Prazo vencido",
+          href: "/app/tasks",
+          count: null,
+        },
+      ],
+      movement: [],
+      activities: [],
+    },
+  };
+}
 beforeEach(() => {
   mocks.auth.activeOrg.orgId = "org1";
-  mocks.ask.mockReset();
+  mocks.open.mockReset();
+  mocks.overview.mockReset().mockResolvedValue(response());
 });
-function send() {
-  fireEvent.change(screen.getByLabelText("O que você quer saber sobre seu CRM?"), {
-    target: { value: "Resumo" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Enviar pergunta" }));
-}
-describe("espaço conversacional", () => {
-  it("Enter envia uma vez; Shift, composição e repetição preservam a edição", async () => {
-    mocks.ask.mockResolvedValue({ ok: true, answer: "Resposta", sources: [], notice: "" });
+describe("Home produtiva", () => {
+  it("usa título aprovado, composer único e padrão pessoal sem opção equipe não autorizada", async () => {
     render(<WorkspaceHome />);
-    const input = screen.getByLabelText("O que você quer saber sobre seu CRM?");
-    fireEvent.change(input, { target: { value: "Resumo" } });
-    for (const options of [{ shiftKey: true }, { isComposing: true }, { repeat: true }]) {
-      fireEvent.keyDown(input, { key: "Enter", ...options });
-    }
-    expect(mocks.ask).not.toHaveBeenCalled();
-    fireEvent.keyDown(input, { key: "Enter" });
-    fireEvent.keyDown(input, { key: "Enter" });
-    await screen.findByText("Resposta");
-    expect(mocks.ask).toHaveBeenCalledTimes(1);
-    expect(input).toHaveValue("");
+    expect(screen.getByRole("heading", { name: "O que vamos resolver hoje?" })).toBeInTheDocument();
+    expect(screen.getByText("Composer compartilhado")).toBeInTheDocument();
+    await screen.findByText("Tarefas atrasadas");
+    expect(mocks.overview).toHaveBeenCalledWith({ scope: "mine", days: 7 });
+    expect(screen.queryByRole("option", { name: "Ver a equipe" })).toBeNull();
+    expect(
+      screen.getByText("Não foi possível consultar. Atualize para tentar novamente."),
+    ).toBeInTheDocument();
   });
-  it("sugestão preenche a pergunta sem executar chamada", () => {
+  it("opção da equipe depende da autorização devolvida pelo servidor e troca consulta", async () => {
+    mocks.overview.mockResolvedValue(response(true));
     render(<WorkspaceHome />);
-    fireEvent.click(screen.getByRole("button", { name: "Resuma as conversas recentes" }));
-    expect(screen.getByLabelText("Onde consultar")).toHaveValue("conversations");
-    expect(mocks.ask).not.toHaveBeenCalled();
-  });
-  it("apresenta fontes reais e mantém histórico para continuidade", async () => {
-    mocks.ask.mockResolvedValue({
-      ok: true,
-      answer: "Ana pediu retorno.",
-      sources: [
-        { id: "c1", title: "Ana", kind: "Conversa", href: "/app/inbox?id=c1", text: "Retorno" },
-      ],
-      notice: "Recorte recente",
+    await screen.findByRole("option", { name: "Ver a equipe" });
+    fireEvent.change(screen.getByRole("combobox", { name: "Escopo das pendências" }), {
+      target: { value: "team" },
     });
-    render(<WorkspaceHome />);
-    send();
-    await screen.findByText("Ana pediu retorno.");
-    expect(screen.getByRole("link", { name: /Conversa.*Ana/ })).toHaveAttribute(
-      "href",
-      "/app/inbox?id=c1",
+    await waitFor(() =>
+      expect(mocks.overview).toHaveBeenLastCalledWith({ scope: "team", days: 7 }),
     );
-    send();
-    await waitFor(() => expect(mocks.ask).toHaveBeenCalledTimes(2));
-    expect(mocks.ask.mock.calls[1]?.[0].history).toHaveLength(2);
   });
-  it("não perde pergunta na falha nem apresenta sucesso fictício", async () => {
-    mocks.ask.mockRejectedValue(new Error("offline"));
+  it("falha fica visível e permite repetir", async () => {
+    mocks.overview.mockRejectedValueOnce(new Error("offline"));
     render(<WorkspaceHome />);
-    send();
     await screen.findByRole("alert");
-    expect(screen.getByLabelText("O que você quer saber sobre seu CRM?")).toHaveValue("Resumo");
-    expect(screen.queryByLabelText("Conversa com seu CRM")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar operação" }));
+    await screen.findByText("Tarefas atrasadas");
   });
-  it("não leva conversa de uma organização para outra", async () => {
-    mocks.ask.mockResolvedValue({
-      ok: true,
-      answer: "Informação privada",
-      sources: [],
-      notice: "",
-    });
+  it("troca organização limpa dados e volta ao escopo pessoal", async () => {
+    mocks.overview.mockResolvedValue(response(true));
     const view = render(<WorkspaceHome />);
-    send();
-    await screen.findByText("Informação privada");
+    await screen.findByText("Tarefas atrasadas");
+    fireEvent.change(screen.getByRole("combobox", { name: "Escopo das pendências" }), {
+      target: { value: "team" },
+    });
+    await waitFor(() =>
+      expect(mocks.overview).toHaveBeenLastCalledWith({ scope: "team", days: 7 }),
+    );
     mocks.auth.activeOrg.orgId = "org2";
     view.rerender(<WorkspaceHome />);
-    expect(screen.queryByText("Informação privada")).toBeNull();
-    send();
-    await waitFor(() => expect(mocks.ask).toHaveBeenCalledTimes(2));
-    expect(mocks.ask.mock.calls[1]?.[0].history).toEqual([]);
+    await waitFor(() =>
+      expect(mocks.overview).toHaveBeenLastCalledWith({ scope: "mine", days: 7 }),
+    );
+  });
+  it("sugestão abre o assistente compartilhado com escopo", () => {
+    render(<WorkspaceHome />);
+    fireEvent.click(screen.getByRole("button", { name: "Resuma as conversas recentes" }));
+    expect(mocks.open).toHaveBeenCalledWith("Resuma as conversas recentes", "conversations");
   });
 });

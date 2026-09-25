@@ -1,6 +1,6 @@
 /** Destinos diários visíveis; catálogo completo buscável com o mesmo RBAC. */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 
 import { Sidebar } from "@/components/shell/Sidebar";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
@@ -46,24 +46,27 @@ describe("Navegação leve do escreve.ai", () => {
       "href",
       "/app/ai/agents",
     );
-    expect(screen.getByRole("link", { name: "Escreve aí" })).toHaveAttribute("href", "/app");
+    expect(screen.getByRole("link", { name: "Início" })).toHaveAttribute("href", "/app");
     expect(screen.queryByRole("heading")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Todas as ferramentas" }));
-    expect(screen.getByRole("option", { name: /Etapas do funil/ })).toBeVisible();
-    expect(screen.getByRole("option", { name: /Audit Log/ })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Todas as ferramentas" })).toHaveAttribute(
+      "href",
+      "/app/ferramentas",
+    );
+    expect(screen.getByText("Trabalhar")).toBeVisible();
+    expect(screen.getByText("Criar")).toBeVisible();
+    expect(screen.getByText("Organizar")).toBeVisible();
   });
   it("não oferece áreas administrativas ao atendente", () => {
     comoPapel("agent");
     render(<Sidebar collapsed={false} />);
     expect(screen.queryByRole("link", { name: "Funcionários" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Todas as ferramentas" }));
-    expect(screen.queryByRole("option", { name: /Credenciais|Audit Log/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Prospecção" })).toBeNull();
   });
   it("a barra recolhida mantém nomes acessíveis e destino ativo", () => {
     comoPapel("admin");
     render(<Sidebar collapsed />);
     expect(screen.getByRole("link", { name: "Inbox" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("button", { name: "Todas as ferramentas" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Todas as ferramentas" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Expandir sidebar" })).toBeVisible();
   });
 });

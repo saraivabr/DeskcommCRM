@@ -46,6 +46,9 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/app/ai/followups/test" 
 vi.mock("@/components/shell/JourneyGuide", () => ({ JourneyGuide: () => null }));
 vi.mock("gsap", () => ({ gsap: { matchMedia: () => ({ add: () => {}, revert: () => {} }) } }));
 vi.mock("@/components/shell/Sidebar", () => ({ Sidebar: () => null }));
+vi.mock("@/components/workspace/WorkspaceAssistant", () => ({
+  WorkspaceAssistantProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
 vi.mock("@/components/shell/TopBar", () => ({ TopBar: () => null }));
 vi.mock("@/components/shell/BarraDeProgressoNavegacao", () => ({
   BarraDeProgressoNavegacao: () => null,

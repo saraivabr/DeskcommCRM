@@ -17,20 +17,14 @@
       "label": "Banco"
     }
   ],
-  "mainPath": [
-    "ui",
-    "action",
-    "context",
-    "model",
-    "destinations"
-  ],
+  "mainPath": ["ui", "action", "context", "model", "destinations"],
   "nodes": [
     {
       "id": "ui",
       "lane": "app",
       "col": 0,
       "type": "service",
-      "label": "/app: pergunta, fontes e recuperação de falha"
+      "label": "Home e assistente global: pergunta, fontes e recuperação de falha"
     },
     {
       "id": "action",
@@ -73,6 +67,27 @@
       "col": 6,
       "type": "service",
       "label": "Inbox, Funis, Conhecimento: links para conferência"
+    },
+    {
+      "id": "overview",
+      "lane": "app",
+      "col": 0,
+      "type": "service",
+      "label": "WorkspaceOverview: minhas pendências / equipe autorizada"
+    },
+    {
+      "id": "homeAction",
+      "lane": "app",
+      "col": 1,
+      "type": "service",
+      "label": "getHomeOverview: sessão, escopo validado e consultas independentes"
+    },
+    {
+      "id": "catalog",
+      "lane": "app",
+      "col": 0,
+      "type": "service",
+      "label": "Todas as ferramentas: projeção do catálogo com permissões"
     }
   ],
   "edges": [
@@ -110,6 +125,36 @@
       "from": "ui",
       "to": "destinations",
       "label": "conferir fonte"
+    },
+    {
+      "from": "overview",
+      "to": "homeAction",
+      "label": "minhas/equipe, 7/30 dias"
+    },
+    {
+      "from": "homeAction",
+      "to": "db",
+      "label": "RLS + organização + atribuição pessoal"
+    },
+    {
+      "from": "homeAction",
+      "to": "overview",
+      "label": "contagens ou indisponibilidade explícita"
+    },
+    {
+      "from": "overview",
+      "to": "destinations",
+      "label": "retomar operação nas telas existentes"
+    },
+    {
+      "from": "ui",
+      "to": "catalog",
+      "label": "navegação persistente"
+    },
+    {
+      "from": "catalog",
+      "to": "destinations",
+      "label": "destinos autorizados"
     }
   ]
 }

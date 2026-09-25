@@ -30,7 +30,11 @@ export interface NavGroup {
   hub?: { href: string; label: string };
 }
 
+export type WorkspaceSection = "trabalhar" | "criar" | "organizar";
+
 export interface NavMetadata {
+  /** Projeção compacta do menu diário; o catálogo completo preserva todas as portas. */
+  workspace?: { section: WorkspaceSection; order: number; label?: string };
   href: string;
   label: string;
   /** Aparece no card do hub e é texto buscável no ⌘K. Nunca vazio. */
@@ -111,7 +115,15 @@ export const GRUPO_NO_RODAPE: NavGroupId = "organizacao";
  */
 export const NAV_CATALOG = [
   {
+    href: "/app/ferramentas",
+    label: "Todas as ferramentas",
+    description: "Encontre o que precisa para atender, vender, criar e organizar sua operação.",
+    icon: "Signpost",
+    group: "atendimento",
+  },
+  {
     href: "/app/instagram",
+    workspace: { section: "criar", order: 1, label: "Conteúdo" },
     label: "Instagram",
     description: "Crie imagens, encontre referências e entenda seus resultados.",
     icon: "InstagramLogo",
@@ -147,7 +159,7 @@ export const NAV_CATALOG = [
   },
   {
     href: "/app",
-    label: "Escreve aí",
+    label: "Início",
     description: "Converse com o conteúdo do seu CRM e encontre seu próximo passo.",
     icon: "Sparkle",
     group: "atendimento",
@@ -183,6 +195,7 @@ export const NAV_CATALOG = [
     // (ver doc 47), este item volta ao sidebar — é o primeiro da fila, porque
     // saiu por falta de espaço e não por decisão de produto.
     href: "/app/prospecting",
+    workspace: { section: "trabalhar", order: 2 },
     label: "Prospecção",
     description: "Encontre empresas, delegue a um BDR e acompanhe cada conversa até o funil.",
     icon: "Funnel",
@@ -193,6 +206,7 @@ export const NAV_CATALOG = [
   // ---- Atendimento — onde o operador passa o dia ----
   {
     href: "/app/inbox",
+    workspace: { section: "trabalhar", order: 1 },
     label: "Inbox",
     description: "As conversas de WhatsApp, com você e a IA atendendo lado a lado.",
     icon: "Inbox",
@@ -221,6 +235,7 @@ export const NAV_CATALOG = [
     // tela, quando o que faltava era o CAMINHO até ela. O aviso da Agenda agora
     // aponta para `/app/team?aba=atendimento`.
     href: "/app/agenda",
+    workspace: { section: "trabalhar", order: 4 },
     label: "Agenda",
     description: "O que está marcado, com quem, e quem atende — seu e da equipe.",
     icon: "CalendarBlank",
@@ -252,6 +267,7 @@ export const NAV_CATALOG = [
     // abre o quadro de cada um. "Pipeline" é palavra de quem construiu o
     // sistema; "funil de vendas" é palavra de quem vende.
     href: "/app/kanban",
+    workspace: { section: "trabalhar", order: 3 },
     label: "Funis",
     description: "Seus funis de venda — clique em um para abrir o quadro de clientes.",
     icon: "Kanban",
@@ -275,6 +291,7 @@ export const NAV_CATALOG = [
   },
   {
     href: "/app/contacts",
+    workspace: { section: "organizar", order: 1 },
     label: "Contatos",
     description: "As pessoas do outro lado da conversa e seu histórico.",
     icon: "Users",
@@ -457,6 +474,7 @@ export const NAV_CATALOG = [
   // ---- Funcionários digitais — montar, ensinar, acompanhar ----
   {
     href: "/app/ai/agents",
+    workspace: { section: "criar", order: 2 },
     label: "Funcionários",
     description: "Sua equipe digital por função: SDR, BDR, Closer, atendimento e operações.",
     icon: "UsersThree",

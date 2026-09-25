@@ -107,11 +107,11 @@ describe("o desenho na barra lateral", () => {
     expect(document.querySelector("svg[role=img]")).toBeNull();
   });
 
-  it("com nome da ORGANIZAÇÃO sobre a instalação padrão, o nome dela vence o desenho", () => {
+  it("com nome da organização, preserva o desenho da instalação e identifica o espaço", () => {
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
     renderSidebar(PADRAO, false);
     expect(screen.getByText("Loja da Ana")).toBeTruthy();
-    expect(document.querySelector("svg[role=img]")).toBeNull();
+    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME })).toBeTruthy();
   });
 
   it("com logo da instalação, a imagem vence o desenho", () => {

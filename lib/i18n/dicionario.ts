@@ -37,6 +37,128 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "Converse com sua operação. Veja o que precisa de você.": {
+    es: "Conversa con tu operación. Mira qué necesita tu atención.",
+  },
+  "Precisa de você": { es: "Necesita tu atención" },
+  "Escopo das pendências": { es: "Alcance de los pendientes" },
+  "Minhas pendências": { es: "Mis pendientes" },
+  "Ver a equipe": { es: "Ver el equipo" },
+  "Atualizar operação": { es: "Actualizar operación" },
+  "Consultando sua operação…": { es: "Consultando tu operación…" },
+  "Movimento da operação": { es: "Actividad de la operación" },
+  "Período dos indicadores": { es: "Período de los indicadores" },
+  "Últimas mensagens nas conversas deste escopo.": {
+    es: "Últimos mensajes en las conversaciones de este alcance.",
+  },
+  "Não foi possível consultar as atividades. Tente atualizar.": {
+    es: "No se pudieron consultar las actividades. Intenta actualizar.",
+  },
+  "Nenhuma atividade acessível neste escopo.": {
+    es: "No hay actividad accesible en este alcance.",
+  },
+  "Consultado em": { es: "Consultado el" },
+  "Atualize para consultar novamente.": { es: "Actualiza para consultar de nuevo." },
+  "SEU ESPAÇO DE TRABALHO": { es: "TU ESPACIO DE TRABAJO" },
+  "Encontre o que precisa para atender, vender, criar e organizar sua operação.": {
+    es: "Encuentra lo que necesitas para atender, vender, crear y organizar tu operación.",
+  },
+  "Buscar ferramentas": { es: "Buscar herramientas" },
+  "O que você precisa fazer?": { es: "¿Qué necesitas hacer?" },
+  "Categorias de ferramentas": { es: "Categorías de herramientas" },
+  "Nenhuma ferramenta encontrada": { es: "No se encontraron herramientas" },
+  "Tente outra palavra ou veja todas as categorias.": {
+    es: "Prueba otra palabra o consulta todas las categorías.",
+  },
+  "Espaço de trabalho": { es: "Espacio de trabajo" },
+  "A entrada por voz não está disponível neste navegador. Você pode digitar sua pergunta.": {
+    es: "La entrada por voz no está disponible en este navegador. Puedes escribir tu pregunta.",
+  },
+  "Texto transcrito. Revise a pergunta antes de enviar.": {
+    es: "Texto transcrito. Revisa la pregunta antes de enviarla.",
+  },
+  "Não foi possível transcrever. Confira a permissão do microfone ou digite sua pergunta.": {
+    es: "No se pudo transcribir. Comprueba el permiso del micrófono o escribe tu pregunta.",
+  },
+  "Ouvindo. A transcrição ficará no campo para você revisar.": {
+    es: "Escuchando. La transcripción quedará en el campo para que la revises.",
+  },
+  "Não foi possível iniciar o microfone. Você pode digitar sua pergunta.": {
+    es: "No se pudo iniciar el micrófono. Puedes escribir tu pregunta.",
+  },
+  "Transcrever pelo navegador; o serviço de voz do navegador pode processar o áudio.": {
+    es: "Transcribir mediante el navegador; el servicio de voz del navegador puede procesar el audio.",
+  },
+  "Converse com sua operação. Somente leitura, com suas permissões.": {
+    es: "Conversa con tu operación. Solo lectura, con tus permisos.",
+  },
+  "Pergunte sobre conversas, oportunidades ou conteúdos. Confira o recorte e as fontes de cada resposta.":
+    {
+      es: "Pregunta sobre conversaciones, oportunidades o contenidos. Consulta el alcance y las fuentes de cada respuesta.",
+    },
+  "Fontes e recorte da consulta": { es: "Fuentes y alcance de la consulta" },
+  "Resposta recebida às": { es: "Respuesta recibida a las" },
+  "Não acompanha alterações posteriores automaticamente.": {
+    es: "No refleja los cambios posteriores automáticamente.",
+  },
+  "Nenhuma fonte foi encontrada neste recorte.": {
+    es: "No se encontró ninguna fuente en este alcance.",
+  },
+  "Consultando seu espaço…": { es: "Consultando tu espacio…" },
+  "Somente leitura. Enter envia; Shift + Enter quebra a linha.": {
+    es: "Solo lectura. Enter envía; Shift + Enter inserta un salto de línea.",
+  },
+  "Itens atribuídos a você. Registros sem responsável ficam fora desta visão.": {
+    es: "Elementos asignados a ti. Los registros sin responsable quedan fuera de esta vista.",
+  },
+  "Itens da equipe visíveis com suas permissões.": {
+    es: "Elementos del equipo visibles con tus permisos.",
+  },
+  "Não foi possível consultar. Atualize para tentar novamente.": {
+    es: "No se pudo consultar. Actualiza para volver a intentarlo.",
+  },
+  "Registros atualmente atribuídos a você. Indicadores independentes, sem atribuição entre eles.": {
+    es: "Registros actualmente asignados a ti. Indicadores independientes, sin atribución entre ellos.",
+  },
+  "Registros visíveis da equipe. Indicadores independentes, sem atribuição entre eles.": {
+    es: "Registros visibles del equipo. Indicadores independientes, sin atribución entre ellos.",
+  },
+  "Consulta indisponível": { es: "Consulta no disponible" },
+  "A conexão falhou. Tente atualizar novamente.": {
+    es: "La conexión falló. Intenta actualizar de nuevo.",
+  },
+  "Escolha um período e um escopo válidos.": { es: "Elige un período y un alcance válidos." },
+  "Não foi possível autorizar esta consulta. Confira sua sessão e suas permissões.": {
+    es: "No se pudo autorizar esta consulta. Comprueba tu sesión y tus permisos.",
+  },
+  "Não foi possível carregar sua operação. Tente atualizar novamente.": {
+    es: "No se pudo cargar tu operación. Intenta actualizar de nuevo.",
+  },
+  "Conversas abertas": { es: "Conversaciones abiertas" },
+  "Conversas atribuídas, ainda não fechadas nem arquivadas.": {
+    es: "Conversaciones asignadas que aún no se han cerrado ni archivado.",
+  },
+  "Fechamentos previstos vencidos": { es: "Cierres previstos vencidos" },
+  "Oportunidades abertas com data prevista de fechamento anterior a hoje (UTC).": {
+    es: "Oportunidades abiertas con fecha prevista de cierre anterior a hoy (UTC).",
+  },
+  "Tarefas atrasadas": { es: "Tareas atrasadas" },
+  "Tarefas pendentes ou em andamento cujo prazo já passou.": {
+    es: "Tareas pendientes o en curso cuyo plazo ya venció.",
+  },
+  "Criadas no período.": { es: "Creadas en el período." },
+  "Oportunidades criadas": { es: "Oportunidades creadas" },
+  "Compromissos no período": { es: "Citas en el período" },
+  "Com início no período, exceto cancelados.": {
+    es: "Con inicio en el período, excepto las canceladas.",
+  },
+  "Oportunidades ganhas": { es: "Oportunidades ganadas" },
+  "Marcadas como ganhas e fechadas no período.": {
+    es: "Marcadas como ganadas y cerradas en el período.",
+  },
+  "Parar gravação": { es: "Detener grabación" },
+  Falar: { es: "Hablar" },
+
   "A IA ainda precisa ser preparada pelo administrador. Você pode configurar o agente manualmente enquanto isso.":
     {
       es: "La IA aún debe ser preparada por el administrador. Mientras tanto, puedes configurar el agente manualmente.",

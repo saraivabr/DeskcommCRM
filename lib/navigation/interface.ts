@@ -56,7 +56,7 @@ export const PORTAS_ESSENCIAIS = [
 const ESSENCIAIS_DE_ADMIN: readonly string[] = ["/app/team", "/app/settings/tenant"];
 
 export function essencial(d: NavMetadata, role: Role | null, platform = false): boolean {
-  if (d.href === "/app") return true;
+  if (d.href === "/app" || d.href === "/app/ferramentas") return true;
   if (!(PORTAS_ESSENCIAIS as readonly string[]).includes(d.href)) return false;
   return ESSENCIAIS_DE_ADMIN.includes(d.href) ? platform || role === "admin" : true;
 }
@@ -176,7 +176,8 @@ export function combinarInterfaces(daEmpresa: unknown, doVinculo: unknown): Inte
   const vinculo = conjuntoEscolhido(lerInterface(doVinculo).settings);
   if (!empresa && !vinculo) return INTERFACE_COMPLETA;
   const soUm = empresa ?? vinculo;
-  if (!empresa || !vinculo) return { preset: "completa", destinos: [...(soUm as readonly NavDestinationId[])] };
+  if (!empresa || !vinculo)
+    return { preset: "completa", destinos: [...(soUm as readonly NavDestinationId[])] };
   const comuns = empresa.filter((id) => vinculo.includes(id));
   return { preset: "completa", destinos: [...(comuns.length > 0 ? comuns : SO_O_ESSENCIAL)] };
 }

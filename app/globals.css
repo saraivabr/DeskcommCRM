@@ -1034,3 +1034,16 @@ main h1, .artisan-title { font-family: Georgia, "Times New Roman", serif; font-w
 @media (min-width: 640px) {
   .agent-task-illustration { width: 84px; height: 84px; }
 }
+
+/* Approved workspace typography; branding accent remains organization-controlled. */
+.workspace-shell main h1, .workspace-shell .artisan-title {
+  font-family: var(--font-interface), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -.045em;
+}
+.workspace-shell { --color-bg: #f7f9f6; --color-surface-elevated: #f0f4f0; }
+[data-theme="dark"] .workspace-shell { --color-bg: #151c18; --color-surface-elevated: #27332b; }
+@media (min-width: 768px) and (max-height: 800px) {
+  .workspace-sidebar .workspace-nav-item { min-height: 40px; padding-block: 8px; }
+  .workspace-sidebar nav > div { padding-top: 8px; }
+}

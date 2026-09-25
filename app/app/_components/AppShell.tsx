@@ -12,6 +12,7 @@ import { useInboundCallAlerts } from "@/hooks/calls/useInboundCallAlerts";
 import { useCrmAlerts } from "@/hooks/notifications/useCrmAlerts";
 import { useNotifyOpenFromServiceWorker } from "@/lib/notifications/notify_open";
 import { estiloDaReserva, useOcupacaoDoRodape } from "@/lib/ui/rodape-ocupado";
+import { WorkspaceAssistantProvider } from "@/components/workspace/WorkspaceAssistant";
 import { workspaceLayout } from "@/lib/navigation/workspace-layout";
 
 interface AppShellProps {
@@ -59,12 +60,13 @@ export function AppShell({ sidebarCollapsed, podeAtender = false, children }: Ap
   // decide a faixa que o conteúdo perde, e ninguém mais mede isso por fora.
   const ocupacaoDoRodape = useOcupacaoDoRodape();
   return (
-    <div className="workspace-shell flex min-h-screen w-full bg-background">
-      <BarraDeProgressoNavegacao />
-      <div className="hidden md:block">
-        <Sidebar collapsed={sidebarCollapsed} />
-      </div>
-      {/*
+    <WorkspaceAssistantProvider>
+      <div className="workspace-shell flex min-h-screen w-full bg-background">
+        <BarraDeProgressoNavegacao />
+        <div className="hidden md:block">
+          <Sidebar collapsed={sidebarCollapsed} />
+        </div>
+        {/*
         `min-w-0` é o que permite a coluna de conteúdo ENCOLHER. Um flex item
         nasce com `min-width: auto`, ou seja, nunca fica menor que o conteúdo —
         então qualquer bloco largo (uma fila de abas, uma tabela) empurrava a
@@ -76,16 +78,16 @@ export function AppShell({ sidebarCollapsed, podeAtender = false, children }: Ap
         cabeçalho, presente também em telas que não têm abas (a lista de agentes
         estoura 236px). Isolado ancestral por ancestral: é este o que decide.
       */}
-      {/*
+        {/*
         Sem `md:ml-*`: a barra voltou a ocupar lugar na linha (ver o comentário
         em `Sidebar.tsx`), então o que sobra para esta coluna é exatamente o que
         ela não usou. A margem existia para compensar uma barra `fixed`, e era a
         SEGUNDA medida da mesma coisa — a que discordava e deixava a barra por
         cima da lista.
       */}
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <TopBar />
-        {/*
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <TopBar />
+          {/*
           O RODAPÉ DESCONTA O QUE AS PEÇAS FIXAS OCUPAM (issue #1305).
 
           `estiloDaReserva` devolve `undefined` quando não há peça registrada —
@@ -95,18 +97,19 @@ export function AppShell({ sidebarCollapsed, podeAtender = false, children }: Ap
           sem depender de o jsdom computar `var()` (ele não computa), e é o que
           aparece no inspetor quando alguém pergunta quanto o rodapé perdeu.
         */}
-        <main
-          ref={content}
-          id="workspace-content"
-          data-workspace={workspaceLayout(pathname)}
-          className="min-w-0 flex-1 overflow-auto p-3 sm:p-5 lg:p-7"
-          style={estiloDaReserva(ocupacaoDoRodape)}
-          data-rodape-ocupado={ocupacaoDoRodape}
-        >
-          <JourneyGuide />
-          {children}
-        </main>
+          <main
+            ref={content}
+            id="workspace-content"
+            data-workspace={workspaceLayout(pathname)}
+            className="min-w-0 flex-1 overflow-auto p-3 sm:p-5 lg:p-7"
+            style={estiloDaReserva(ocupacaoDoRodape)}
+            data-rodape-ocupado={ocupacaoDoRodape}
+          >
+            <JourneyGuide />
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </WorkspaceAssistantProvider>
   );
 }

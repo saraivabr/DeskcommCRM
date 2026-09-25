@@ -2862,3 +2862,7 @@ sim. Consertado pela ordem: publicar primeiro, decidir a porta depois.
 - Regressão: `tests/e2e/instagram-social.spec.ts` cobre a interface autenticada com respostas controladas; `tests/invariants/instagram-publications.test.ts` cobre duas organizações, recibos somente via backend e UUID único. Contratos de publicação e preservação da animação estão nos testes unitários focados.
 - Achados corrigidos: baseline tinha bloco PL/pgSQL incompleto antes da 0116; rótulo do textarea preenchido precisava associação explícita para edição acessível.
 - Evidência local: `.superpowers/evidence/instagram-zernio/` (screenshots e recibo do receptor). Limite: OAuth exige consentimento do dono; post/DM reais não foram disparados para testar.
+
+### Home de operação e assistente global
+
+[P0] `tests/e2e/home-operacao.spec.ts`: gestor abre pendências pessoais, alterna visão da equipe, acessa catálogo e assistente global; atendente não recebe opção da equipe. Layout mobile, revisão da pergunta e Shift+Enter também cobertos. Backend isolado em Supabase local aplicado do baseline; geração de IA depende de credencial real e não é comprovada por esta jornada.
