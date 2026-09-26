@@ -114,6 +114,9 @@ export const GRUPO_NO_RODAPE: NavGroupId = "organizacao";
  * fechada e por isso não vira `minRole`.
  */
 export const NAV_CATALOG = [
+  { href: "/app/settings/ai-connections", label: "Conectar minha IA", description: "Autorize suas IAs a consultar e trabalhar com o conhecimento da organização.", icon: "FileText", group: "organizacao", section: "Integrações" },
+  { href: "/app/knowledge", label: "Conhecimento", description: "Guarde páginas, ideias e documentos para sua equipe e suas IAs.", icon: "FileText", group: "ia", section: "Conhecimento", sidebar: true, workspace: { section: "organizar", order: 20 } },
+
   {
     href: "/app/ferramentas",
     label: "Todas as ferramentas",

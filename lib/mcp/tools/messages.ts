@@ -7,10 +7,16 @@
  */
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { requireConversationAccess } from "../resource-access";
+import { withOperationReceipt } from "../operation-receipt";
 
 import { sendMessageHandler } from "@/app/api/v1/messages/_handler";
 import { sendMessageSchema } from "@/lib/schemas/messaging";
-import { depsDoRitmo, registrarEnvioPorToken, segurarEnvioPorToken } from "@/lib/messaging/ritmo-do-envio-por-token";
+import {
+  depsDoRitmo,
+  registrarEnvioPorToken,
+  segurarEnvioPorToken,
+} from "@/lib/messaging/ritmo-do-envio-por-token";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { McpToolDefinition } from "../types";
 
@@ -46,6 +52,30 @@ export const crmSendWhatsappMessage: McpToolDefinition<typeof inputShape> = {
   requiresRole: "agent",
   requiresScope: "mcp:write",
   handler: async (input, ctx) => {
+    if (ctx.connectionId) {
+      await requireConversationAccess(ctx, input.conversation_id);
+      if (!input.idempotency_key)
+        throw new Error(
+          "Informe idempotency_key para enviar. Reutilize a mesma chave e parâmetros nas retentativas.",
+        );
+      return withOperationReceipt(
+        ctx,
+        "crm_send_whatsapp_message",
+        input.idempotency_key,
+        input,
+        async () => {
+          // Automated dispatch keeps provider pre-go-live gates. The outer MCP audit retains the authorizing user.
+          return crmSendWhatsappMessage.handler(
+            { ...input, idempotency_key: undefined },
+            {
+              ...ctx,
+              connectionId: undefined,
+              actor: { type: "api_token", id: ctx.apiTokenId, role: ctx.role },
+            },
+          );
+        },
+      );
+    }
     const parsed = sendMessageSchema.parse({
       conversation_id: input.conversation_id,
       type: input.type,

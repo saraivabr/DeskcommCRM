@@ -1,3 +1,4 @@
+import { withActionApproval } from "./approvals";
 /**
  * Core do MCP server (Spec 11 §5.3).
  *
@@ -15,7 +16,9 @@ import type { z } from "zod";
 import type { ModuloOpcional } from "@/lib/instalacao/modulos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { auditMcpToolCall } from "./audit";
-import { ensureRole, ensureScope, type McpAuthResult } from "./auth";
+import { canCallTool, permissionFor } from "./permissions";
+import { resolveConnection } from "./connections";
+import { ensureRole, ensureScope, McpAuthError, type McpAuthResult } from "./auth";
 import { verificarTetoMcp } from "./rate-limit";
 import { allTools } from "./tools";
 import { deModuloDesligado } from "./tools/catalog";
@@ -53,12 +56,25 @@ export function createMcpServer(
   const supabase = createAdminClient();
 
   for (const tool of allTools) {
-    if (deModuloDesligado(tool.name, modulosLigados)) continue;
+    if (deModuloDesligado(tool.name, modulosLigados) || !canCallTool(tool, auth)) continue;
+    const permission = permissionFor(tool);
     server.registerTool(
       tool.name,
       {
         description: tool.description,
         inputSchema: tool.inputSchema,
+        annotations: {
+          readOnlyHint: tool.category === "read",
+          destructiveHint: permission?.confirmation ?? false,
+          openWorldHint: permission?.operation === "execute",
+        },
+        _meta: {
+          domain: permission?.area ?? "legacy",
+          operation: permission?.operation ?? tool.category,
+          minimumRole: tool.requiresRole,
+          requiredScope: auth.connectionId ? permission?.scope : tool.requiresScope,
+          requiresHumanConfirmation: Boolean(auth.connectionId && permission?.confirmation),
+        },
       },
       async (rawArgs) => {
         const startedAt = Date.now();
@@ -75,6 +91,8 @@ export function createMcpServer(
         const args = higiene.limpos;
         const argsAudit = tool.redigirParaAuditoria ? tool.redigirParaAuditoria(args) : args;
         const ctx: McpContext = {
+          connectionId: auth.connectionId,
+          userId: auth.userId,
           organizationId: auth.organizationId,
           role: auth.role,
           actor: auth.actor,
@@ -89,10 +107,19 @@ export function createMcpServer(
           // `catch` abaixo é quem AUDITA, e recusa sem rastro em
           // `api_audit_log` faria "o agente parou" virar mistério.
           await verificarTetoMcp(auth, tool.category);
-          ensureScope(auth.scopes, tool.requiresScope);
-          ensureRole(auth.role, tool.requiresRole);
+          if (auth.connectionId) {
+            const live = await resolveConnection(auth.apiTokenId, auth.organizationId, auth.role);
+            ctx.role = live.role;
+            if (!canCallTool(tool, { ...auth, role: live.role }))
+              throw new McpAuthError(-32002, 403, "Permissão revogada.");
+          } else {
+            ensureScope(auth.scopes, tool.requiresScope);
+            ensureRole(auth.role, tool.requiresRole);
+          }
 
-          const result = await tool.handler(args as never, ctx);
+          const result = await withActionApproval(tool, args, ctx, () =>
+            tool.handler(args as never, ctx),
+          );
           const durationMs = Date.now() - startedAt;
           // Mesma regra do ingresso do agente (`lib/ai/runtime/tools.ts`, #484):
           // o vazio que a tool declara não é sucesso. Sem isto, a mesma busca

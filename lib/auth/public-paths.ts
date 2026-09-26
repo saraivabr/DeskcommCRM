@@ -3,6 +3,9 @@
  * Match precedence: array order. First match wins.
  */
 export const PUBLIC_PATHS: RegExp[] = [
+  /^\/\.well-known\/oauth-authorization-server$/,
+  /^\/\.well-known\/oauth-protected-resource\/api\/mcp$/,
+  /^\/oauth\/(authorize|register|token|revoke)$/,
   /^\/api\/v1\/billing\/webhook$/, // Stripe signature checked in the handler.
   /^\/$/,
   /^\/login(\/.*)?$/,
