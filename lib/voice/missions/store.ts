@@ -25,7 +25,7 @@ export async function conversationForMission(
 
 export async function readMissions(pool: pg.Pool, org: string, conversation: string, user: string) {
   const c = await conversationForMission(pool, org, conversation);
-  const [missions, channels, contacts, voice, recent] = await Promise.all([
+  const [missions, channels, contacts, voice, recent, agents] = await Promise.all([
     pool.query(
       `select id,objective,agent_id,channel_id,test_contact_id,test,status,result,error,cancel_requested,created_at,started_at,ended_at
       from voice_missions where organization_id=$1 and conversation_id=$2 and (status<>'draft' or created_by=$3) order by created_at desc limit 20`,
@@ -44,6 +44,11 @@ export async function readMissions(pool: pg.Pool, org: string, conversation: str
       `select id,direction,body,sent_at from messages where organization_id=$1 and conversation_id=$2 and revoked_at is null and body is not null and btrim(body)<>'' order by sent_at desc,id desc limit 40`,
       [org, conversation],
     ),
+    pool.query(
+      `select a.id,a.name from ai_agents a join ai_agent_versions v on v.id=a.published_version_id and v.organization_id=a.organization_id and v.status='published'
+      where a.organization_id=$1 and a.is_active and a.archived_at is null and a.paused_at is null order by a.priority desc,a.created_at asc`,
+      [org],
+    ),
   ]);
   const readyChannels = channels.rows.filter((c) => c.ready);
   return {
@@ -52,13 +57,15 @@ export async function readMissions(pool: pg.Pool, org: string, conversation: str
       enabled: voice.rows[0]?.enabled === true,
     },
     defaults: {
-      agent_id: null,
+      agent_id: agents.rows.some((a) => a.id === c.active_ai_agent_id)
+        ? c.active_ai_agent_id
+        : null,
       channel_id: readyChannels.length === 1 ? readyChannels[0].id : null,
     },
     contact: { name: c.name, phone: c.phone_number },
     suggestions: callSuggestions(recent.rows),
     missions: missions.rows,
-    agents: [],
+    agents: agents.rows,
     channels: channels.rows,
     contacts: contacts.rows,
   };
@@ -156,10 +163,10 @@ export async function saveMission(
       );
       if (!allowed.rowCount)
         throw new MissionError("Ative as chamadas da empresa em Conexões antes de ligar.");
-      // Older API clients may still explicitly request a published agent.
+      // A selected agent must still be published when the call starts.
       if (input.agent_id) {
         const ready = await db.query(
-          `select 1 from ai_agents where organization_id=$1 and id=$2 and is_active and published_version_id is not null`,
+          `select 1 from ai_agents a join ai_agent_versions v on v.id=a.published_version_id and v.organization_id=a.organization_id and v.status='published' where a.organization_id=$1 and a.id=$2 and a.is_active and a.archived_at is null and a.paused_at is null`,
           [org, input.agent_id],
         );
         if (!ready.rowCount)
@@ -256,14 +263,15 @@ export async function missionConfiguration(
 ) {
   const { rows } = await pool.query<{
     system_prompt: string | null;
+    agent_name: string | null;
     wacalls_session_id: string;
     phone_number: string;
   }>(
-    `select v.system_prompt,s.wacalls_session_id,p.phone_number from channel_sessions s
+    `select v.system_prompt,a.name as agent_name,s.wacalls_session_id,p.phone_number from channel_sessions s
     join conversations c on c.id=$4 and c.organization_id=s.organization_id
     join contacts p on p.id=case when $5 then $6::uuid else c.contact_id end and p.organization_id=s.organization_id
     join org_voice_calls o on o.organization_id=s.organization_id and o.enabled
-    left join ai_agents a on a.id=$2 and a.organization_id=s.organization_id and a.is_active and a.archived_at is null
+    left join ai_agents a on a.id=$2 and a.organization_id=s.organization_id and a.is_active and a.archived_at is null and a.paused_at is null
     left join ai_agent_versions v on v.id=a.published_version_id and v.organization_id=a.organization_id and v.status='published'
     where s.organization_id=$1 and s.id=$3 and s.provider='wacalls' and s.status='WORKING'
     and s.archived_at is null and s.wacalls_session_id is not null and s.wacalls_paired_at is not null

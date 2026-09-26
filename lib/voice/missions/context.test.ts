@@ -50,6 +50,14 @@ it("usa orientação própria de voz sem depender de instruções de um agente",
   expect(prompt).toContain("não diga que alterou cadastro");
 });
 
+it("usa o nome e as orientações do BDR publicado na ligação", () => {
+  const prompt = missionPrompt("Entender interesse", "{}", "Pergunte uma coisa por vez.", "Sara");
+  expect(prompt).toContain("Você é Sara");
+  expect(prompt).toContain("Aqui é Sara");
+  expect(prompt).toContain("Pergunte uma coisa por vez.");
+  expect(prompt).not.toContain("Aqui é a Ana");
+});
+
 it("usa o horário da empresa e não inventa saudação com fuso inválido", () => {
   expect(voiceGreeting("America/Sao_Paulo", new Date("2026-09-22T12:00:00Z"))).toBe("Bom dia");
   expect(voiceGreeting("America/Sao_Paulo", new Date("2026-09-22T18:00:00Z"))).toBe("Boa tarde");
