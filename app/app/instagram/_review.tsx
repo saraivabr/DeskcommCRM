@@ -7,12 +7,15 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { StudioItem } from "@/lib/instagram/schema";
+import { carouselTemplates } from "@/lib/instagram/carousel-templates";
 import { StudioShell, Intro, Loading, Notice, studioApi } from "./_shared";
 import { PublishPost } from "./_publish";
 import { ImageGeneration } from "./_image-generation";
 export function Review({ id }: { id: string }) {
   const t = useT();
   const [item, setItem] = useState<StudioItem | null>(null);
+  const [carouselItems, setCarouselItems] = useState<StudioItem[]>([]);
+  const [carouselLoading, setCarouselLoading] = useState(false);
   const [caption, setCaption] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -27,6 +30,31 @@ export function Review({ id }: { id: string }) {
         if (!active) return;
         setItem(value);
         setCaption(value.caption);
+        if (value.input.kind === "post" && value.input.carousel) {
+          const carouselId = value.input.carousel.id;
+          setCarouselLoading(true);
+          try {
+            const listing = await studioApi<{ items: StudioItem[] }>(`?carousel_id=${carouselId}`);
+            if (active)
+              setCarouselItems(
+                listing.items
+                  .filter(
+                    (entry) =>
+                      entry.input.kind === "post" && entry.input.carousel?.id === carouselId,
+                  )
+                  .sort((a, b) =>
+                    a.input.kind === "post" && b.input.kind === "post"
+                      ? (a.input.carousel?.slide ?? 0) - (b.input.carousel?.slide ?? 0)
+                      : 0,
+                  ),
+              );
+          } catch (e) {
+            if (active)
+              setError(e instanceof Error ? e.message : "Não foi possível carregar o carrossel.");
+          } finally {
+            if (active) setCarouselLoading(false);
+          }
+        }
         if (value.status === "generating") timer = setTimeout(() => void read(), 5000);
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : "Não foi possível abrir.");
@@ -71,6 +99,13 @@ export function Review({ id }: { id: string }) {
       setBusy(false);
     }
   }
+  const carouselTemplate = item?.input.kind === "post" ? item.input.carousel?.template : undefined;
+  const carouselReady =
+    carouselItems.length === 8 &&
+    carouselItems.every((entry) => entry.status === "ready") &&
+    new Set(
+      carouselItems.map((entry) => (entry.input.kind === "post" ? entry.input.carousel?.slide : 0)),
+    ).size === 8;
   return (
     <StudioShell>
       <Intro eyebrow={t("Revisar postagem")} title={t("Agora, deixe com a sua cara.")}>
@@ -105,6 +140,63 @@ export function Review({ id }: { id: string }) {
             )}
           </div>
           <div className="space-y-5">
+            {item.input.carousel && (
+              <section className="space-y-3 rounded-2xl border p-4">
+                <h2 className="font-medium">
+                  {t(carouselTemplates[item.input.carousel.template].label)}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {carouselLoading
+                    ? t("Carregando slides…")
+                    : `${carouselItems.filter((entry) => entry.status === "ready").length}/8 ${t("slides prontos para revisão")}`}
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {carouselItems.map(
+                    (entry) =>
+                      entry.input.kind === "post" && (
+                        <Link
+                          href={`/app/instagram/posts/${entry.id}`}
+                          key={entry.id}
+                          className="space-y-1 rounded-lg border p-1"
+                        >
+                          {entry.image_url && (
+                            <Image
+                              unoptimized
+                              src={entry.image_url}
+                              alt={`${entry.input.carousel?.slide}º slide`}
+                              width={160}
+                              height={200}
+                              className="aspect-[4/5] w-full rounded object-cover"
+                            />
+                          )}
+                          <span className="block text-xs">
+                            {entry.input.carousel?.slide}.{" "}
+                            {carouselTemplate &&
+                              carouselTemplates[carouselTemplate].slides[
+                                (entry.input.carousel?.slide ?? 1) - 1
+                              ]?.role}
+                          </span>
+                        </Link>
+                      ),
+                  )}
+                </div>
+                {carouselItems[0] && item.id !== carouselItems[0].id && (
+                  <Link
+                    href={`/app/instagram/posts/${carouselItems[0].id}`}
+                    className="text-sm underline"
+                  >
+                    {t("Revisar carrossel completo")}
+                  </Link>
+                )}
+                {!carouselLoading && !carouselReady && (
+                  <Notice error>
+                    {t(
+                      "Este carrossel ainda não está completo. Revise os slides na biblioteca antes de publicar.",
+                    )}
+                  </Notice>
+                )}
+              </section>
+            )}
             <div>
               <p className="text-sm text-muted-foreground">{t("Sua ideia")}</p>
               <p className="mt-2 whitespace-pre-wrap">{item.input.brief}</p>
@@ -159,7 +251,14 @@ export function Review({ id }: { id: string }) {
                 {t("Copiar legenda")}
               </Button>
             </div>
-            {item.status === "ready" && <PublishPost item={item} caption={caption} />}
+            {item.status === "ready" &&
+              (!item.input.carousel || (carouselReady && item.id === carouselItems[0]?.id)) && (
+                <PublishPost
+                  item={item}
+                  caption={caption}
+                  carouselItems={item.input.carousel ? carouselItems : undefined}
+                />
+              )}
             {saved && <Notice>{t("Legenda salva com sucesso.")}</Notice>}
             {copied && <Notice>{t("Legenda copiada.")}</Notice>}
             <Link

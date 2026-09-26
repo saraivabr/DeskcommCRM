@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { ok, fail } from "@/lib/api/wrappers";
@@ -13,13 +14,19 @@ import { createImage, createCaption, research, StudioError } from "@/lib/instagr
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 const headers = { "Cache-Control": "no-store" };
-export async function GET() {
+export async function GET(req: Request) {
   const requestId = randomUUID();
   const auth = await requireRole("viewer", { requestId });
   if (!auth.ok) return auth.response;
+  const carouselId = new URL(req.url).searchParams.get("carousel_id");
+  if (carouselId && !z.uuid().safeParse(carouselId).success)
+    return fail("validation_failed", "Carrossel inválido.", 400, { requestId, headers });
   try {
     return ok(
-      { items: await listItems(auth.org.orgId), can_create: auth.org.role !== "viewer" },
+      {
+        items: await listItems(auth.org.orgId, undefined, carouselId ?? undefined),
+        can_create: auth.org.role !== "viewer",
+      },
       { requestId, headers },
     );
   } catch {
@@ -102,7 +109,8 @@ export async function POST(req: Request) {
           422,
         );
       }
-      const caption = await createCaption(org, input, company);
+      const caption =
+        input.carousel && input.carousel.slide > 1 ? "" : await createCaption(org, input, company);
       const image = await createImage(org, input, company, logo);
       const path = `${org}/instagram/${input.id}.png`;
       const uploaded = await createAdminClient()

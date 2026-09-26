@@ -2,11 +2,11 @@ import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { StudioItem } from "./schema";
 
-export async function listItems(org: string, id?: string) {
+export async function listItems(org: string, id?: string, carouselId?: string) {
   const { rows } = await getRequestPool().query<StudioItem>(
     `select id,kind,status,input,caption,answer,sources,asset_path,error,created_at,updated_at
-     from instagram_studio_items where organization_id=$1 ${id ? "and id=$2" : `and (kind='reference' or id in (select id from instagram_studio_items where organization_id=$1 and kind <> 'reference' order by created_at desc limit 100))`} order by created_at desc`,
-    id ? [org, id] : [org],
+     from instagram_studio_items where organization_id=$1 ${id ? "and id=$2" : carouselId ? "and kind='post' and input->'carousel'->>'id'=$2" : `and (kind='reference' or id in (select id from instagram_studio_items where organization_id=$1 and kind <> 'reference' order by created_at desc limit 100))`} order by created_at desc`,
+    id ? [org, id] : carouselId ? [org, carouselId] : [org],
   );
   return Promise.all(
     rows.map(async (row) => {
