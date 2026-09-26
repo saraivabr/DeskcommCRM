@@ -36,7 +36,7 @@ async function open() {
   await screen.findByLabelText("Seu objetivo");
   return client;
 }
-it("starts in two clicks with the recipient visible and no review step", async () => {
+it("uses the conversation's published agent with only the subject to start", async () => {
   await open();
   expect(screen.getByText("Ajustes da ligação").closest("details")).not.toHaveAttribute("open");
   expect(screen.queryByLabelText("Agente")).not.toBeInTheDocument();
@@ -53,7 +53,7 @@ it("starts in two clicks with the recipient visible and no review step", async (
       expect.any(String),
       expect.objectContaining({
         action: "start",
-        agent_id: null,
+        agent_id: agent,
         channel_id: channel,
         test: false,
       }),
@@ -227,7 +227,7 @@ it("starts with the built-in voice assistant even when no agents exist", async (
     ),
   );
 });
-it("preserves a legacy draft's objective but uses the built-in voice assistant", async () => {
+it("preserves a saved agent and objective in the call draft", async () => {
   mocks.get.mockResolvedValue({
     data: {
       ...panel,
@@ -250,7 +250,21 @@ it("preserves a legacy draft's objective but uses the built-in voice assistant",
   await waitFor(() =>
     expect(mocks.post).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ id: agent, agent_id: null, objective: "Objetivo salvo antes" }),
+      expect.objectContaining({ id: agent, agent_id: agent, objective: "Objetivo salvo antes" }),
+    ),
+  );
+});
+it("allows the built-in assistant to be chosen in advanced settings", async () => {
+  await open();
+  fireEvent.change(screen.getByLabelText("Agente da ligação"), { target: { value: "" } });
+  fireEvent.change(screen.getByLabelText("Seu objetivo"), {
+    target: { value: "Esclarecer a proposta" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Ligar agora" }));
+  await waitFor(() =>
+    expect(mocks.post).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ action: "start", agent_id: null }),
     ),
   );
 });

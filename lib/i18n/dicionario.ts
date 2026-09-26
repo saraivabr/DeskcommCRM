@@ -12829,6 +12829,7 @@ export const DICIONARIO: Traducoes = {
   "Conectar número para ligar": { es: "Conectar número para llamar" },
   "Ajustes da ligação": { es: "Ajustes de la llamada" },
   "Assistente de voz padrão": { es: "Asistente de voz predeterminado" },
+  "Agente da ligação": { es: "Agente de la llamada" },
   "Número de chamadas": { es: "Número de llamadas" },
   "Número a escolher": { es: "Número por elegir" },
   "modo de teste": { es: "modo de prueba" },

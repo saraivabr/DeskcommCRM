@@ -92,6 +92,7 @@ function MissionEditor({ conversationId }: { conversationId: string }) {
     test: false,
   }));
   const [loaded, setLoaded] = useState(false);
+  const [agentChoiceMade, setAgentChoiceMade] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -101,16 +102,18 @@ function MissionEditor({ conversationId }: { conversationId: string }) {
   const data = q.data?.data;
   if (data && !loaded) {
     const previous = data.missions.find((m) => m.status === "draft");
-    if (previous)
+    if (previous) {
       setDraft({
         id: previous.id,
         action: "save",
         objective: previous.objective,
-        agent_id: null,
+        agent_id: previous.agent_id,
         channel_id: previous.channel_id,
         test_contact_id: previous.test_contact_id,
         test: previous.test && !!previous.test_contact_id,
       });
+      setAgentChoiceMade(true);
+    }
     setLoaded(true);
   }
   function update(p: Partial<MissionInput>) {
@@ -120,7 +123,7 @@ function MissionEditor({ conversationId }: { conversationId: string }) {
   }
   const effective = {
     ...draft,
-    agent_id: null,
+    agent_id: agentChoiceMade ? draft.agent_id : (data?.defaults.agent_id ?? null),
     channel_id: draft.channel_id ?? data?.defaults.channel_id ?? null,
   };
   async function send(action: MissionInput["action"], id = draft.id) {
@@ -132,7 +135,10 @@ function MissionEditor({ conversationId }: { conversationId: string }) {
       await apiClient.post(url, { ...effective, id, action });
       setSaved(action === "save");
       await qc.invalidateQueries({ queryKey: key });
-      if (action === "start") setDraft((d) => ({ ...d, id: randomId(), objective: "" }));
+      if (action === "start") {
+        setDraft((d) => ({ ...d, id: randomId(), objective: "", agent_id: null }));
+        setAgentChoiceMade(false);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : t("Não foi possível concluir. Tente novamente."));
     } finally {
@@ -152,6 +158,7 @@ function MissionEditor({ conversationId }: { conversationId: string }) {
     );
   const active = data.missions.find((m) => activeStatuses.includes(m.status));
   const selectedChannel = data.channels.find((c) => c.id === effective.channel_id);
+  const selectedAgent = data.agents.find((a) => a.id === effective.agent_id);
   const connected = data.channels.some((c) => c.ready);
   const needsConnection = !data.voice.configured || !data.voice.enabled || !connected;
   const recipient = draft.test
@@ -276,7 +283,7 @@ function MissionEditor({ conversationId }: { conversationId: string }) {
             <summary className="cursor-pointer text-sm font-medium">
               {t("Ajustes da ligação")}
               <span className="block font-normal text-muted-foreground">
-                {t("Assistente de voz padrão")}
+                {selectedAgent?.name || t("Assistente de voz padrão")}
                 {" · "}
                 {selectedChannel?.name ||
                   selectedChannel?.phone_number ||
@@ -285,6 +292,26 @@ function MissionEditor({ conversationId }: { conversationId: string }) {
               </span>
             </summary>
             <div className="mt-4 space-y-4">
+              {!!data.agents.length && (
+                <label className="block space-y-1 text-sm">
+                  {t("Agente da ligação")}
+                  <select
+                    className={selectClass}
+                    value={effective.agent_id ?? ""}
+                    onChange={(e) => {
+                      setAgentChoiceMade(true);
+                      update({ agent_id: e.target.value || null });
+                    }}
+                  >
+                    <option value="">{t("Assistente de voz padrão")}</option>
+                    {data.agents.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label className="block space-y-1 text-sm">
                 {t("Número que fará a ligação")}
                 <select

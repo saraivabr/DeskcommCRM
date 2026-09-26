@@ -1,5 +1,10 @@
 import pg from "pg";
-import { saveMission, missionConfiguration, missionContext } from "../../lib/voice/missions/store";
+import {
+  saveMission,
+  missionConfiguration,
+  missionContext,
+  readMissions,
+} from "../../lib/voice/missions/store";
 const pool = new pg.Pool({
   connectionString: `postgresql://postgres:postgres@127.0.0.1:${process.env.TEST_DB_PORT ?? 54329}/postgres`,
 });
@@ -121,6 +126,36 @@ describe("voice mission isolation and lifecycle", () => {
     } finally {
       sql(`delete from voice_missions where id='${input.id}'`);
       vi.unstubAllEnvs();
+    }
+  });
+  it("offers only a published active agent from the conversation's organization", async () => {
+    const bdr = "c0322000-0000-4000-8000-000000000012";
+    const version = "c0322000-0000-4000-8000-000000000013";
+    sql(`insert into ai_agents(id,organization_id,name,system_prompt) values('${bdr}','${org}','Sara BDR','Prompt de voz');
+      insert into ai_agent_versions(id,organization_id,agent_id,version_number,system_prompt,provider,model,channel_session_id,status,published_at)
+      values('${version}','${org}','${bdr}',1,'Apresente-se como Sara','openai','gpt-realtime-2.1','${channel}','published',now());
+      update ai_agents set published_version_id='${version}' where id='${bdr}';
+      update conversations set active_ai_agent_id='${bdr}' where id='${conversation}';`);
+    try {
+      const panel = await readMissions(pool, org, conversation, agent);
+      expect(panel.defaults.agent_id).toBe(bdr);
+      expect(panel.agents).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: bdr, name: "Sara BDR" })]),
+      );
+      await expect(readMissions(pool, other, conversation, stranger)).rejects.toThrow(
+        "Atendimento não encontrado",
+      );
+      sql(`update ai_agents set paused_at=now() where id='${bdr}'`);
+      const paused = await readMissions(pool, org, conversation, agent);
+      expect(paused.defaults.agent_id).toBeNull();
+      expect(paused.agents).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: bdr })]),
+      );
+    } finally {
+      sql(`update conversations set active_ai_agent_id=null where id='${conversation}';
+        update ai_agents set published_version_id=null where id='${bdr}';
+        delete from ai_agent_versions where id='${version}';
+        delete from ai_agents where id='${bdr}';`);
     }
   });
   it("contact anonymization cancels and redacts saved voice context", () => {

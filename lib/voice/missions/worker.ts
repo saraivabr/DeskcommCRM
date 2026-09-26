@@ -180,7 +180,12 @@ async function executeMission(
     stage = "audio";
     audio = await audioBridge({
       apiKey,
-      instructions: missionPrompt(m.objective, context, config.system_prompt ?? undefined),
+      instructions: missionPrompt(
+        m.objective,
+        context,
+        config.system_prompt ?? undefined,
+        config.agent_name ?? undefined,
+      ),
       signal,
       onConversation: async (id) => {
         providerStarted = true;
