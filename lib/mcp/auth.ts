@@ -13,6 +13,7 @@
  *   `mcp:read`         -> habilita read tools desta wave
  *   `mcp:write`        -> habilita write tools (S-13.04)
  */
+import { resolveConnection } from "./connections";
 import { createHash } from "node:crypto";
 
 import type { Actor } from "@/lib/api/handlers/types";
@@ -22,6 +23,8 @@ import { ROLE_RANK } from "@/lib/auth/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export interface McpAuthResult {
+  connectionId?: string;
+  userId?: string;
   organizationId: string;
   role: Role;
   actor: Actor;
@@ -212,6 +215,16 @@ export async function validateBearerToken(
   }
 
   const role = scopesRole(resolved.scopes);
+  if (resolved.scopes.includes("connection:v1")) {
+    try {
+      const connection = await resolveConnection(resolved.id, resolved.organizationId, role);
+      return { ...connection, organizationId: resolved.organizationId,
+        actor: { type: "user", id: connection.userId, role: connection.role },
+        apiTokenId: resolved.id, scopes: resolved.scopes };
+    } catch {
+      throw new McpAuthError(-32001, 401, "Conexão revogada ou usuário sem acesso.");
+    }
+  }
   const actor = deriveActor(resolved.scopes, resolved.id);
 
   return {

@@ -12,6 +12,7 @@
  * Write tools exigem role>=manager + scope mcp:write (gate no server core).
  */
 import { z } from "zod";
+import { conversationAccess, canViewConversation } from "../resource-access";
 
 import {
   listLeadsHandler,
@@ -59,9 +60,7 @@ async function enrichLeads(
 
   return leads.map((l) => ({
     ...l,
-    owner_user_name: l.owner_user_id
-      ? (names.get(l.owner_user_id as string) ?? null)
-      : null,
+    owner_user_name: l.owner_user_id ? (names.get(l.owner_user_id as string) ?? null) : null,
     stage: l.stage_id ? (stageById.get(l.stage_id as string) ?? null) : null,
   }));
 }
@@ -104,6 +103,7 @@ export const crmListLeads: McpToolDefinition<typeof listInputShape> = {
         limit: input.limit,
         cursor: input.cursor,
       },
+      await conversationAccess(ctx),
     );
     return {
       leads: await enrichLeads(ctx, result.leads),
@@ -144,6 +144,9 @@ export const crmGetLead: McpToolDefinition<typeof getInputShape> = {
       // Defesa em profundidade — service-role bypassa RLS.
       throw new Error("not_found");
     }
+    const access = await conversationAccess(ctx);
+    if (access && !canViewConversation(access, (lead.owner_user_id as string | null) ?? null))
+      throw new Error("Lead não encontrado ou sem acesso.");
     const [enriched] = await enrichLeads(ctx, [lead]);
     return { lead: enriched };
   },

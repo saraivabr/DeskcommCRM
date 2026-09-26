@@ -32,13 +32,7 @@ interface AuditMcpToolCallInput {
   motivo?: string;
 }
 
-const ARGS_REDACT_KEYS = new Set([
-  "authorization",
-  "api_key",
-  "token",
-  "password",
-  "cpf",
-]);
+const ARGS_REDACT_KEYS = new Set(["authorization", "api_key", "token", "password", "cpf"]);
 
 function redactArgs(args: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -55,14 +49,32 @@ function redactArgs(args: Record<string, unknown>): Record<string, unknown> {
 }
 
 export async function auditMcpToolCall(input: AuditMcpToolCallInput): Promise<void> {
-  const { ctx, toolName, args, durationMs, success, errorMessage, resultSummary, desfecho, motivo } =
-    input;
+  const {
+    ctx,
+    toolName,
+    args,
+    durationMs,
+    success,
+    errorMessage,
+    resultSummary,
+    desfecho,
+    motivo,
+  } = input;
 
   const metadata: Record<string, unknown> = {
     actor_type: ctx.actor.type,
     actor_id: ctx.actor.id,
     tool_name: toolName,
-    args: redactArgs(args),
+    args: ctx.connectionId
+      ? Object.fromEntries(
+          Object.entries(args).filter(
+            ([key, value]) =>
+              /(^id$|_id$|revision$)/.test(key) &&
+              (typeof value === "string" || typeof value === "number"),
+          ),
+        )
+      : redactArgs(args),
+    connection_id: ctx.connectionId,
     duration_ms: durationMs,
     success,
   };
@@ -77,11 +89,9 @@ export async function auditMcpToolCall(input: AuditMcpToolCallInput): Promise<vo
 
   await audit({
     action: "mcp.tool_called",
-    // Quem age via MCP é um TOKEN, nunca uma linha de auth.users: para um token
-    // comum, ctx.actor.id é o id do próprio token (lib/mcp/auth.ts), e mandá-lo
-    // como actorUserId estourava a FK api_audit_log_actor_user_id_fkey. O ator
-    // já fica registrado em actorApiTokenId e em metadata.actor_id.
-    actorUserId: null,
+    // New connections carry the actual member UUID; legacy token IDs never
+    // go into the auth.users foreign key.
+    actorUserId: ctx.userId ?? null,
     actorApiTokenId: ctx.apiTokenId,
     organizationId: ctx.organizationId,
     resourceType: "mcp_tool",

@@ -1,3 +1,4 @@
+import { TOOLS_KNOWLEDGE_PAGES } from "./knowledge-pages";
 /**
  * Agregador do catalogo de tools.
  *
@@ -30,6 +31,7 @@ export type { McpToolCatalogEntry } from "./tipos";
 export { declararTools } from "./tipos";
 
 export const TOOL_CATALOG: ReadonlyArray<McpToolCatalogEntry> = [
+  ...TOOLS_KNOWLEDGE_PAGES,
   ...TOOLS_AGENDAMENTO,
   ...TOOLS_ATENDIMENTO,
   ...TOOLS_ESCALACAO,

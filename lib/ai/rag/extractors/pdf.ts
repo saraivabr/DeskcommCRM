@@ -249,9 +249,9 @@ try {
 `;
 
 function urlDoPdfjs(): string {
-  // `require.resolve` a partir DESTE arquivo: sob o tsx o worker é CJS e
-  // `__filename` existe; o filho recebe a URL pronta e não resolve nada.
-  return pathToFileURL(createRequire(__filename).resolve(PDFJS_LEGACY)).href;
+  // Turbopack rewrites __filename to a virtual /ROOT path. Resolve from the
+  // application package instead, which exists in both the worker and standalone.
+  return pathToFileURL(createRequire(`${process.cwd()}/package.json`).resolve(PDFJS_LEGACY)).href;
 }
 
 interface RespostaDoFilho {

@@ -1,0 +1,3844 @@
+{
+  "status": "incomplete",
+  "note": "Initial inventory of route exports. Each row still requires review of UI actions, role, scope, module, side effects, service reuse and a behavioral test. Existing MCP tools are not yet mapped here; pending_review is not a claim of missing functionality.",
+  "actions": [
+    {
+      "route": "/api/v1/admin/audit/[entryId]",
+      "method": "GET",
+      "source": "app/api/v1/admin/audit/[entryId]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/audit",
+      "method": "GET",
+      "source": "app/api/v1/admin/audit/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/billing/reconciliation",
+      "method": "GET",
+      "source": "app/api/v1/admin/billing/reconciliation/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/billing/reconciliation",
+      "method": "POST",
+      "source": "app/api/v1/admin/billing/reconciliation/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/dashboard/kpis",
+      "method": "GET",
+      "source": "app/api/v1/admin/dashboard/kpis/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/impersonate/end",
+      "method": "POST",
+      "source": "app/api/v1/admin/impersonate/end/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/inbox/conversations/[id]",
+      "method": "GET",
+      "source": "app/api/v1/admin/inbox/conversations/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/inbox/conversations",
+      "method": "GET",
+      "source": "app/api/v1/admin/inbox/conversations/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/incidents/[id]/resolve",
+      "method": "POST",
+      "source": "app/api/v1/admin/incidents/[id]/resolve/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/incidents/[id]",
+      "method": "GET",
+      "source": "app/api/v1/admin/incidents/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/incidents",
+      "method": "GET",
+      "source": "app/api/v1/admin/incidents/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/lgpd/requests/[id]",
+      "method": "GET",
+      "source": "app/api/v1/admin/lgpd/requests/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/lgpd/requests",
+      "method": "GET",
+      "source": "app/api/v1/admin/lgpd/requests/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/platform-admins",
+      "method": "GET",
+      "source": "app/api/v1/admin/platform-admins/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/platform-admins",
+      "method": "POST",
+      "source": "app/api/v1/admin/platform-admins/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/platform-admins",
+      "method": "PATCH",
+      "source": "app/api/v1/admin/platform-admins/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/platform-admins",
+      "method": "DELETE",
+      "source": "app/api/v1/admin/platform-admins/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants/[id]/agents",
+      "method": "GET",
+      "source": "app/api/v1/admin/tenants/[id]/agents/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants/[id]/commercial-account",
+      "method": "GET",
+      "source": "app/api/v1/admin/tenants/[id]/commercial-account/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants/[id]/commercial-account",
+      "method": "PATCH",
+      "source": "app/api/v1/admin/tenants/[id]/commercial-account/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants/[id]/health",
+      "method": "GET",
+      "source": "app/api/v1/admin/tenants/[id]/health/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants/[id]/impersonate",
+      "method": "POST",
+      "source": "app/api/v1/admin/tenants/[id]/impersonate/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants/[id]/reactivate",
+      "method": "POST",
+      "source": "app/api/v1/admin/tenants/[id]/reactivate/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants/[id]",
+      "method": "GET",
+      "source": "app/api/v1/admin/tenants/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants/[id]/suspend",
+      "method": "POST",
+      "source": "app/api/v1/admin/tenants/[id]/suspend/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants",
+      "method": "GET",
+      "source": "app/api/v1/admin/tenants/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/tenants",
+      "method": "POST",
+      "source": "app/api/v1/admin/tenants/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/usage",
+      "method": "GET",
+      "source": "app/api/v1/admin/usage/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/users/[id]",
+      "method": "GET",
+      "source": "app/api/v1/admin/users/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/admin/users",
+      "method": "GET",
+      "source": "app/api/v1/admin/users/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ads/meta/accounts",
+      "method": "GET",
+      "source": "app/api/v1/ads/meta/accounts/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ads/meta/campaigns",
+      "method": "GET",
+      "source": "app/api/v1/ads/meta/campaigns/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos/[id]/google/meet/deliver",
+      "method": "POST",
+      "source": "app/api/v1/agenda/agendamentos/[id]/google/meet/deliver/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos/[id]/google/meet/resend",
+      "method": "POST",
+      "source": "app/api/v1/agenda/agendamentos/[id]/google/meet/resend/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos/[id]/google/meet/retry",
+      "method": "POST",
+      "source": "app/api/v1/agenda/agendamentos/[id]/google/meet/retry/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos/[id]/google/resolver",
+      "method": "POST",
+      "source": "app/api/v1/agenda/agendamentos/[id]/google/resolver/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos/[id]/google/retry",
+      "method": "POST",
+      "source": "app/api/v1/agenda/agendamentos/[id]/google/retry/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos/[id]",
+      "method": "GET",
+      "source": "app/api/v1/agenda/agendamentos/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos",
+      "method": "GET",
+      "source": "app/api/v1/agenda/agendamentos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos",
+      "method": "POST",
+      "source": "app/api/v1/agenda/agendamentos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos",
+      "method": "PATCH",
+      "source": "app/api/v1/agenda/agendamentos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/agendamentos",
+      "method": "DELETE",
+      "source": "app/api/v1/agenda/agendamentos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/configuracao",
+      "method": "GET",
+      "source": "app/api/v1/agenda/configuracao/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/configuracao",
+      "method": "PATCH",
+      "source": "app/api/v1/agenda/configuracao/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/enderecos",
+      "method": "GET",
+      "source": "app/api/v1/agenda/enderecos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/enderecos",
+      "method": "POST",
+      "source": "app/api/v1/agenda/enderecos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/excecoes",
+      "method": "GET",
+      "source": "app/api/v1/agenda/excecoes/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/excecoes",
+      "method": "POST",
+      "source": "app/api/v1/agenda/excecoes/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/excecoes",
+      "method": "DELETE",
+      "source": "app/api/v1/agenda/excecoes/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/google/calendarios/atualizar",
+      "method": "POST",
+      "source": "app/api/v1/agenda/google/calendarios/atualizar/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/google/calendarios",
+      "method": "GET",
+      "source": "app/api/v1/agenda/google/calendarios/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/google/calendarios",
+      "method": "PATCH",
+      "source": "app/api/v1/agenda/google/calendarios/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/google/callback",
+      "method": "GET",
+      "source": "app/api/v1/agenda/google/callback/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/google/connect",
+      "method": "GET",
+      "source": "app/api/v1/agenda/google/connect/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/google/desconectar",
+      "method": "DELETE",
+      "source": "app/api/v1/agenda/google/desconectar/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/horarios-livres",
+      "method": "GET",
+      "source": "app/api/v1/agenda/horarios-livres/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/pessoas",
+      "method": "GET",
+      "source": "app/api/v1/agenda/pessoas/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/tipos/reativar",
+      "method": "POST",
+      "source": "app/api/v1/agenda/tipos/reativar/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/tipos",
+      "method": "GET",
+      "source": "app/api/v1/agenda/tipos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/tipos",
+      "method": "POST",
+      "source": "app/api/v1/agenda/tipos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/tipos",
+      "method": "PATCH",
+      "source": "app/api/v1/agenda/tipos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/tipos",
+      "method": "DELETE",
+      "source": "app/api/v1/agenda/tipos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/agenda/vinculos",
+      "method": "GET",
+      "source": "app/api/v1/agenda/vinculos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/duplicate",
+      "method": "POST",
+      "source": "app/api/v1/ai/agents/[id]/duplicate/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/pause",
+      "method": "POST",
+      "source": "app/api/v1/ai/agents/[id]/pause/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/proposals/[pid]/apply",
+      "method": "POST",
+      "source": "app/api/v1/ai/agents/[id]/proposals/[pid]/apply/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/proposals",
+      "method": "GET",
+      "source": "app/api/v1/ai/agents/[id]/proposals/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/publish",
+      "method": "POST",
+      "source": "app/api/v1/ai/agents/[id]/publish/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/reconcile",
+      "method": "POST",
+      "source": "app/api/v1/ai/agents/[id]/reconcile/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]",
+      "method": "GET",
+      "source": "app/api/v1/ai/agents/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/agents/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/ai/agents/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/runs",
+      "method": "GET",
+      "source": "app/api/v1/ai/agents/[id]/runs/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/tool-usage",
+      "method": "GET",
+      "source": "app/api/v1/ai/agents/[id]/tool-usage/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/versions/[vid]",
+      "method": "GET",
+      "source": "app/api/v1/ai/agents/[id]/versions/[vid]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/versions/[vid]",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/agents/[id]/versions/[vid]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/versions/[vid]/test",
+      "method": "POST",
+      "source": "app/api/v1/ai/agents/[id]/versions/[vid]/test/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/versions",
+      "method": "GET",
+      "source": "app/api/v1/ai/agents/[id]/versions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/[id]/versions",
+      "method": "POST",
+      "source": "app/api/v1/ai/agents/[id]/versions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents/assignable",
+      "method": "GET",
+      "source": "app/api/v1/ai/agents/assignable/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents",
+      "method": "GET",
+      "source": "app/api/v1/ai/agents/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/agents",
+      "method": "POST",
+      "source": "app/api/v1/ai/agents/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/automatico-ativo",
+      "method": "GET",
+      "source": "app/api/v1/ai/automatico-ativo/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/budget",
+      "method": "GET",
+      "source": "app/api/v1/ai/budget/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/budget",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/budget/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/cases/[id]/chat",
+      "method": "GET",
+      "source": "app/api/v1/ai/cases/[id]/chat/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/cases/[id]/chat",
+      "method": "POST",
+      "source": "app/api/v1/ai/cases/[id]/chat/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/cases/[id]/reply",
+      "method": "POST",
+      "source": "app/api/v1/ai/cases/[id]/reply/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/cases/[id]",
+      "method": "GET",
+      "source": "app/api/v1/ai/cases/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/cases/alerta",
+      "method": "GET",
+      "source": "app/api/v1/ai/cases/alerta/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/cases/alerta",
+      "method": "PUT",
+      "source": "app/api/v1/ai/cases/alerta/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/cases/alerta/teste",
+      "method": "POST",
+      "source": "app/api/v1/ai/cases/alerta/teste/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/cases",
+      "method": "GET",
+      "source": "app/api/v1/ai/cases/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/credentials/[id]/revalidate",
+      "method": "POST",
+      "source": "app/api/v1/ai/credentials/[id]/revalidate/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/credentials/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/credentials/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/credentials/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/ai/credentials/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/credentials",
+      "method": "GET",
+      "source": "app/api/v1/ai/credentials/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/credentials",
+      "method": "POST",
+      "source": "app/api/v1/ai/credentials/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/evolution",
+      "method": "GET",
+      "source": "app/api/v1/ai/evolution/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows/[id]/disable",
+      "method": "POST",
+      "source": "app/api/v1/ai/followup-flows/[id]/disable/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows/[id]/duplicate",
+      "method": "POST",
+      "source": "app/api/v1/ai/followup-flows/[id]/duplicate/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows/[id]/publish",
+      "method": "POST",
+      "source": "app/api/v1/ai/followup-flows/[id]/publish/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows/[id]/rollback",
+      "method": "POST",
+      "source": "app/api/v1/ai/followup-flows/[id]/rollback/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows/[id]",
+      "method": "GET",
+      "source": "app/api/v1/ai/followup-flows/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/followup-flows/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/ai/followup-flows/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows/from-model",
+      "method": "POST",
+      "source": "app/api/v1/ai/followup-flows/from-model/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows",
+      "method": "GET",
+      "source": "app/api/v1/ai/followup-flows/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followup-flows",
+      "method": "POST",
+      "source": "app/api/v1/ai/followup-flows/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/enrollments/[id]/cancel",
+      "method": "POST",
+      "source": "app/api/v1/ai/followups/enrollments/[id]/cancel/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/enrollments/[id]/pause",
+      "method": "POST",
+      "source": "app/api/v1/ai/followups/enrollments/[id]/pause/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/enrollments/[id]/resume",
+      "method": "POST",
+      "source": "app/api/v1/ai/followups/enrollments/[id]/resume/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/enrollments/[id]",
+      "method": "GET",
+      "source": "app/api/v1/ai/followups/enrollments/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/enrollments/[id]/skip",
+      "method": "POST",
+      "source": "app/api/v1/ai/followups/enrollments/[id]/skip/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/enrollments/[id]/snooze",
+      "method": "POST",
+      "source": "app/api/v1/ai/followups/enrollments/[id]/snooze/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/enrollments",
+      "method": "GET",
+      "source": "app/api/v1/ai/followups/enrollments/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/enrollments",
+      "method": "POST",
+      "source": "app/api/v1/ai/followups/enrollments/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/promises/[id]/cancel",
+      "method": "POST",
+      "source": "app/api/v1/ai/followups/promises/[id]/cancel/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/followups/queue",
+      "method": "GET",
+      "source": "app/api/v1/ai/followups/queue/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/guardrail-layers",
+      "method": "GET",
+      "source": "app/api/v1/ai/guardrail-layers/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/guardrail-layers",
+      "method": "PUT",
+      "source": "app/api/v1/ai/guardrail-layers/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/inbox/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/inbox/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/inbox/resolve-all",
+      "method": "POST",
+      "source": "app/api/v1/ai/inbox/resolve-all/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/inbox",
+      "method": "GET",
+      "source": "app/api/v1/ai/inbox/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/knowledge/chave",
+      "method": "GET",
+      "source": "app/api/v1/ai/knowledge/chave/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/knowledge/sources/[id]/reindex",
+      "method": "POST",
+      "source": "app/api/v1/ai/knowledge/sources/[id]/reindex/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/knowledge/sources/[id]",
+      "method": "GET",
+      "source": "app/api/v1/ai/knowledge/sources/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/knowledge/sources/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/knowledge/sources/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/knowledge/sources/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/ai/knowledge/sources/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/knowledge/sources/[id]/trechos",
+      "method": "GET",
+      "source": "app/api/v1/ai/knowledge/sources/[id]/trechos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/knowledge/sources",
+      "method": "GET",
+      "source": "app/api/v1/ai/knowledge/sources/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/knowledge/sources",
+      "method": "POST",
+      "source": "app/api/v1/ai/knowledge/sources/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/knowledge/sources/upload",
+      "method": "POST",
+      "source": "app/api/v1/ai/knowledge/sources/upload/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/memory/entries/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/memory/entries/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/memory/entries",
+      "method": "POST",
+      "source": "app/api/v1/ai/memory/entries/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/memory",
+      "method": "GET",
+      "source": "app/api/v1/ai/memory/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/memory",
+      "method": "POST",
+      "source": "app/api/v1/ai/memory/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/memory/versions/[id]",
+      "method": "GET",
+      "source": "app/api/v1/ai/memory/versions/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/operator-metrics",
+      "method": "GET",
+      "source": "app/api/v1/ai/operator-metrics/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/pacing",
+      "method": "GET",
+      "source": "app/api/v1/ai/pacing/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/pacing",
+      "method": "PUT",
+      "source": "app/api/v1/ai/pacing/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/providers/[provider]/models",
+      "method": "GET",
+      "source": "app/api/v1/ai/providers/[provider]/models/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/providers",
+      "method": "GET",
+      "source": "app/api/v1/ai/providers/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/providers",
+      "method": "PUT",
+      "source": "app/api/v1/ai/providers/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/providers",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/providers/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/replies/[id]",
+      "method": "POST",
+      "source": "app/api/v1/ai/replies/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/routers/[id]/members",
+      "method": "PUT",
+      "source": "app/api/v1/ai/routers/[id]/members/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/routers/[id]",
+      "method": "GET",
+      "source": "app/api/v1/ai/routers/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/routers/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/ai/routers/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/routers/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/ai/routers/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/routers/[id]/test",
+      "method": "POST",
+      "source": "app/api/v1/ai/routers/[id]/test/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/routers",
+      "method": "GET",
+      "source": "app/api/v1/ai/routers/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/routers",
+      "method": "POST",
+      "source": "app/api/v1/ai/routers/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/runs",
+      "method": "GET",
+      "source": "app/api/v1/ai/runs/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/skills/[name]/install",
+      "method": "POST",
+      "source": "app/api/v1/ai/skills/[name]/install/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/skills/[name]/restore",
+      "method": "POST",
+      "source": "app/api/v1/ai/skills/[name]/restore/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/skills/[name]",
+      "method": "GET",
+      "source": "app/api/v1/ai/skills/[name]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/skills/[name]",
+      "method": "PUT",
+      "source": "app/api/v1/ai/skills/[name]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/skills/[name]",
+      "method": "DELETE",
+      "source": "app/api/v1/ai/skills/[name]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/skills/[name]/versions",
+      "method": "GET",
+      "source": "app/api/v1/ai/skills/[name]/versions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/skills/import",
+      "method": "POST",
+      "source": "app/api/v1/ai/skills/import/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/skills",
+      "method": "GET",
+      "source": "app/api/v1/ai/skills/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/style-adjustments",
+      "method": "GET",
+      "source": "app/api/v1/ai/style-adjustments/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/style-adjustments",
+      "method": "PUT",
+      "source": "app/api/v1/ai/style-adjustments/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/ai/usage",
+      "method": "GET",
+      "source": "app/api/v1/ai/usage/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/anuncios/google/[org]",
+      "method": "GET",
+      "source": "app/api/v1/anuncios/google/[org]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/anuncios/meta/[org]",
+      "method": "GET",
+      "source": "app/api/v1/anuncios/meta/[org]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/attendants/availability/[user_id]",
+      "method": "PATCH",
+      "source": "app/api/v1/attendants/availability/[user_id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/attendants/availability",
+      "method": "GET",
+      "source": "app/api/v1/attendants/availability/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/attendants/presence",
+      "method": "POST",
+      "source": "app/api/v1/attendants/presence/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/audit/export",
+      "method": "GET",
+      "source": "app/api/v1/audit/export/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/audit/mystery/[id]/execute",
+      "method": "POST",
+      "source": "app/api/v1/audit/mystery/[id]/execute/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/audit/mystery/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/audit/mystery/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/audit/mystery/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/audit/mystery/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/audit/mystery",
+      "method": "GET",
+      "source": "app/api/v1/audit/mystery/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/audit/mystery",
+      "method": "POST",
+      "source": "app/api/v1/audit/mystery/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/audit",
+      "method": "GET",
+      "source": "app/api/v1/audit/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/auth/interface",
+      "method": "GET",
+      "source": "app/api/v1/auth/interface/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/auth/realtime-token",
+      "method": "GET",
+      "source": "app/api/v1/auth/realtime-token/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/auth/support",
+      "method": "GET",
+      "source": "app/api/v1/auth/support/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/automation-rules/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/automation-rules/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/automation-rules/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/automation-rules/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/automation-rules/[id]/runs",
+      "method": "GET",
+      "source": "app/api/v1/automation-rules/[id]/runs/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/automation-rules",
+      "method": "GET",
+      "source": "app/api/v1/automation-rules/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/automation-rules",
+      "method": "POST",
+      "source": "app/api/v1/automation-rules/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/automation-rules/runs/[runId]/resend",
+      "method": "POST",
+      "source": "app/api/v1/automation-rules/runs/[runId]/resend/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/automation-rules/runs",
+      "method": "GET",
+      "source": "app/api/v1/automation-rules/runs/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/billing/checkout",
+      "method": "POST",
+      "source": "app/api/v1/billing/checkout/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/billing/portal",
+      "method": "POST",
+      "source": "app/api/v1/billing/portal/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/billing/webhook",
+      "method": "POST",
+      "source": "app/api/v1/billing/webhook/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/calls",
+      "method": "GET",
+      "source": "app/api/v1/calls/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/calls",
+      "method": "POST",
+      "source": "app/api/v1/calls/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaign-suppressions/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/campaign-suppressions/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaign-suppressions",
+      "method": "GET",
+      "source": "app/api/v1/campaign-suppressions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaign-suppressions",
+      "method": "POST",
+      "source": "app/api/v1/campaign-suppressions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaign-templates/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/campaign-templates/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaign-templates/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/campaign-templates/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaign-templates",
+      "method": "GET",
+      "source": "app/api/v1/campaign-templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaign-templates",
+      "method": "POST",
+      "source": "app/api/v1/campaign-templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaigns/[id]/[acao]",
+      "method": "POST",
+      "source": "app/api/v1/campaigns/[id]/[acao]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaigns/[id]/metrics",
+      "method": "GET",
+      "source": "app/api/v1/campaigns/[id]/metrics/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaigns/[id]/recipients",
+      "method": "GET",
+      "source": "app/api/v1/campaigns/[id]/recipients/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaigns/[id]",
+      "method": "GET",
+      "source": "app/api/v1/campaigns/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaigns/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/campaigns/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaigns/preview",
+      "method": "POST",
+      "source": "app/api/v1/campaigns/preview/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaigns",
+      "method": "GET",
+      "source": "app/api/v1/campaigns/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/campaigns",
+      "method": "POST",
+      "source": "app/api/v1/campaigns/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channel-sessions/[id]/ai-access",
+      "method": "GET",
+      "source": "app/api/v1/channel-sessions/[id]/ai-access/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channel-sessions/[id]/ai-access",
+      "method": "PATCH",
+      "source": "app/api/v1/channel-sessions/[id]/ai-access/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channel-sessions/[id]/pairing-code",
+      "method": "POST",
+      "source": "app/api/v1/channel-sessions/[id]/pairing-code/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channel-sessions/[id]/qr",
+      "method": "GET",
+      "source": "app/api/v1/channel-sessions/[id]/qr/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channel-sessions/[id]/reconnect",
+      "method": "POST",
+      "source": "app/api/v1/channel-sessions/[id]/reconnect/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channel-sessions/[id]",
+      "method": "GET",
+      "source": "app/api/v1/channel-sessions/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channel-sessions/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/channel-sessions/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channel-sessions",
+      "method": "GET",
+      "source": "app/api/v1/channel-sessions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channel-sessions",
+      "method": "POST",
+      "source": "app/api/v1/channel-sessions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/graph-partner",
+      "method": "GET",
+      "source": "app/api/v1/channels/graph-partner/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/graph-partner",
+      "method": "POST",
+      "source": "app/api/v1/channels/graph-partner/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/graph-partner",
+      "method": "PATCH",
+      "source": "app/api/v1/channels/graph-partner/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/graph-partner/templates",
+      "method": "GET",
+      "source": "app/api/v1/channels/graph-partner/templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/graph-partner/templates",
+      "method": "POST",
+      "source": "app/api/v1/channels/graph-partner/templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/official",
+      "method": "GET",
+      "source": "app/api/v1/channels/official/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/official",
+      "method": "POST",
+      "source": "app/api/v1/channels/official/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/official/webhook",
+      "method": "POST",
+      "source": "app/api/v1/channels/official/webhook/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/partner",
+      "method": "GET",
+      "source": "app/api/v1/channels/partner/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/partner",
+      "method": "POST",
+      "source": "app/api/v1/channels/partner/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/partner/templates/media",
+      "method": "POST",
+      "source": "app/api/v1/channels/partner/templates/media/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/partner/templates",
+      "method": "GET",
+      "source": "app/api/v1/channels/partner/templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/partner/templates",
+      "method": "POST",
+      "source": "app/api/v1/channels/partner/templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/social",
+      "method": "GET",
+      "source": "app/api/v1/channels/social/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/social",
+      "method": "POST",
+      "source": "app/api/v1/channels/social/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/templates",
+      "method": "GET",
+      "source": "app/api/v1/channels/templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/templates",
+      "method": "POST",
+      "source": "app/api/v1/channels/templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/channels/templates",
+      "method": "PATCH",
+      "source": "app/api/v1/channels/templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contact-tags",
+      "method": "GET",
+      "source": "app/api/v1/contact-tags/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/[id]/avatar",
+      "method": "GET",
+      "source": "app/api/v1/contacts/[id]/avatar/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/[id]/crm-summary",
+      "method": "GET",
+      "source": "app/api/v1/contacts/[id]/crm-summary/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/[id]/hierarquia-do-anuncio",
+      "method": "GET",
+      "source": "app/api/v1/contacts/[id]/hierarquia-do-anuncio/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/[id]/proposals/[proposal_id]",
+      "method": "POST",
+      "source": "app/api/v1/contacts/[id]/proposals/[proposal_id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/[id]/proposals",
+      "method": "GET",
+      "source": "app/api/v1/contacts/[id]/proposals/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/[id]",
+      "method": "GET",
+      "source": "app/api/v1/contacts/[id]/route.ts",
+      "mcp_tools": [
+        "crm_get_contact"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "crm:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
+    },
+    {
+      "route": "/api/v1/contacts/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/contacts/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/contacts/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/[id]/timeline",
+      "method": "GET",
+      "source": "app/api/v1/contacts/[id]/timeline/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/duplicates",
+      "method": "GET",
+      "source": "app/api/v1/contacts/duplicates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/import",
+      "method": "POST",
+      "source": "app/api/v1/contacts/import/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts/merge",
+      "method": "POST",
+      "source": "app/api/v1/contacts/merge/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/contacts",
+      "method": "GET",
+      "source": "app/api/v1/contacts/route.ts",
+      "mcp_tools": [
+        "crm_search_contacts"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "crm:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
+    },
+    {
+      "route": "/api/v1/contacts",
+      "method": "POST",
+      "source": "app/api/v1/contacts/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversation-tags",
+      "method": "GET",
+      "source": "app/api/v1/conversation-tags/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/claim",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/claim/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/close",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/close/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/draft-reply",
+      "method": "GET",
+      "source": "app/api/v1/conversations/[id]/draft-reply/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/draft-reply",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/draft-reply/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/mark-read",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/mark-read/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/media",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/media/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/messages",
+      "method": "GET",
+      "source": "app/api/v1/conversations/[id]/messages/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/notes/[noteId]",
+      "method": "DELETE",
+      "source": "app/api/v1/conversations/[id]/notes/[noteId]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/notes",
+      "method": "GET",
+      "source": "app/api/v1/conversations/[id]/notes/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/notes",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/notes/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/passagens",
+      "method": "GET",
+      "source": "app/api/v1/conversations/[id]/passagens/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/pause-ai",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/pause-ai/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/reactivate-bot",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/reactivate-bot/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/release",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/release/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/retention",
+      "method": "GET",
+      "source": "app/api/v1/conversations/[id]/retention/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]",
+      "method": "GET",
+      "source": "app/api/v1/conversations/[id]/route.ts",
+      "mcp_tools": [
+        "crm_get_conversation"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "whatsapp:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
+    },
+    {
+      "route": "/api/v1/conversations/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/conversations/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/snooze",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/snooze/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/snooze",
+      "method": "DELETE",
+      "source": "app/api/v1/conversations/[id]/snooze/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/transfer",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/transfer/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/usable-for-rag",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/usable-for-rag/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/voice-missions",
+      "method": "GET",
+      "source": "app/api/v1/conversations/[id]/voice-missions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/[id]/voice-missions",
+      "method": "POST",
+      "source": "app/api/v1/conversations/[id]/voice-missions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/counts",
+      "method": "GET",
+      "source": "app/api/v1/conversations/counts/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations/open-with-contact",
+      "method": "POST",
+      "source": "app/api/v1/conversations/open-with-contact/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/conversations",
+      "method": "GET",
+      "source": "app/api/v1/conversations/route.ts",
+      "mcp_tools": [
+        "crm_list_conversations"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "whatsapp:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
+    },
+    {
+      "route": "/api/v1/cron/agenda-expira-pendentes",
+      "method": "GET",
+      "source": "app/api/v1/cron/agenda-expira-pendentes/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agenda-expira-pendentes",
+      "method": "POST",
+      "source": "app/api/v1/cron/agenda-expira-pendentes/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agenda-google-push",
+      "method": "GET",
+      "source": "app/api/v1/cron/agenda-google-push/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agenda-google-push",
+      "method": "POST",
+      "source": "app/api/v1/cron/agenda-google-push/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agenda-google-refresh",
+      "method": "GET",
+      "source": "app/api/v1/cron/agenda-google-refresh/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agenda-google-refresh",
+      "method": "POST",
+      "source": "app/api/v1/cron/agenda-google-refresh/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agenda-google-sync",
+      "method": "GET",
+      "source": "app/api/v1/cron/agenda-google-sync/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agenda-google-sync",
+      "method": "POST",
+      "source": "app/api/v1/cron/agenda-google-sync/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agenda-reminder",
+      "method": "GET",
+      "source": "app/api/v1/cron/agenda-reminder/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agenda-reminder",
+      "method": "POST",
+      "source": "app/api/v1/cron/agenda-reminder/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agent-dispatcher",
+      "method": "GET",
+      "source": "app/api/v1/cron/agent-dispatcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/agent-dispatcher",
+      "method": "POST",
+      "source": "app/api/v1/cron/agent-dispatcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/billing-sync",
+      "method": "GET",
+      "source": "app/api/v1/cron/billing-sync/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/billing-sync",
+      "method": "POST",
+      "source": "app/api/v1/cron/billing-sync/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/campaign-worker",
+      "method": "GET",
+      "source": "app/api/v1/cron/campaign-worker/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/campaign-worker",
+      "method": "POST",
+      "source": "app/api/v1/cron/campaign-worker/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/canal-mudo-watcher",
+      "method": "GET",
+      "source": "app/api/v1/cron/canal-mudo-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/canal-mudo-watcher",
+      "method": "POST",
+      "source": "app/api/v1/cron/canal-mudo-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/case-stale-watcher",
+      "method": "GET",
+      "source": "app/api/v1/cron/case-stale-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/case-stale-watcher",
+      "method": "POST",
+      "source": "app/api/v1/cron/case-stale-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/channel-health",
+      "method": "GET",
+      "source": "app/api/v1/cron/channel-health/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/channel-health",
+      "method": "POST",
+      "source": "app/api/v1/cron/channel-health/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/contact-avatars",
+      "method": "GET",
+      "source": "app/api/v1/cron/contact-avatars/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/contact-avatars",
+      "method": "POST",
+      "source": "app/api/v1/cron/contact-avatars/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/contact-birthdays",
+      "method": "GET",
+      "source": "app/api/v1/cron/contact-birthdays/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/contact-birthdays",
+      "method": "POST",
+      "source": "app/api/v1/cron/contact-birthdays/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/contact-phones",
+      "method": "GET",
+      "source": "app/api/v1/cron/contact-phones/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/contact-phones",
+      "method": "POST",
+      "source": "app/api/v1/cron/contact-phones/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/contact-proposals-watcher",
+      "method": "GET",
+      "source": "app/api/v1/cron/contact-proposals-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/contact-proposals-watcher",
+      "method": "POST",
+      "source": "app/api/v1/cron/contact-proposals-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/data-retention",
+      "method": "GET",
+      "source": "app/api/v1/cron/data-retention/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/data-retention",
+      "method": "POST",
+      "source": "app/api/v1/cron/data-retention/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/event-log-drain",
+      "method": "GET",
+      "source": "app/api/v1/cron/event-log-drain/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/event-log-drain",
+      "method": "POST",
+      "source": "app/api/v1/cron/event-log-drain/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/followup-flow-worker",
+      "method": "GET",
+      "source": "app/api/v1/cron/followup-flow-worker/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/followup-flow-worker",
+      "method": "POST",
+      "source": "app/api/v1/cron/followup-flow-worker/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/followup-sem-agente",
+      "method": "GET",
+      "source": "app/api/v1/cron/followup-sem-agente/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/followup-sem-agente",
+      "method": "POST",
+      "source": "app/api/v1/cron/followup-sem-agente/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/handoff-devolucao",
+      "method": "GET",
+      "source": "app/api/v1/cron/handoff-devolucao/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/handoff-devolucao",
+      "method": "POST",
+      "source": "app/api/v1/cron/handoff-devolucao/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/kb-conversations-batch",
+      "method": "GET",
+      "source": "app/api/v1/cron/kb-conversations-batch/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/lead-date-field-due",
+      "method": "GET",
+      "source": "app/api/v1/cron/lead-date-field-due/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/lead-date-field-due",
+      "method": "POST",
+      "source": "app/api/v1/cron/lead-date-field-due/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/lgpd-sla-watcher",
+      "method": "GET",
+      "source": "app/api/v1/cron/lgpd-sla-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/prospecting",
+      "method": "GET",
+      "source": "app/api/v1/cron/prospecting/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/prospecting",
+      "method": "POST",
+      "source": "app/api/v1/cron/prospecting/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/recover-stuck-messages",
+      "method": "GET",
+      "source": "app/api/v1/cron/recover-stuck-messages/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/recover-stuck-messages",
+      "method": "POST",
+      "source": "app/api/v1/cron/recover-stuck-messages/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/recurring-entries",
+      "method": "GET",
+      "source": "app/api/v1/cron/recurring-entries/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/recurring-entries",
+      "method": "POST",
+      "source": "app/api/v1/cron/recurring-entries/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/risk-watcher",
+      "method": "GET",
+      "source": "app/api/v1/cron/risk-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/risk-watcher",
+      "method": "POST",
+      "source": "app/api/v1/cron/risk-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/routing-worker",
+      "method": "GET",
+      "source": "app/api/v1/cron/routing-worker/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/routing-worker",
+      "method": "POST",
+      "source": "app/api/v1/cron/routing-worker/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/snooze-watcher",
+      "method": "GET",
+      "source": "app/api/v1/cron/snooze-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/snooze-watcher",
+      "method": "POST",
+      "source": "app/api/v1/cron/snooze-watcher/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/storage-redaction",
+      "method": "GET",
+      "source": "app/api/v1/cron/storage-redaction/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/sync-model-catalog",
+      "method": "GET",
+      "source": "app/api/v1/cron/sync-model-catalog/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/sync-model-catalog",
+      "method": "POST",
+      "source": "app/api/v1/cron/sync-model-catalog/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/webhook-log-retention",
+      "method": "GET",
+      "source": "app/api/v1/cron/webhook-log-retention/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/whatsapp-history",
+      "method": "GET",
+      "source": "app/api/v1/cron/whatsapp-history/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/whatsapp-history",
+      "method": "POST",
+      "source": "app/api/v1/cron/whatsapp-history/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/whatsapp-history-analysis",
+      "method": "GET",
+      "source": "app/api/v1/cron/whatsapp-history-analysis/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/cron/whatsapp-history-analysis",
+      "method": "POST",
+      "source": "app/api/v1/cron/whatsapp-history-analysis/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/demandas/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/demandas/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions/[id]/configuration",
+      "method": "PUT",
+      "source": "app/api/v1/extensions/[id]/configuration/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions/[id]/open",
+      "method": "POST",
+      "source": "app/api/v1/extensions/[id]/open/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions/[id]/remove",
+      "method": "POST",
+      "source": "app/api/v1/extensions/[id]/remove/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions/[id]/revert",
+      "method": "POST",
+      "source": "app/api/v1/extensions/[id]/revert/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions/[id]",
+      "method": "GET",
+      "source": "app/api/v1/extensions/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions/catalogs",
+      "method": "POST",
+      "source": "app/api/v1/extensions/catalogs/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions/install",
+      "method": "POST",
+      "source": "app/api/v1/extensions/install/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions/operations/[id]/cancel",
+      "method": "POST",
+      "source": "app/api/v1/extensions/operations/[id]/cancel/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions/operations/[id]",
+      "method": "GET",
+      "source": "app/api/v1/extensions/operations/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/extensions",
+      "method": "GET",
+      "source": "app/api/v1/extensions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/external-db/connections/[id]",
+      "method": "GET",
+      "source": "app/api/v1/external-db/connections/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/external-db/connections/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/external-db/connections/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/external-db/connections/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/external-db/connections/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/external-db/connections/[id]/schemas",
+      "method": "GET",
+      "source": "app/api/v1/external-db/connections/[id]/schemas/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/external-db/connections/[id]/tables/[schema]/[tabela]",
+      "method": "GET",
+      "source": "app/api/v1/external-db/connections/[id]/tables/[schema]/[tabela]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/external-db/connections/[id]/test",
+      "method": "POST",
+      "source": "app/api/v1/external-db/connections/[id]/test/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/external-db/connections",
+      "method": "GET",
+      "source": "app/api/v1/external-db/connections/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/external-db/connections",
+      "method": "POST",
+      "source": "app/api/v1/external-db/connections/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/catalogo/[tipo]",
+      "method": "GET",
+      "source": "app/api/v1/financeiro/catalogo/[tipo]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/catalogo/[tipo]",
+      "method": "POST",
+      "source": "app/api/v1/financeiro/catalogo/[tipo]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/catalogo/[tipo]",
+      "method": "PATCH",
+      "source": "app/api/v1/financeiro/catalogo/[tipo]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/catalogo/[tipo]",
+      "method": "DELETE",
+      "source": "app/api/v1/financeiro/catalogo/[tipo]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas/[id]/estornar",
+      "method": "POST",
+      "source": "app/api/v1/financeiro/comandas/[id]/estornar/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas/[id]/finalizar",
+      "method": "POST",
+      "source": "app/api/v1/financeiro/comandas/[id]/finalizar/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas/[id]/itens/[itemId]",
+      "method": "DELETE",
+      "source": "app/api/v1/financeiro/comandas/[id]/itens/[itemId]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas/[id]/itens",
+      "method": "POST",
+      "source": "app/api/v1/financeiro/comandas/[id]/itens/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas/[id]",
+      "method": "GET",
+      "source": "app/api/v1/financeiro/comandas/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/financeiro/comandas/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas/faturar-lote",
+      "method": "POST",
+      "source": "app/api/v1/financeiro/comandas/faturar-lote/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas/pendentes",
+      "method": "GET",
+      "source": "app/api/v1/financeiro/comandas/pendentes/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas",
+      "method": "GET",
+      "source": "app/api/v1/financeiro/comandas/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/comandas",
+      "method": "POST",
+      "source": "app/api/v1/financeiro/comandas/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/fidelidade",
+      "method": "GET",
+      "source": "app/api/v1/financeiro/fidelidade/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/fidelidade",
+      "method": "POST",
+      "source": "app/api/v1/financeiro/fidelidade/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/lancamentos/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/financeiro/lancamentos/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/lancamentos/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/financeiro/lancamentos/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/lancamentos",
+      "method": "GET",
+      "source": "app/api/v1/financeiro/lancamentos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/financeiro/lancamentos",
+      "method": "POST",
+      "source": "app/api/v1/financeiro/lancamentos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/growth/instagram",
+      "method": "GET",
+      "source": "app/api/v1/growth/instagram/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/growth/instagram",
+      "method": "POST",
+      "source": "app/api/v1/growth/instagram/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/health",
+      "method": "GET",
+      "source": "app/api/v1/health/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/instagram/[id]",
+      "method": "GET",
+      "source": "app/api/v1/instagram/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/instagram/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/instagram/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/instagram/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/instagram/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/instagram/account",
+      "method": "GET",
+      "source": "app/api/v1/instagram/account/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/instagram/insights",
+      "method": "GET",
+      "source": "app/api/v1/instagram/insights/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/instagram/publish",
+      "method": "GET",
+      "source": "app/api/v1/instagram/publish/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/instagram/publish",
+      "method": "POST",
+      "source": "app/api/v1/instagram/publish/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/instagram",
+      "method": "GET",
+      "source": "app/api/v1/instagram/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/instagram",
+      "method": "POST",
+      "source": "app/api/v1/instagram/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/integrations/nuvemshop/callback",
+      "method": "GET",
+      "source": "app/api/v1/integrations/nuvemshop/callback/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/knowledge/[id]/revisions",
+      "method": "GET",
+      "source": "app/api/v1/knowledge/[id]/revisions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/knowledge/[id]",
+      "method": "GET",
+      "source": "app/api/v1/knowledge/[id]/route.ts",
+      "mcp_tools": [
+        "knowledge_read_page"
+      ],
+      "status": "implemented_pending_browser_qa"
+    },
+    {
+      "route": "/api/v1/knowledge/favorites",
+      "method": "GET",
+      "source": "app/api/v1/knowledge/favorites/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/knowledge/favorites",
+      "method": "POST",
+      "source": "app/api/v1/knowledge/favorites/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/knowledge/import",
+      "method": "POST",
+      "source": "app/api/v1/knowledge/import/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/knowledge",
+      "method": "GET",
+      "source": "app/api/v1/knowledge/route.ts",
+      "mcp_tools": [
+        "knowledge_list_pages"
+      ],
+      "status": "implemented_pending_browser_qa"
+    },
+    {
+      "route": "/api/v1/knowledge",
+      "method": "POST",
+      "source": "app/api/v1/knowledge/route.ts",
+      "mcp_tools": [
+        "knowledge_save_page"
+      ],
+      "status": "implemented_pending_browser_qa"
+    },
+    {
+      "route": "/api/v1/knowledge/search",
+      "method": "GET",
+      "source": "app/api/v1/knowledge/search/route.ts",
+      "mcp_tools": [
+        "knowledge_search"
+      ],
+      "status": "implemented_pending_browser_qa"
+    },
+    {
+      "route": "/api/v1/lead-captures",
+      "method": "GET",
+      "source": "app/api/v1/lead-captures/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/[id]/clone",
+      "method": "POST",
+      "source": "app/api/v1/leads/[id]/clone/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/[id]/lose",
+      "method": "POST",
+      "source": "app/api/v1/leads/[id]/lose/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/[id]/move",
+      "method": "POST",
+      "source": "app/api/v1/leads/[id]/move/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/[id]/next-action",
+      "method": "POST",
+      "source": "app/api/v1/leads/[id]/next-action/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/[id]/reactivation",
+      "method": "POST",
+      "source": "app/api/v1/leads/[id]/reactivation/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/leads/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/[id]/timeline",
+      "method": "GET",
+      "source": "app/api/v1/leads/[id]/timeline/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/[id]/win",
+      "method": "POST",
+      "source": "app/api/v1/leads/[id]/win/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/at-risk",
+      "method": "GET",
+      "source": "app/api/v1/leads/at-risk/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/bulk",
+      "method": "POST",
+      "source": "app/api/v1/leads/bulk/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/import",
+      "method": "POST",
+      "source": "app/api/v1/leads/import/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/import",
+      "method": "GET",
+      "source": "app/api/v1/leads/import/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/proposals",
+      "method": "GET",
+      "source": "app/api/v1/leads/proposals/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads/reactivations",
+      "method": "GET",
+      "source": "app/api/v1/leads/reactivations/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/leads",
+      "method": "POST",
+      "source": "app/api/v1/leads/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/lgpd/anonymize",
+      "method": "POST",
+      "source": "app/api/v1/lgpd/anonymize/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/lgpd/requests/[id]/approve",
+      "method": "POST",
+      "source": "app/api/v1/lgpd/requests/[id]/approve/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/lgpd/requests/[id]/preview",
+      "method": "GET",
+      "source": "app/api/v1/lgpd/requests/[id]/preview/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/lgpd/requests/[id]",
+      "method": "GET",
+      "source": "app/api/v1/lgpd/requests/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/lgpd/requests",
+      "method": "GET",
+      "source": "app/api/v1/lgpd/requests/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/marca/logo",
+      "method": "POST",
+      "source": "app/api/v1/marca/logo/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/marca/logo",
+      "method": "DELETE",
+      "source": "app/api/v1/marca/logo/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/mcp/connections",
+      "method": "GET",
+      "source": "app/api/v1/mcp/connections/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/mcp/connections",
+      "method": "POST",
+      "source": "app/api/v1/mcp/connections/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/mcp/connections",
+      "method": "DELETE",
+      "source": "app/api/v1/mcp/connections/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/mcp/tools",
+      "method": "GET",
+      "source": "app/api/v1/mcp/tools/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/message-templates/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/message-templates/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/message-templates/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/message-templates/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/message-templates",
+      "method": "GET",
+      "source": "app/api/v1/message-templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/message-templates",
+      "method": "POST",
+      "source": "app/api/v1/message-templates/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/messages/[id]/media",
+      "method": "GET",
+      "source": "app/api/v1/messages/[id]/media/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/messages",
+      "method": "POST",
+      "source": "app/api/v1/messages/route.ts",
+      "mcp_tools": [
+        "crm_send_whatsapp_message"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "whatsapp:execute",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ],
+      "remaining_evidence": "Successful real dispatch and delivery; local test proves blocked contact and receipt behavior only."
+    },
+    {
+      "route": "/api/v1/metrics/atrito",
+      "method": "GET",
+      "source": "app/api/v1/metrics/atrito/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/metrics/atrito",
+      "method": "PATCH",
+      "source": "app/api/v1/metrics/atrito/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/metrics/attendants",
+      "method": "GET",
+      "source": "app/api/v1/metrics/attendants/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/notifications/push",
+      "method": "GET",
+      "source": "app/api/v1/notifications/push/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/notifications/push",
+      "method": "PUT",
+      "source": "app/api/v1/notifications/push/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/notifications/push",
+      "method": "DELETE",
+      "source": "app/api/v1/notifications/push/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/onboarding/whatsapp/qr",
+      "method": "GET",
+      "source": "app/api/v1/onboarding/whatsapp/qr/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/onboarding/whatsapp/session",
+      "method": "GET",
+      "source": "app/api/v1/onboarding/whatsapp/session/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/onboarding/whatsapp/session",
+      "method": "POST",
+      "source": "app/api/v1/onboarding/whatsapp/session/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/phone-numbers/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/phone-numbers/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/phone-numbers",
+      "method": "GET",
+      "source": "app/api/v1/phone-numbers/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/phone-numbers",
+      "method": "POST",
+      "source": "app/api/v1/phone-numbers/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/[id]/agent-mapping",
+      "method": "GET",
+      "source": "app/api/v1/pipelines/[id]/agent-mapping/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/[id]/agent-mapping",
+      "method": "PUT",
+      "source": "app/api/v1/pipelines/[id]/agent-mapping/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/[id]/board",
+      "method": "GET",
+      "source": "app/api/v1/pipelines/[id]/board/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/pipelines/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/pipelines/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/[id]/stages/[stageId]",
+      "method": "PATCH",
+      "source": "app/api/v1/pipelines/[id]/stages/[stageId]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/[id]/stages/[stageId]",
+      "method": "DELETE",
+      "source": "app/api/v1/pipelines/[id]/stages/[stageId]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/[id]/stages",
+      "method": "GET",
+      "source": "app/api/v1/pipelines/[id]/stages/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/[id]/stages",
+      "method": "POST",
+      "source": "app/api/v1/pipelines/[id]/stages/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines/default",
+      "method": "GET",
+      "source": "app/api/v1/pipelines/default/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/pipelines",
+      "method": "GET",
+      "source": "app/api/v1/pipelines/route.ts",
+      "mcp_tools": [
+        "crm_list_pipelines"
+      ],
+      "status": "implemented_local_validation",
+      "minimum_role": "agent",
+      "scope": "crm:read",
+      "tests": [
+        "tests/e2e/knowledge-pages-mcp.spec.ts"
+      ]
+    },
+    {
+      "route": "/api/v1/pipelines",
+      "method": "POST",
+      "source": "app/api/v1/pipelines/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/plataformas-de-anuncio/google/callback",
+      "method": "GET",
+      "source": "app/api/v1/plataformas-de-anuncio/google/callback/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/plataformas-de-anuncio/google/connect",
+      "method": "GET",
+      "source": "app/api/v1/plataformas-de-anuncio/google/connect/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/products/[id]/fotos",
+      "method": "POST",
+      "source": "app/api/v1/products/[id]/fotos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/products/[id]/fotos",
+      "method": "PUT",
+      "source": "app/api/v1/products/[id]/fotos/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/products/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/products/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/products/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/products/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/products/import",
+      "method": "POST",
+      "source": "app/api/v1/products/import/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/products/import",
+      "method": "GET",
+      "source": "app/api/v1/products/import/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/products",
+      "method": "GET",
+      "source": "app/api/v1/products/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/products",
+      "method": "POST",
+      "source": "app/api/v1/products/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/prospecting/agents/chat",
+      "method": "POST",
+      "source": "app/api/v1/prospecting/agents/chat/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/prospecting/agents/prepare",
+      "method": "POST",
+      "source": "app/api/v1/prospecting/agents/prepare/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/prospecting/agents",
+      "method": "POST",
+      "source": "app/api/v1/prospecting/agents/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/prospecting/agents/session",
+      "method": "GET",
+      "source": "app/api/v1/prospecting/agents/session/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/prospecting/agents/session",
+      "method": "PATCH",
+      "source": "app/api/v1/prospecting/agents/session/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/prospecting",
+      "method": "GET",
+      "source": "app/api/v1/prospecting/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/prospecting",
+      "method": "POST",
+      "source": "app/api/v1/prospecting/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/reports/activities",
+      "method": "GET",
+      "source": "app/api/v1/reports/activities/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/reports/financeiro",
+      "method": "GET",
+      "source": "app/api/v1/reports/financeiro/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/settings/api-tokens/[id]/revoke",
+      "method": "POST",
+      "source": "app/api/v1/settings/api-tokens/[id]/revoke/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/settings/api-tokens",
+      "method": "GET",
+      "source": "app/api/v1/settings/api-tokens/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/settings/api-tokens",
+      "method": "POST",
+      "source": "app/api/v1/settings/api-tokens/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/settings/campanhas",
+      "method": "GET",
+      "source": "app/api/v1/settings/campanhas/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/settings/campanhas",
+      "method": "PATCH",
+      "source": "app/api/v1/settings/campanhas/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/settings/routing/channels",
+      "method": "GET",
+      "source": "app/api/v1/settings/routing/channels/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/settings/routing/channels",
+      "method": "PATCH",
+      "source": "app/api/v1/settings/routing/channels/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/settings/routing",
+      "method": "GET",
+      "source": "app/api/v1/settings/routing/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/settings/routing",
+      "method": "PATCH",
+      "source": "app/api/v1/settings/routing/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/system/agent",
+      "method": "POST",
+      "source": "app/api/v1/system/agent/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/system/instalacao",
+      "method": "GET",
+      "source": "app/api/v1/system/instalacao/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/system/relogio/tick",
+      "method": "POST",
+      "source": "app/api/v1/system/relogio/tick/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/system/relogio/tick",
+      "method": "GET",
+      "source": "app/api/v1/system/relogio/tick/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/system/update",
+      "method": "POST",
+      "source": "app/api/v1/system/update/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/system/version",
+      "method": "GET",
+      "source": "app/api/v1/system/version/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/tags/cores",
+      "method": "GET",
+      "source": "app/api/v1/tags/cores/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/tags/vocabulario",
+      "method": "GET",
+      "source": "app/api/v1/tags/vocabulario/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/tags/vocabulario",
+      "method": "POST",
+      "source": "app/api/v1/tags/vocabulario/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/tasks/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/tasks/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/tasks/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/tasks/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/tasks",
+      "method": "GET",
+      "source": "app/api/v1/tasks/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/tasks",
+      "method": "POST",
+      "source": "app/api/v1/tasks/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/[user_id]/interface",
+      "method": "PATCH",
+      "source": "app/api/v1/team/[user_id]/interface/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/[user_id]/reactivate",
+      "method": "POST",
+      "source": "app/api/v1/team/[user_id]/reactivate/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/[user_id]/revoke",
+      "method": "POST",
+      "source": "app/api/v1/team/[user_id]/revoke/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/[user_id]/role",
+      "method": "PATCH",
+      "source": "app/api/v1/team/[user_id]/role/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/[user_id]",
+      "method": "PATCH",
+      "source": "app/api/v1/team/[user_id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/assignable",
+      "method": "GET",
+      "source": "app/api/v1/team/assignable/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/invite",
+      "method": "POST",
+      "source": "app/api/v1/team/invite/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/invites/[id]/resend",
+      "method": "POST",
+      "source": "app/api/v1/team/invites/[id]/resend/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/invites/[id]/revoke",
+      "method": "POST",
+      "source": "app/api/v1/team/invites/[id]/revoke/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team/invites",
+      "method": "GET",
+      "source": "app/api/v1/team/invites/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/team",
+      "method": "GET",
+      "source": "app/api/v1/team/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/tenants/provision",
+      "method": "POST",
+      "source": "app/api/v1/tenants/provision/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/ai-session",
+      "method": "POST",
+      "source": "app/api/v1/voice/ai-session/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/calls/[id]/accept",
+      "method": "POST",
+      "source": "app/api/v1/voice/calls/[id]/accept/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/calls/[id]/reject",
+      "method": "POST",
+      "source": "app/api/v1/voice/calls/[id]/reject/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/calls/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/voice/calls/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/calls/[id]/webrtc",
+      "method": "POST",
+      "source": "app/api/v1/voice/calls/[id]/webrtc/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/calls/history",
+      "method": "GET",
+      "source": "app/api/v1/voice/calls/history/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/calls",
+      "method": "POST",
+      "source": "app/api/v1/voice/calls/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/events",
+      "method": "GET",
+      "source": "app/api/v1/voice/events/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/opt-in",
+      "method": "GET",
+      "source": "app/api/v1/voice/opt-in/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/opt-in",
+      "method": "PUT",
+      "source": "app/api/v1/voice/opt-in/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/sessions/pair",
+      "method": "POST",
+      "source": "app/api/v1/voice/sessions/pair/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/sessions",
+      "method": "DELETE",
+      "source": "app/api/v1/voice/sessions/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voice/sessions/status",
+      "method": "GET",
+      "source": "app/api/v1/voice/sessions/status/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voip/trunk",
+      "method": "GET",
+      "source": "app/api/v1/voip/trunk/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/voip/trunk",
+      "method": "PUT",
+      "source": "app/api/v1/voip/trunk/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhook-sources/[id]/events",
+      "method": "GET",
+      "source": "app/api/v1/webhook-sources/[id]/events/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhook-sources/[id]",
+      "method": "PATCH",
+      "source": "app/api/v1/webhook-sources/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhook-sources/[id]",
+      "method": "DELETE",
+      "source": "app/api/v1/webhook-sources/[id]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhook-sources",
+      "method": "GET",
+      "source": "app/api/v1/webhook-sources/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhook-sources",
+      "method": "POST",
+      "source": "app/api/v1/webhook-sources/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/cakto-billing",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/cakto-billing/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/channel/[token]",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/channel/[token]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/in/[token]",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/in/[token]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/meta/[token]",
+      "method": "GET",
+      "source": "app/api/v1/webhooks/meta/[token]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/meta/[token]",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/meta/[token]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/nuvemshop/[event]",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/nuvemshop/[event]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/nuvemshop/customer-data-request",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/nuvemshop/customer-data-request/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/nuvemshop/customer-redact",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/nuvemshop/customer-redact/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/nuvemshop/store-redact",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/nuvemshop/store-redact/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/waha/[token]",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/waha/[token]/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    },
+    {
+      "route": "/api/v1/webhooks/waha",
+      "method": "POST",
+      "source": "app/api/v1/webhooks/waha/route.ts",
+      "mcp_tools": [],
+      "status": "pending_review"
+    }
+  ]
+}

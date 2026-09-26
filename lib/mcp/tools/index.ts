@@ -1,3 +1,4 @@
+import { knowledgePageTools } from "./knowledge-pages";
 /**
  * Catalogo agregado de tools MCP.
  *
@@ -95,6 +96,7 @@ import {
 // nivel do array — o server core ja recebe args como `Record<string,
 // unknown>` e cada handler valida no Zod do registerTool.
 export const allTools: ReadonlyArray<McpToolDefinition> = [
+  ...knowledgePageTools,
   // read
   crmListEventTypes,
   crmFindFreeSlots,

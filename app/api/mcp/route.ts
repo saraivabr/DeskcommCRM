@@ -8,6 +8,7 @@
  * NUNCA logamos plaintext do bearer. Em erro retornamos JSON-RPC 2.0
  * envelope com `error.code` MCP (-32001/-32002/etc).
  */
+import { oauthOrigin } from "@/lib/mcp/oauth";
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
@@ -31,7 +32,7 @@ function jsonRpcError(code: number, message: string, status: number): Response {
     }),
     {
       status,
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(status === 401 ? { "WWW-Authenticate": `Bearer resource_metadata="${oauthOrigin()}/.well-known/oauth-protected-resource/api/mcp"` } : {}) },
     },
   );
 }

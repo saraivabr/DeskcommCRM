@@ -6,6 +6,7 @@
  * - `crm_get_conversation_history` -> listMessagesHandler (carrega historico)
  */
 import { z } from "zod";
+import { conversationAccess, requireConversationAccess } from "../resource-access";
 
 import {
   listConversationsHandler,
@@ -39,9 +40,7 @@ const listInputShape = {
   contact_id: z.string().uuid().optional(),
   // `pending` entra: é o estado da conversa que o próprio agente escalou, e sem
   // ele a IA não conseguia listar o que ela mesma passou para uma pessoa.
-  status: z
-    .enum(["open", "pending", "claimed", "ai_handling", "closed", "archived"])
-    .optional(),
+  status: z.enum(["open", "pending", "claimed", "ai_handling", "closed", "archived"]).optional(),
   limit: z.number().int().min(1).max(50).default(10),
   cursor: z.string().optional(),
 };
@@ -56,6 +55,7 @@ export const crmListConversations: McpToolDefinition<typeof listInputShape> = {
   requiresRole: "agent",
   requiresScope: "mcp:read",
   handler: async (input, ctx) => {
+    const access = await conversationAccess(ctx);
     const result = await listConversationsHandler(
       ctx.supabase,
       {
@@ -74,6 +74,7 @@ export const crmListConversations: McpToolDefinition<typeof listInputShape> = {
         limit: input.limit,
         cursor: input.cursor,
       },
+      access ? { ...access, contactId: input.contact_id } : undefined,
     );
     let conversations = result.conversations;
     if (input.contact_id) {
@@ -125,6 +126,7 @@ export const crmGetConversation: McpToolDefinition<typeof getInputShape> = {
   requiresRole: "agent",
   requiresScope: "mcp:read",
   handler: async (input, ctx) => {
+    await requireConversationAccess(ctx, input.conversation_id);
     const conv = await getConversationHandler(
       ctx.supabase,
       {
@@ -178,6 +180,7 @@ export const crmGetConversationHistory: McpToolDefinition<typeof historyInputSha
   requiresRole: "agent",
   requiresScope: "mcp:read",
   handler: async (input, ctx) => {
+    await requireConversationAccess(ctx, input.conversation_id);
     const result = await listMessagesHandler(
       ctx.supabase,
       {
@@ -189,6 +192,14 @@ export const crmGetConversationHistory: McpToolDefinition<typeof historyInputSha
       { limit: input.limit, cursor: input.cursor },
     );
     return {
+      ...(ctx.connectionId
+        ? {
+            history_coverage: "received_or_imported_only",
+            history_complete: false,
+            coverage_note:
+              "Somente mensagens recebidas ou importadas; não comprova o histórico completo do WhatsApp.",
+          }
+        : {}),
       messages: result.messages.map((m) => ({
         id: m.id,
         direction: m.direction,
