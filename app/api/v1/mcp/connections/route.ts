@@ -6,7 +6,8 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ok, fail } from "@/lib/api/wrappers";
 import { createConnection, hashSecret, newSecret } from "@/lib/mcp/connections";
-import { authorizeInput, mcpResource } from "@/lib/mcp/oauth";
+import { isFirstPartyConnectionRequest } from "@/lib/mcp/connection-origin";
+import { authorizeInput, mcpResource, oauthOrigin } from "@/lib/mcp/oauth";
 import { audit } from "@/lib/audit";
 export async function GET() {
   const auth = await requireRole("viewer", { resource: "mcp_connections" });
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
   if (auth.user.support)
     return fail("forbidden", "Saia do modo de suporte para autorizar uma IA.", 403);
   // Consent is only accepted from the first-party session, never an MCP bearer.
-  if (req.headers.get("origin") !== new URL(req.url).origin)
+  if (!isFirstPartyConnectionRequest(req, oauthOrigin()))
     return fail("forbidden", "Origem inválida.", 403);
   try {
     const input = z
