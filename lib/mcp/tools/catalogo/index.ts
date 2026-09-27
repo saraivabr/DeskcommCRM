@@ -1,4 +1,6 @@
 import { TOOLS_KNOWLEDGE_PAGES } from "./knowledge-pages";
+import { TOOLS_AI_OPERATIONS } from "./ai-operations";
+import { TOOLS_CONTENT_OPERATIONS } from "./content-operations";
 /**
  * Agregador do catalogo de tools.
  *
@@ -32,6 +34,8 @@ export { declararTools } from "./tipos";
 
 export const TOOL_CATALOG: ReadonlyArray<McpToolCatalogEntry> = [
   ...TOOLS_KNOWLEDGE_PAGES,
+  ...TOOLS_AI_OPERATIONS,
+  ...TOOLS_CONTENT_OPERATIONS,
   ...TOOLS_AGENDAMENTO,
   ...TOOLS_ATENDIMENTO,
   ...TOOLS_ESCALACAO,

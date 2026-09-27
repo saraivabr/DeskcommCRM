@@ -49,4 +49,36 @@ describe("connection permissions", () => {
   it("does not expose shared knowledge to legacy agent tokens implicitly", () => {
     expect(canCallTool(read, { role: "agent", scopes: ["mcp:read"] })).toBe(false);
   });
+  it("separates agent drafts, publication and paid post generation by scope and role", () => {
+    const draft = {
+      name: "ai_create_agent_draft",
+      category: "write",
+      requiresRole: "admin",
+      requiresScope: "mcp:write",
+      permission: { area: "automations", operation: "write" },
+    } as McpToolDefinition;
+    const publish = {
+      ...draft,
+      name: "ai_publish_agent_draft",
+      permission: { area: "automations", operation: "execute", confirmation: true },
+    } as McpToolDefinition;
+    const generate = {
+      ...draft,
+      name: "content_generate_studio_post",
+      requiresRole: "manager",
+      permission: { area: "content", operation: "execute", confirmation: true },
+    } as McpToolDefinition;
+    const auth = { connectionId: "test", role: "admin" as const };
+    expect(canCallTool(draft, { ...auth, scopes: ["automations:read"] })).toBe(false);
+    expect(canCallTool(draft, { ...auth, scopes: ["automations:write"] })).toBe(true);
+    expect(canCallTool(draft, { role: "admin", scopes: ["mcp:write"] })).toBe(false);
+    expect(canCallTool(publish, { ...auth, scopes: ["automations:write"] })).toBe(false);
+    expect(canCallTool(publish, { ...auth, scopes: ["automations:execute"] })).toBe(true);
+    expect(canCallTool(generate, { ...auth, scopes: ["content:read"] })).toBe(false);
+    expect(canCallTool(generate, { ...auth, scopes: ["content:execute"] })).toBe(true);
+    expect(canCallTool(generate, { role: "admin", scopes: ["mcp:write"] })).toBe(false);
+    expect(
+      canCallTool(generate, { connectionId: "test", role: "agent", scopes: ["content:execute"] }),
+    ).toBe(false);
+  });
 });

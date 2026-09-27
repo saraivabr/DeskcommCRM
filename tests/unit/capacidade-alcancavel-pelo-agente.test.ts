@@ -35,6 +35,7 @@ import { describe, expect, it } from "vitest";
 
 import { allTools } from "@/lib/mcp/tools";
 import { catalogEntry } from "@/lib/mcp/tools/catalog";
+import { canCallTool } from "@/lib/mcp/permissions";
 import { ROLE_RANK, type Role } from "@/lib/auth/types";
 
 const RAIZ = join(__dirname, "..", "..");
@@ -111,8 +112,11 @@ const ESCRITA_QUE_E_TRABALHO_DE_ATENDENTE: ReadonlyArray<string> = [
   "crm_manage_tags",
 ];
 
-function alcancavelPeloAgente(requiresRole: Role): boolean {
-  return ROLE_RANK[PAPEL_DO_AGENTE_PUBLICADO] >= ROLE_RANK[requiresRole];
+function alcancavelPeloAgente(tool: (typeof allTools)[number]): boolean {
+  return canCallTool(tool, {
+    role: PAPEL_DO_AGENTE_PUBLICADO,
+    scopes: ["mcp:read", "mcp:write"],
+  });
 }
 
 describe("catálogo de tools — papel exigido e alcance real do agente", () => {
@@ -128,7 +132,7 @@ describe("catálogo de tools — papel exigido e alcance real do agente", () => 
     // ponte devolve o erro ao modelo, e o humano que ligou não fica sabendo).
     // Restrição deliberada se DECLARA com `apenasHumano` — e aí não é acidente.
     const acidentais = allTools
-      .filter((t) => !alcancavelPeloAgente(t.requiresRole))
+      .filter((t) => !alcancavelPeloAgente(t))
       .filter((t) => !catalogEntry(t.name)?.apenasHumano)
       .map((t) => t.name)
       .sort();
@@ -136,12 +140,12 @@ describe("catálogo de tools — papel exigido e alcance real do agente", () => 
   });
 
   it("capacidade marcada como operada por pessoa está mesmo fora do alcance do agente", () => {
-    // A marca é declaração, não trava — quem trava é `requiresRole`. Uma tool
-    // marcada `apenasHumano` mas alcançável pelo agente é a pior combinação:
+    // A marca é declaração, não trava — quem trava é role e o ingresso de
+    // conexão pessoal. Uma tool marcada `apenasHumano` mas alcançável é a pior combinação:
     // diz na tela que só gente opera, e o agente opera assim mesmo.
     const mentirosas = allTools
       .filter((t) => catalogEntry(t.name)?.apenasHumano)
-      .filter((t) => alcancavelPeloAgente(t.requiresRole))
+      .filter((t) => alcancavelPeloAgente(t))
       .map((t) => t.name);
     expect(mentirosas).toEqual([]);
   });
@@ -150,6 +154,7 @@ describe("catálogo de tools — papel exigido e alcance real do agente", () => 
     const frouxas = allTools
       .filter((t) => t.category === "write")
       .filter((t) => !ESCRITA_QUE_E_TRABALHO_DE_ATENDENTE.includes(t.name))
+      .filter((t) => alcancavelPeloAgente(t))
       // Piso `ai_operator`, não `manager`. Não é afrouxamento: `ai_operator`
       // vive só no escopo do token efêmero e NUNCA em `user_organizations`,
       // então nenhuma PESSOA o alcança — que é o que esta guarda protege. O
@@ -175,7 +180,7 @@ describe("catálogo de tools — papel exigido e alcance real do agente", () => 
       const t = porNome.get(nome);
       // Tool removida do catálogo também sai da dívida — senão a lista
       // sobreviveria à própria capacidade.
-      return t === undefined || alcancavelPeloAgente(t.requiresRole);
+      return t === undefined || alcancavelPeloAgente(t);
     });
     expect(jaResolvidas).toEqual([]);
   });

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createSchema, referenceSchema, safeSource } from "@/lib/instagram/schema";
+import { carouselSlideBrief } from "@/lib/instagram/carousel-templates";
 const reserve = vi.fn().mockResolvedValue("reservation");
 const settle = vi.fn();
 const evidence = vi.fn();
@@ -33,6 +34,19 @@ beforeEach(() => {
 describe("Instagram input and sources", () => {
   it("rejects tenant injection and extra fields", () => {
     expect(createSchema.safeParse({ ...input, organization_id: "foreign" }).success).toBe(false);
+  });
+  it("accepts the carousel template only with a valid eight-slide position", () => {
+    const carousel = { id: input.id, template: "noticia_impacto_operacional", slide: 8 };
+    expect(createSchema.safeParse({ ...input, carousel }).success).toBe(true);
+    expect(createSchema.safeParse({ ...input, carousel: { ...carousel, slide: 9 } }).success).toBe(
+      false,
+    );
+    expect(
+      createSchema.safeParse({ ...input, carousel: { ...carousel, template: "unknown" } }).success,
+    ).toBe(false);
+    expect(carouselSlideBrief(input.brief, "noticia_impacto_operacional", 6)).toContain(
+      "Vire a perspectiva",
+    );
   });
   it("normalizes handles and rejects URLs and commands", () => {
     expect(referenceSchema.parse("@exemplo")).toBe("exemplo");
@@ -134,20 +148,18 @@ describe("metered research", () => {
 describe("company reference generation", () => {
   it("sends the actual reference bytes as multipart and measures image input tokens", async () => {
     const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-    const f = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            usage: {
-              input_tokens: 150,
-              input_tokens_details: { text_tokens: 100, image_tokens: 50 },
-              output_tokens: 1000,
-            },
-            data: [{ b64_json: Buffer.from(png).toString("base64") }],
-          }),
-        ),
-      );
+    const f = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          usage: {
+            input_tokens: 150,
+            input_tokens_details: { text_tokens: 100, image_tokens: 50 },
+            output_tokens: 1000,
+          },
+          data: [{ b64_json: Buffer.from(png).toString("base64") }],
+        }),
+      ),
+    );
     vi.stubGlobal("fetch", f);
     await createImage(
       "org",

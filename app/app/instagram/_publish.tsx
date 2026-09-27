@@ -21,12 +21,22 @@ const labels: Record<Publication["status"], string> = {
   failed: "Falhou",
   uncertain: "Aguardando confirmação",
 };
-export function PublishPost({ item, caption }: { item: StudioItem; caption: string }) {
+export function PublishPost({
+  item,
+  caption,
+  carouselItems,
+}: {
+  item: StudioItem;
+  caption: string;
+  carouselItems?: StudioItem[];
+}) {
   const t = useT();
   const [state, setState] = useState<State>();
   const [account, setAccount] = useState("");
   const [library, setLibrary] = useState<StudioItem[]>([]);
-  const [selected, setSelected] = useState<string[]>([item.id]);
+  const [selected, setSelected] = useState<string[]>(
+    carouselItems?.map((entry) => entry.id) ?? [item.id],
+  );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reviewing, setReviewing] = useState(false);
@@ -102,7 +112,7 @@ export function PublishPost({ item, caption }: { item: StudioItem; caption: stri
                 ))}
             </select>
           </label>
-          {!story && (
+          {!story && !carouselItems && (
             <details
               onToggle={(e) => {
                 if (e.currentTarget.open && !library.length)

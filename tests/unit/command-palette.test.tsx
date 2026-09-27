@@ -40,8 +40,10 @@ describe("CommandPalette", () => {
   it("acha uma tela que o sidebar não mostra", async () => {
     const user = userEvent.setup();
     abrir();
-    await user.type(screen.getByRole("combobox"), "conhec");
-    expect(screen.getByRole("option", { name: /Conhecimento/ })).toBeTruthy();
+    await user.type(screen.getByRole("combobox"), "antes de responder");
+    expect(screen.getByRole("option", { name: /Conhecimento/ }).getAttribute("data-href")).toBe(
+      "/app/ai/knowledge/sources",
+    );
   });
 
   it("ignora acento, porque ninguém digita acento com pressa", async () => {
@@ -70,7 +72,7 @@ describe("CommandPalette", () => {
   it("Enter navega para o item destacado", async () => {
     const user = userEvent.setup();
     abrir();
-    await user.type(screen.getByRole("combobox"), "conhec");
+    await user.type(screen.getByRole("combobox"), "antes de responder");
     await user.keyboard("{Enter}");
     expect(push).toHaveBeenCalledWith("/app/ai/knowledge/sources");
   });
@@ -87,7 +89,11 @@ describe("CommandPalette", () => {
 
   it("sem texto, oferece o trabalho do dia em vez de tela vazia", () => {
     abrir();
-    expect(screen.getByRole("option", { name: /Inbox/ })).toBeTruthy();
+    expect(
+      screen
+        .getAllByRole("option")
+        .some((option) => option.getAttribute("data-href") === "/app/inbox"),
+    ).toBe(true);
   });
 
   it("diz quando não achou, em vez de sumir sem explicação", async () => {
@@ -105,6 +111,6 @@ describe("CommandPalette", () => {
     expect(btnAtendimento).toBeTruthy();
     await user.click(btnAtendimento);
     // Ao filtrar por Atendimento, itens de CRM ou Funcionários não devem aparecer
-    expect(screen.getByRole("option", { name: /Inbox/ })).toBeTruthy();
+    expect(screen.getByRole("option", { name: /Conversas/ })).toBeTruthy();
   });
 });

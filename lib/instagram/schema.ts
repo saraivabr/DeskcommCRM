@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { carouselTemplates } from "./carousel-templates";
 
 export const formats = {
   feed: { label: "Post vertical", size: "1024x1280", ratio: "4 / 5" },
@@ -20,6 +21,14 @@ export const createSchema = z.discriminatedUnion("kind", [
       use_logo: z.boolean().default(true),
       format: z.enum(["feed", "square", "story"]),
       caption: z.string().max(2200).default(""),
+      carousel: z
+        .object({
+          id: z.uuid(),
+          template: z.enum(Object.keys(carouselTemplates) as [keyof typeof carouselTemplates]),
+          slide: z.number().int().min(1).max(8),
+        })
+        .strict()
+        .optional(),
     })
     .strict(),
   z

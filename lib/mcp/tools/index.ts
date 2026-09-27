@@ -1,4 +1,6 @@
 import { knowledgePageTools } from "./knowledge-pages";
+import { aiOperationTools } from "./ai-operations";
+import { contentOperationTools } from "./content-operations";
 /**
  * Catalogo agregado de tools MCP.
  *
@@ -18,21 +20,11 @@ import {
   crmGetConversation,
   crmGetConversationHistory,
 } from "./conversations";
-import {
-  crmListLeads,
-  crmGetLead,
-  crmCreateLead,
-  crmUpdateLead,
-  crmMoveLeadStage,
-} from "./leads";
+import { crmListLeads, crmGetLead, crmCreateLead, crmUpdateLead, crmMoveLeadStage } from "./leads";
 import { crmListPipelines } from "./pipelines";
 import { crmSendWhatsappMessage } from "./messages";
 import { crmStartConversationAndSend } from "./start-conversation";
-import {
-  crmAssignConversation,
-  crmManageTags,
-  crmGetQueueStatus,
-} from "./governance";
+import { crmAssignConversation, crmManageTags, crmGetQueueStatus } from "./governance";
 import {
   crmListAvailableAttendants,
   crmListHumanCases,
@@ -97,6 +89,8 @@ import {
 // unknown>` e cada handler valida no Zod do registerTool.
 export const allTools: ReadonlyArray<McpToolDefinition> = [
   ...knowledgePageTools,
+  ...aiOperationTools,
+  ...contentOperationTools,
   // read
   crmListEventTypes,
   crmFindFreeSlots,

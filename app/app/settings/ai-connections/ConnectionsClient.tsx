@@ -5,7 +5,8 @@ type Approval = {
   id: string;
   label: string;
   resource_title: string;
-  args: { id: string; expected_revision: number };
+  summary: string;
+  resource_url: string | null;
   status: string;
   expires_at: string;
 };
@@ -22,6 +23,11 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
   const [sendWhatsapp, setSendWhatsapp] = useState(false);
   const [crm, setCrm] = useState(false);
   const [write, setWrite] = useState(false);
+  const [agentsRead, setAgentsRead] = useState(false);
+  const [agentsWrite, setAgentsWrite] = useState(false);
+  const [agentsPublish, setAgentsPublish] = useState(false);
+  const [contentRead, setContentRead] = useState(false);
+  const [contentGenerate, setContentGenerate] = useState(false);
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -60,6 +66,11 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             ...(whatsapp ? ["whatsapp:read"] : []),
             ...(sendWhatsapp ? ["whatsapp:execute"] : []),
             ...(crm ? ["crm:read"] : []),
+            ...(agentsRead ? ["automations:read"] : []),
+            ...(agentsWrite ? ["automations:write"] : []),
+            ...(agentsPublish ? ["automations:execute"] : []),
+            ...(contentRead ? ["content:read"] : []),
+            ...(contentGenerate ? ["content:execute"] : []),
           ],
           ...(oauth ? { oauth } : {}),
         }),
@@ -112,20 +123,24 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
               <p>
                 {action.label}: <strong>{action.resource_title}</strong>
               </p>
+              <p className="break-words whitespace-pre-wrap">{action.summary}</p>
               <p>
-                {t("Revisão")} {action.args.expected_revision} ·{" "}
                 {action.status === "pending"
                   ? t("Aguardando sua decisão")
                   : action.status === "approved"
                     ? t("Aprovada. Sua IA pode repetir a operação.")
-                    : t("Consulte o estado da página antes de tentar outra operação.")}
+                    : t("Confira o resultado no aplicativo antes de tentar outra operação.")}
               </p>
-              <a className="underline" href={`/app/knowledge?page=${action.args.id}`}>
-                {t("Revisar página")}
-              </a>
+              {action.resource_url && (
+                <a className="underline" href={action.resource_url}>
+                  {t("Revisar no aplicativo")}
+                </a>
+              )}
               {action.status === "pending" && (
                 <div className="flex gap-4">
-                  <button onClick={() => void decide(action.id, true)}>{t("Aprovar operação")}</button>
+                  <button onClick={() => void decide(action.id, true)}>
+                    {t("Aprovar operação")}
+                  </button>
                   <button onClick={() => void decide(action.id, false)}>{t("Recusar")}</button>
                 </div>
               )}
@@ -134,10 +149,13 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
         </section>
       )}
       <p>
-        {t("Organização:")} <strong>{organization}</strong>{t(". Use o seletor de organização do aplicativo para escolher outra antes de autorizar.")}
+        {t("Organização:")} <strong>{organization}</strong>
+        {t(". Use o seletor de organização do aplicativo para escolher outra antes de autorizar.")}
       </p>
       <p>
-        {t("Consulte e edite conhecimento, leia conversas do WhatsApp e consulte contatos, leads e funis. As outras operações estão em desenvolvimento.")}
+        {t(
+          "Consulte conhecimento, conversas, agentes e postagens. Com permissão específica, prepare agentes e gere postagens para revisão. Publicar agentes exige confirmação adicional.",
+        )}
       </p>
       <p>
         {t("Endereço MCP:")} <code>{endpoint}</code>
@@ -146,7 +164,8 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
       {oauth && (
         <p>
           {t("Endereço de retorno do aplicativo solicitante:")}{" "}
-          <code className="break-all">{oauth.redirect_uri}</code>{t(". Confirme que pertence à IA que você está conectando.")}
+          <code className="break-all">{oauth.redirect_uri}</code>
+          {t(". Confirme que pertence à IA que você está conectando.")}
         </p>
       )}
       <form
@@ -208,6 +227,60 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             {t("Permitir criar e editar páginas")}
           </label>
         )}
+        {(role === "manager" || role === "admin") &&
+          (!oauth || oauth.scope?.split(" ").includes("automations:read")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={agentsRead}
+                onChange={(e) => setAgentsRead(e.target.checked)}
+              />{" "}
+              {t("Consultar agentes e configurações")}
+            </label>
+          )}
+        {role === "admin" && (!oauth || oauth.scope?.split(" ").includes("automations:write")) && (
+          <label className="block">
+            <input
+              type="checkbox"
+              checked={agentsWrite}
+              onChange={(e) => setAgentsWrite(e.target.checked)}
+            />{" "}
+            {t("Criar rascunhos de configuração dos agentes")}
+          </label>
+        )}
+        {role === "admin" &&
+          (!oauth || oauth.scope?.split(" ").includes("automations:execute")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={agentsPublish}
+                onChange={(e) => setAgentsPublish(e.target.checked)}
+              />{" "}
+              {t("Publicar agentes após minha confirmação")}
+            </label>
+          )}
+        {(role === "manager" || role === "admin") &&
+          (!oauth || oauth.scope?.split(" ").includes("content:read")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={contentRead}
+                onChange={(e) => setContentRead(e.target.checked)}
+              />{" "}
+              {t("Consultar postagens do Estúdio")}
+            </label>
+          )}
+        {(role === "manager" || role === "admin") &&
+          (!oauth || oauth.scope?.split(" ").includes("content:execute")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={contentGenerate}
+                onChange={(e) => setContentGenerate(e.target.checked)}
+              />{" "}
+              {t("Gerar postagens com créditos após minha confirmação")}
+            </label>
+          )}
         <button className="rounded-md bg-primary px-4 py-2 text-primary-foreground" disabled={busy}>
           {busy ? t("Conectando…") : oauth ? t("Autorizar acesso") : t("Gerar token")}
         </button>
@@ -239,7 +312,9 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             {c.name}
             {c.revoked_at ? ` · ${t("Revogada")}` : ""}
           </span>
-          {!c.revoked_at && <button onClick={() => void revoke(c.id)}>{t("Revogar acesso")}</button>}
+          {!c.revoked_at && (
+            <button onClick={() => void revoke(c.id)}>{t("Revogar acesso")}</button>
+          )}
         </div>
       ))}
     </main>

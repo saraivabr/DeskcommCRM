@@ -8,6 +8,7 @@ import Image from "next/image";
 import type { CompanyContext } from "@/lib/instagram/brand";
 import { Textarea } from "@/components/ui/textarea";
 import { formats, type StudioItem } from "@/lib/instagram/schema";
+import { carouselTemplates, type CarouselTemplateId } from "@/lib/instagram/carousel-templates";
 import { StudioShell, Intro, Notice, studioApi } from "./_shared";
 import { ImageGeneration } from "./_image-generation";
 export function CreatePost({
@@ -25,10 +26,16 @@ export function CreatePost({
 }) {
   const t = useT();
   const router = useRouter();
-  const pendingRequest = useRef<{ fingerprint: string; id: string } | null>(null);
+  const pendingRequest = useRef<{
+    fingerprint: string;
+    ids: string[];
+    group: string | null;
+  } | null>(null);
   const [brief, setBrief] = useState(initialBrief);
   const [niche, setNiche] = useState(initialNiche);
   const [format, setFormat] = useState<keyof typeof formats>("feed");
+  const [carouselTemplate, setCarouselTemplate] = useState<CarouselTemplateId | "">("");
+  const [progress, setProgress] = useState(0);
   const [useLogo, setUseLogo] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -36,26 +43,43 @@ export function CreatePost({
     e.preventDefault();
     setBusy(true);
     setError("");
-    const fingerprint = JSON.stringify({ brief, niche, format, useLogo });
+    const fingerprint = JSON.stringify({ brief, niche, format, useLogo, carouselTemplate });
     if (pendingRequest.current?.fingerprint !== fingerprint)
-      pendingRequest.current = { fingerprint, id: randomId() };
-    const id = pendingRequest.current.id;
+      pendingRequest.current = {
+        fingerprint,
+        ids: Array.from({ length: carouselTemplate ? 8 : 1 }, () => randomId()),
+        group: carouselTemplate ? randomId() : null,
+      };
+    const request = pendingRequest.current;
     try {
-      const item = await studioApi<StudioItem>("", {
-        method: "POST",
-        body: JSON.stringify({
-          id,
-          kind: "post",
-          brief,
-          niche,
-          format,
-          use_logo: useLogo,
-          caption: "",
-        }),
-      });
-      router.push(`/app/instagram/posts/${item.id}`);
+      setProgress(0);
+      let firstId = request.ids[0];
+      for (let index = 0; index < request.ids.length; index++) {
+        const item = await studioApi<StudioItem>("", {
+          method: "POST",
+          body: JSON.stringify({
+            id: request.ids[index],
+            kind: "post",
+            brief,
+            niche,
+            format: carouselTemplate ? "feed" : format,
+            use_logo: useLogo,
+            caption: "",
+            ...(carouselTemplate
+              ? { carousel: { id: request.group, template: carouselTemplate, slide: index + 1 } }
+              : {}),
+          }),
+        });
+        if (item.status !== "ready")
+          throw new Error("A criação precisa ser conferida na biblioteca antes de continuar.");
+        if (index === 0) firstId = item.id;
+        setProgress(index + 1);
+      }
+      router.push(`/app/instagram/posts/${firstId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível gerar.");
+      setError(
+        `${e instanceof Error ? e.message : "Não foi possível gerar."}${carouselTemplate ? " Os slides concluídos estão na biblioteca; confira o estado do pedido antes de criar outro." : ""}`,
+      );
     } finally {
       setBusy(false);
     }
@@ -144,33 +168,78 @@ export function CreatePost({
               value={brief}
               onChange={(e) => setBrief(e.target.value)}
               placeholder={t(
-                "Quero mostrar meu bolo de chocolate e convidar as pessoas para encomendar no fim de semana. Cores quentes, estilo artesanal…",
+                carouselTemplate
+                  ? "Descreva a novidade, inclua a fonte, a data, o que ela faz, para quem está disponível e o impacto para o seu cliente."
+                  : "Quero mostrar meu bolo de chocolate e convidar as pessoas para encomendar no fim de semana. Cores quentes, estilo artesanal…",
               )}
               disabled={busy}
               className="rounded-3xl p-5 text-base"
             />
           </div>
           <fieldset disabled={busy} className="space-y-3">
+            <legend className="block text-sm font-medium">{t("Estrutura da criação")}</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label
+                className={`cursor-pointer rounded-2xl border p-4 ${!carouselTemplate ? "border-primary bg-primary/10" : "border-border"}`}
+              >
+                <input
+                  type="radio"
+                  name="carouselTemplate"
+                  checked={!carouselTemplate}
+                  onChange={() => setCarouselTemplate("")}
+                  className="mr-2 accent-current"
+                />
+                <strong>{t("Imagem única")}</strong>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t("Uma imagem e uma legenda para revisar.")}
+                </p>
+              </label>
+              {Object.entries(carouselTemplates).map(([id, template]) => (
+                <label
+                  key={id}
+                  className={`cursor-pointer rounded-2xl border p-4 ${carouselTemplate === id ? "border-primary bg-primary/10" : "border-border"}`}
+                >
+                  <input
+                    type="radio"
+                    name="carouselTemplate"
+                    checked={carouselTemplate === id}
+                    onChange={() => {
+                      setCarouselTemplate(id as CarouselTemplateId);
+                      setFormat("feed");
+                    }}
+                    className="mr-2 accent-current"
+                  />
+                  <strong>{t(template.label)}</strong>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t(template.description)} {t("8 slides para revisar antes de publicar.")}
+                  </p>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset disabled={busy} className="space-y-3">
             <legend className="block text-sm font-medium">
               {t("Onde essa ideia vai aparecer?")}
             </legend>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(formats).map(([key, f]) => (
-                <label
-                  key={key}
-                  className={`inline-flex cursor-pointer items-center rounded-2xl border px-4 py-3 ${format === key ? "border-primary bg-primary/10" : "border-border"}`}
-                >
-                  <input
-                    type="radio"
-                    name="format"
-                    value={key}
-                    checked={format === key}
-                    onChange={() => setFormat(key as keyof typeof formats)}
-                    className="mr-2 accent-current"
-                  />
-                  {t(f.label)}
-                </label>
-              ))}
+              {Object.entries(formats)
+                .filter(([key]) => !carouselTemplate || key === "feed")
+                .map(([key, f]) => (
+                  <label
+                    key={key}
+                    className={`inline-flex cursor-pointer items-center rounded-2xl border px-4 py-3 ${format === key ? "border-primary bg-primary/10" : "border-border"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="format"
+                      value={key}
+                      checked={format === key}
+                      onChange={() => setFormat(key as keyof typeof formats)}
+                      className="mr-2 accent-current"
+                    />
+                    {t(f.label)}
+                  </label>
+                ))}
             </div>
           </fieldset>
           {error && (
@@ -182,12 +251,22 @@ export function CreatePost({
             </Notice>
           )}
           <Button size="lg" disabled={busy} type="submit">
-            {busy ? t("Criando sua postagem…") : t("Gerar imagem e legenda")}
+            {busy
+              ? carouselTemplate
+                ? `${t("Criando carrossel")}: ${progress}/8`
+                : t("Criando sua postagem…")
+              : carouselTemplate
+                ? t("Gerar carrossel de 8 slides")
+                : t("Gerar imagem e legenda")}
           </Button>
           <p className="text-sm text-muted-foreground">
             {t(
               "Texto e imagem usam o saldo compartilhado de IA da empresa. O consumo varia conforme a criação.",
             )}{" "}
+            {carouselTemplate &&
+              t(
+                "Este modelo gera oito imagens, uma operação de IA por slide. Mantenha esta página aberta até concluir.",
+              )}{" "}
             {canViewBilling && (
               <a href="/app/settings/billing" className="underline">
                 {t("Consultar plano e uso")}
@@ -197,7 +276,9 @@ export function CreatePost({
           {busy ? (
             <Notice>
               {t(
-                "A imagem pode levar alguns minutos. Seu pedido já fica na biblioteca. Você não precisa enviar novamente.",
+                carouselTemplate
+                  ? "Cada slide é salvo na biblioteca ao terminar. A geração pode levar alguns minutos."
+                  : "A imagem pode levar alguns minutos. Seu pedido já fica na biblioteca. Você não precisa enviar novamente.",
               )}
             </Notice>
           ) : (

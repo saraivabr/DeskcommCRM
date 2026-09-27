@@ -125,6 +125,12 @@ export function validConnectionScopes(scopes: string[], role: Role): boolean {
   );
 }
 const VERIFIED_CONNECTION_TOOLS = new Set([
+  "ai_list_agents",
+  "ai_get_agent_configuration",
+  "ai_create_agent_draft",
+  "ai_publish_agent_draft",
+  "content_list_studio_posts",
+  "content_generate_studio_post",
   "crm_send_whatsapp_message",
   "crm_list_leads",
   "crm_get_lead",
@@ -135,6 +141,14 @@ const VERIFIED_CONNECTION_TOOLS = new Set([
   "crm_get_contact",
   "crm_list_pipelines",
 ]);
+const PERSONAL_CONNECTION_ONLY = new Set([
+  "ai_list_agents",
+  "ai_get_agent_configuration",
+  "ai_create_agent_draft",
+  "ai_publish_agent_draft",
+  "content_list_studio_posts",
+  "content_generate_studio_post",
+]);
 
 export function canCallTool(
   tool: McpToolDefinition,
@@ -142,7 +156,11 @@ export function canCallTool(
 ): boolean {
   if (ROLE_RANK[auth.role] < ROLE_RANK[tool.requiresRole]) return false;
   if (!auth.connectionId)
-    return !tool.name.startsWith("knowledge_") && auth.scopes.includes(tool.requiresScope);
+    return (
+      !tool.name.startsWith("knowledge_") &&
+      !PERSONAL_CONNECTION_ONLY.has(tool.name) &&
+      auth.scopes.includes(tool.requiresScope)
+    );
   const p = permissionFor(tool);
   return (
     p !== null &&
@@ -158,4 +176,9 @@ export const ACTIVE_CONNECTION_SCOPES = [
   "whatsapp:read",
   "whatsapp:execute",
   "crm:read",
+  "automations:read",
+  "automations:write",
+  "automations:execute",
+  "content:read",
+  "content:execute",
 ] as const;
