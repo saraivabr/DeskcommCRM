@@ -25,7 +25,7 @@ afterEach(cleanup);
 
 describe("cartão da conexão do Google", () => {
   it("com conta conectada: mostra a conta E oferece desconectar", () => {
-    render(<CartaoDaConexaoGoogle configurado falta={[]} contaConectada="ana@clinica.com.br" />);
+    render(<CartaoDaConexaoGoogle configurado contaConectada="ana@clinica.com.br" />);
     expect(screen.getByTestId("google-conectado")).toBeTruthy();
     expect(screen.getByText("ana@clinica.com.br")).toBeTruthy();
     expect(
@@ -36,14 +36,14 @@ describe("cartão da conexão do Google", () => {
   });
 
   it("...e o botão de CONECTAR some — senão a segunda conexão é um clique", () => {
-    render(<CartaoDaConexaoGoogle configurado falta={[]} contaConectada="ana@clinica.com.br" />);
+    render(<CartaoDaConexaoGoogle configurado contaConectada="ana@clinica.com.br" />);
     expect(screen.queryByTestId("conectar-google")).toBeNull();
   });
 
   it("sem conta: oferece conectar e NÃO oferece desconectar", () => {
     // O outro lado do par. Sem ele, um `contaConectada` cravado como verdadeiro
     // passaria nos dois casos acima e ninguém veria.
-    render(<CartaoDaConexaoGoogle configurado falta={[]} contaConectada={null} />);
+    render(<CartaoDaConexaoGoogle configurado contaConectada={null} />);
     expect(screen.getByTestId("conectar-google")).toBeTruthy();
     expect(screen.queryByTestId("desconectar-google")).toBeNull();
     expect(screen.queryByTestId("google-conectado")).toBeNull();
@@ -61,7 +61,7 @@ describe("cartão da conexão do Google", () => {
     // aponta para a rota que produz aquele destino. É um `<a href>`, então um
     // caso de unidade o prende inteiro, roda no CI e não depende de credencial
     // do Google — que a spec e2e não tem, e sem a qual ela pularia.
-    render(<CartaoDaConexaoGoogle configurado falta={[]} contaConectada={null} />);
+    render(<CartaoDaConexaoGoogle configurado contaConectada={null} />);
     expect(screen.getByTestId("conectar-google").getAttribute("href")).toBe(
       "/api/v1/agenda/google/connect",
     );
@@ -80,7 +80,7 @@ describe("cartão da conexão do Google", () => {
     render(
       <CartaoDaConexaoGoogle
         configurado={false}
-        falta={["GOOGLE_CALENDAR_CLIENT_ID"]}
+        linkDeConfiguracao="/admin/google"
         enderecoDeRetorno="https://crm.exemplo/api/v1/agenda/google/callback"
       />,
     );
@@ -102,7 +102,6 @@ describe("cartão da conexão do Google", () => {
     render(
       <CartaoDaConexaoGoogle
         configurado
-        falta={[]}
         contaConectada="ana@clinica.com.br"
         enderecoDeRetorno="https://crm.exemplo/api/v1/agenda/google/callback"
       />,
@@ -110,18 +109,20 @@ describe("cartão da conexão do Google", () => {
     expect(screen.queryByTestId("endereco-de-retorno")).toBeNull();
   });
 
-  it("sem as credenciais da instalação: nenhum dos dois, e diz o que falta", () => {
+  it("sem integração: explica quem resolve sem mostrar configuração técnica", () => {
     render(
       <CartaoDaConexaoGoogle
         configurado={false}
-        falta={["GOOGLE_CALENDAR_CLIENT_ID"]}
         contaConectada="ana@clinica.com.br"
+        enderecoDeRetorno="http://localhost:3001/api/v1/agenda/google/callback"
       />,
     );
     // A ordem dos ramos importa: quem não configurou a instalação não pode ver
     // "desconectar" só porque há linha no banco.
     expect(screen.getByTestId("google-nao-configurado")).toBeTruthy();
-    expect(screen.getByTestId("o-que-falta").textContent).toContain("GOOGLE_CALENDAR_CLIENT_ID");
+    expect(screen.getByText(/Peça a quem administra o sistema/)).toBeTruthy();
+    expect(screen.queryByTestId("endereco-de-retorno")).toBeNull();
+    expect(screen.queryByText(/GOOGLE_CALENDAR_CLIENT_ID/)).toBeNull();
     expect(screen.queryByTestId("desconectar-google")).toBeNull();
   });
 });

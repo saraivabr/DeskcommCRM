@@ -53,6 +53,7 @@ export function PipelinePageClient({
   const [newOpen, setNewOpen] = useState(false);
 
   const filteredLeads = data ? applyFilters(data.leads, filters) : [];
+  const hasActiveFilters = Boolean(filtersToParams(filters));
   // NÃO é a conta do FilterBar: o seletor de filtro lista as três caixas
   // (`marcadoresDoCard`: negócio, contato e conversa), e esta lista, a da tag em
   // lote, só `lead.tags` — é lá que a ação em lote grava (#852). O `useMemo` é o
@@ -115,6 +116,15 @@ export function PipelinePageClient({
       ) : isLoading || !data ? (
         <div className="flex flex-1 animate-pulse items-center justify-center text-muted-foreground">
           {t("Carregando…")}
+        </div>
+      ) : hasActiveFilters && filteredLeads.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-border p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            {t("Nenhum lead encontrado com estes filtros.")}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => setFilters({})}>
+            {t("Limpar filtros")}
+          </Button>
         </div>
       ) : (
         <KanbanBoard

@@ -134,7 +134,7 @@ test("org única oferece criação, responsável aceita e A→B→A não mistura
     await conversation(orgB, `Cliente B ${suffix}`);
     await page.getByRole("link", { name: "Voltar ao aplicativo" }).click();
     await page.waitForURL("**/app", { waitUntil: "load" });
-    await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Inbox", exact: true }).click();
+    await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Conversas", exact: true }).click();
     await page.waitForURL("**/app/inbox", { waitUntil: "load" });
     await expect(page.locator("[data-conversation-id]").getByText(`Cliente A ${suffix}`, { exact: true })).toBeVisible();
     const cookieBeforeFailure = (await page.context().cookies()).find(cookie => cookie.name === "active_org")?.value;
@@ -189,7 +189,7 @@ test("org única oferece criação, responsável aceita e A→B→A não mistura
     await guest.goto(new URL(link).pathname);
     await guest.getByRole("button", { name: "Aceitar convite", exact: true }).click();
     await guest.waitForURL("**/app", { waitUntil: "load" });
-    await guest.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Inbox", exact: true }).click();
+    await guest.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Conversas", exact: true }).click();
     await guest.waitForURL("**/app/inbox", { waitUntil: "load" });
     await expect(guest.getByTestId("tenant-switcher")).toContainText(`Empresa B ${suffix}`);
     await expect(guest.locator("[data-conversation-id]").getByText(`Cliente B ${suffix}`, { exact: true })).toBeVisible();

@@ -70,6 +70,13 @@ export function ContactsListClient() {
   const q = useContactList(filters);
 
   const allContacts = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
+  const hasActiveFilters = Boolean(search || tag || source);
+  const clearFilters = () => {
+    setSearchInput("");
+    setSearch("");
+    setTag(undefined);
+    setSource(undefined);
+  };
 
   const tagOptions = useMemo(() => {
     const set = new Set<string>();
@@ -210,17 +217,8 @@ export function ContactsListClient() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {(search || tag || source) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearchInput("");
-              setSearch("");
-              setTag(undefined);
-              setSource(undefined);
-            }}
-          >
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
             {t("Limpar filtros")}
           </Button>
         )}
@@ -241,7 +239,18 @@ export function ContactsListClient() {
         </Card>
       ) : allContacts.length === 0 ? (
         <Card className="p-2">
-          <EmptyContacts />
+          {hasActiveFilters ? (
+            <div className="flex flex-col items-center gap-3 p-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                {t("Nenhum contato encontrado com estes filtros.")}
+              </p>
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                {t("Limpar filtros")}
+              </Button>
+            </div>
+          ) : (
+            <EmptyContacts />
+          )}
         </Card>
       ) : (
         <>

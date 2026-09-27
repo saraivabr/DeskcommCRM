@@ -24,7 +24,7 @@ describe("catálogo de ferramentas", () => {
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "nenhum-destino-assim" } });
     expect(screen.getByRole("heading", { name: "Nenhuma ferramenta encontrada" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
-    expect(screen.getByRole("link", { name: /^Inbox/ })).toBeVisible();
+    expect(screen.getByRole("link", { name: /^Conversas Veja quem chamou/ })).toHaveAttribute("href", "/app/inbox");
   });
   it("um atendente não recebe links administrativos mesmo ao pesquisar", () => {
     role = "agent";

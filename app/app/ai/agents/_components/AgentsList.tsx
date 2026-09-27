@@ -71,8 +71,6 @@ export function AgentsList({ initialData, canWrite }: Props) {
 
   return (
     <div className="flex flex-col gap-10">
-      <EmployeeRoleCatalog agents={agents} canWrite={canWrite} />
-
       <section aria-labelledby="equipe-atual" className="space-y-4">
         <div>
           <h2 id="equipe-atual" className="text-xl font-semibold tracking-tight">
@@ -114,6 +112,7 @@ export function AgentsList({ initialData, canWrite }: Props) {
           </ul>
         )}
       </section>
+      <EmployeeRoleCatalog agents={agents} canWrite={canWrite} />
     </div>
   );
 }

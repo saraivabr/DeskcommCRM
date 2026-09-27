@@ -3,6 +3,7 @@
  * Tabs do detalhe de agent. Wave 12 (S-13.12) entrega Test, Runs e History.
  */
 import * as React from "react";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useT } from "@/hooks/i18n/useT";
 import { AgentForm, type ChannelSessionLite } from "./AgentForm";
@@ -19,6 +20,7 @@ import type { AgentVersionRow } from "@/hooks/ai/useAgentVersions";
 import type { CredentialRow } from "@/hooks/ai/useCredentials";
 
 interface Props {
+  reviewVersionId?: string | null;
   /** Funis da org, para a marcação de escopo do agente (spec 17 passo 3). */
   funis?: FunilDaResposta[];
   cobertura?: CoberturaPorFunil;
@@ -44,8 +46,9 @@ export function AgentTabs(props: Props) {
   const t = useT();
   const [tab, setTab] = React.useState<
     "configuration" | "test" | "capacidades" | "runs" | "history" | "proposals"
-  >("configuration");
+  >(props.reviewVersionId ? "history" : "configuration");
   const hasVersion = !!(props.draft || props.published);
+  const nextTab: "test" | "runs" | null = props.draft ? "test" : props.published ? "runs" : null;
 
   return (
     <Tabs
@@ -53,6 +56,20 @@ export function AgentTabs(props: Props) {
       onValueChange={(v) => setTab(v as typeof tab)}
       className="flex flex-col gap-4"
     >
+      {nextTab && tab !== nextTab && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm">
+          <span className="text-muted-foreground">
+            {t(
+              props.draft
+                ? "Rascunho disponível para teste."
+                : "Versão publicada para acompanhamento.",
+            )}
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setTab(nextTab)}>
+            {t(props.draft ? "Testar rascunho" : "Ver execuções")}
+          </Button>
+        </div>
+      )}
       <TabsList>
         <TabsTrigger value="configuration">{t("Configuração")}</TabsTrigger>
         <TabsTrigger value="test" disabled={!hasVersion}>
@@ -112,6 +129,7 @@ export function AgentTabs(props: Props) {
         <VersionHistory
           agentId={props.agent.id}
           versions={props.versions}
+          reviewVersionId={props.reviewVersionId}
           readOnly={props.readOnly}
         />
       </TabsContent>

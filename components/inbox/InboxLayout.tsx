@@ -423,7 +423,13 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
         )}
       >
         <InboxFilters value={filterValue} onChange={setFilterValue} />
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div
+          id="inbox-conversation-list"
+          role="tabpanel"
+          aria-labelledby={`inbox-filter-${filterValue.tab}`}
+          tabIndex={0}
+          className="min-h-0 flex-1 overflow-hidden"
+        >
           <ConversationList
             listQuery={listQ}
             filters={filters}

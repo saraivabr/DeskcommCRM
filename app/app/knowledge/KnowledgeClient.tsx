@@ -1,6 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useT } from "@/hooks/i18n/useT";
 import type { KnowledgePage, PageInput } from "@/lib/knowledge/schema";
 const Editor = dynamic(() => import("./BlockEditor"), {
   ssr: false,
@@ -22,6 +23,7 @@ type PageSummary = Pick<
   "id" | "title" | "parent_id" | "revision" | "indexed_revision"
 >;
 export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
+  const t = useT();
   const [pages, setPages] = useState<PageSummary[]>([]);
   const [page, setPage] = useState<KnowledgePage | null>(null);
   const [trash, setTrash] = useState(false);
@@ -231,9 +233,9 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
   return (
     <div className="flex h-full min-h-0 flex-col md:flex-row">
       <aside className="w-full space-y-3 border-r p-4 md:w-72 md:overflow-y-auto">
-        <h1 className="text-xl font-semibold">Conhecimento</h1>
+        <h1 className="text-xl font-semibold">{t("Conhecimento")}</h1>
         <p className="text-sm text-muted-foreground">
-          Ideias e informações da sua equipe, prontas para consultar.
+          {t("Ideias e informações da sua equipe, prontas para consultar.")}
         </p>
         <form
           onSubmit={(e) => {
@@ -243,43 +245,55 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
           className="flex gap-2"
         >
           <input
-            aria-label="Pesquisar conhecimento"
+            aria-label={t("Pesquisar conhecimento")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="min-w-0 rounded border p-2"
-            placeholder="Pesquisar…"
+            className="min-h-11 min-w-0 flex-1 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+            placeholder={t("Pesquisar…")}
           />
-          <button>Buscar</button>
+          <button type="submit" className="min-h-11 rounded-md border px-3 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden">
+            {t("Buscar")}
+          </button>
         </form>
-        {canEdit && (
-          <div className="flex flex-wrap gap-3 text-sm">
-            <button onClick={() => void create()}>+ Nova página</button>
-            <button onClick={() => void importDocument()}>Importar URL</button>
-            <label className="cursor-pointer">
-              Importar PDF
-              <input
-                className="sr-only"
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void importDocument(f);
-                  e.target.value = "";
-                }}
-              />
-            </label>
-          </div>
+        {canEdit && !trash && (
+          <button type="button" className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden" onClick={() => void create()}>
+            {t("Nova página")}
+          </button>
         )}
-        <button
-          className="text-sm underline"
-          onClick={() => {
-            setTrash(!trash);
-            setResults(null);
-          }}
-        >
-          {trash ? "Voltar às páginas" : "Lixeira"}
-        </button>
-        <nav className="space-y-1" aria-label="Páginas">
+        <details className="text-sm">
+          <summary className="min-h-11 cursor-pointer rounded-md border px-3 py-3 font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden">{t("Mais opções")}</summary>
+          <div className="mt-2 flex flex-col gap-1">
+            {canEdit && !trash && (
+              <>
+                <button type="button" className="min-h-11 rounded-md px-3 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden" onClick={() => void importDocument()}>{t("Importar página da web")}</button>
+                <label className="flex min-h-11 cursor-pointer items-center rounded-md px-3 hover:bg-muted focus-within:ring-2 focus-within:ring-ring">
+                  {t("Importar PDF")}
+                  <input
+                    className="sr-only"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void importDocument(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </>
+            )}
+            <button
+              type="button"
+              className="min-h-11 rounded-md px-3 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+              onClick={() => {
+                setTrash(!trash);
+                setResults(null);
+              }}
+            >
+              {trash ? t("Voltar às páginas") : t("Ver lixeira")}
+            </button>
+          </div>
+        </details>
+        <nav className="space-y-1" aria-label={t("Páginas")}>
           {(
             results ??
             [...pages].sort(
@@ -289,7 +303,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
             <button
               key={p.id}
               onClick={() => void open(p.id)}
-              className={`block w-full rounded p-2 text-left ${page?.id === p.id ? "bg-muted" : "hover:bg-muted"}`}
+              className={`block w-full rounded-md p-2 text-left ${page?.id === p.id ? "bg-muted" : "hover:bg-muted"}`}
             >
               {favorites.includes(p.id) ? "★ " : ""}
               {"parent_id" in p && p.parent_id ? "↳ " : ""}
@@ -297,6 +311,17 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
             </button>
           ))}
         </nav>
+        {(results ?? pages).length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            {results
+              ? t("Nenhuma página encontrada. Tente outra busca.")
+              : trash
+                ? t("A lixeira está vazia.")
+                : canEdit
+                  ? t("Crie sua primeira página para reunir o que sua equipe precisa saber.")
+                  : t("Ainda não há páginas para consultar.")}
+          </p>
+        )}
         {pages.length === 100 && (
           <button
             onClick={() =>
@@ -305,7 +330,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
                 .catch((e) => setError(e.message))
             }
           >
-            Carregar mais
+            {t("Carregar mais")}
           </button>
         )}
       </aside>
@@ -313,10 +338,10 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
         <div role="status" className="text-sm text-muted-foreground">
           {status}
           {page &&
-            ` · ${page.archived ? "Na lixeira" : page.indexed_revision === page.revision ? "Disponível para IA" : page.markdown.trim() ? (page.index_status === "indexando" ? "Indexando" : (page.index_error ?? "Indexação pendente")) : "Página vazia"}`}
+            ` · ${page.archived ? t("Na lixeira") : page.indexed_revision === page.revision ? t("Disponível para IA") : page.markdown.trim() ? (page.index_status === "indexando" ? t("Indexando") : (page.index_error ?? t("Indexação pendente"))) : t("Página vazia")}`}
         </div>
         {error && (
-          <div role="alert" className="rounded border border-destructive p-3">
+          <div role="alert" className="rounded-md border border-destructive p-3">
             {error}
             {saveHalted && (
               <button
@@ -327,13 +352,19 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
                   void save();
                 }}
               >
-                Tentar salvar novamente
+                {t("Tentar salvar novamente")}
               </button>
             )}
           </div>
         )}
         {!page ? (
-          <p>Crie uma página ou escolha uma ao lado.</p>
+          <p>{trash
+            ? t("Escolha uma página da lixeira para restaurar.")
+            : pages.length === 0
+              ? canEdit
+                ? t("Comece com uma página sobre seu negócio. Sua equipe poderá consultá-la durante o atendimento.")
+                : t("Ainda não há páginas para consultar.")
+              : t("Escolha uma página ao lado para continuar.")}</p>
         ) : (
           <>
             <div className="flex flex-wrap gap-3 text-sm">
@@ -350,7 +381,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
                   }
                 }}
               >
-                {favorites.includes(page.id) ? "★ Favorita" : "☆ Favoritar"}
+                {favorites.includes(page.id) ? `★ ${t("Favorita")}` : `☆ ${t("Favoritar")}`}
               </button>
               <button
                 onClick={() =>
@@ -359,7 +390,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
                     .catch((e) => setError(e.message))
                 }
               >
-                Revisões
+                {t("Revisões")}
               </button>
               {canEdit && (
                 <button
@@ -367,7 +398,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
                     if (
                       page.archived ||
                       window.confirm(
-                        "Mover esta página para a lixeira? Ela deixará de aparecer nas buscas.",
+                        t("Mover esta página para a lixeira? Ela deixará de aparecer nas buscas."),
                       )
                     ) {
                       edit({ archived: !page.archived });
@@ -375,7 +406,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
                     }
                   }}
                 >
-                  {page.archived ? "Restaurar" : "Mover para lixeira"}
+                  {page.archived ? t("Restaurar") : t("Mover para lixeira")}
                 </button>
               )}
               <button
@@ -391,12 +422,12 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
                   URL.revokeObjectURL(url);
                 }}
               >
-                Baixar Markdown
+                {t("Baixar Markdown")}
               </button>
             </div>
             <input
-              aria-label="Título da página"
-              className="w-full bg-transparent text-3xl font-semibold outline-none"
+              aria-label={t("Título da página")}
+              className="w-full bg-transparent text-3xl font-semibold outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
               value={page.title}
               maxLength={120}
               disabled={!canEdit || page.archived}
@@ -404,11 +435,11 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
             />
             {canEdit && !page.archived && (
               <select
-                aria-label="Página superior"
+                aria-label={t("Página superior")}
                 value={page.parent_id ?? ""}
                 onChange={(e) => edit({ parent_id: e.target.value || null })}
               >
-                <option value="">Página principal</option>
+                <option value="">{t("Página principal")}</option>
                 {pages
                   .filter((p) => p.id !== page.id)
                   .map((p) => (
@@ -431,15 +462,15 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                Ver fonte original
+                {t("Ver fonte original")}
               </a>
             )}
             {history.length > 0 && (
-              <section aria-label="Histórico">
-                <h2 className="font-semibold">Revisões</h2>
+              <section aria-label={t("Histórico")}>
+                <h2 className="font-semibold">{t("Revisões")}</h2>
                 {history.map((r) => (
                   <div className="border-b py-2" key={r.revision}>
-                    Revisão {r.revision} · {r.title}{" "}
+                    {t("Revisão")} {r.revision} · {r.title}{" "}
                     {canEdit && (
                       <button
                         className="underline"
@@ -449,7 +480,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
                           void save();
                         }}
                       >
-                        Restaurar conteúdo
+                        {t("Restaurar conteúdo")}
                       </button>
                     )}
                   </div>

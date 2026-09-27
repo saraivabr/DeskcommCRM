@@ -63,8 +63,8 @@ export function AdminThreadClient({ conversationId }: Props) {
       {/* ── Thread area ── */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <div className="min-w-0 flex-1">
+        <div className="border-b border-border px-4 py-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="truncate text-sm font-semibold">{contactName}</span>
               <Badge variant={statusVariant} className="h-5 px-2 text-[10px] capitalize">
@@ -81,6 +81,12 @@ export function AdminThreadClient({ conversationId }: Props) {
               </div>
             )}
           </div>
+          <details className="mt-2 2xl:hidden">
+            <summary className="cursor-pointer text-xs font-medium text-primary">
+              {t("Ver detalhes")}
+            </summary>
+            <AdminSidePanel data={data} compact />
+          </details>
         </div>
 
         {/* Messages */}

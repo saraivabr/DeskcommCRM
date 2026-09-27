@@ -12,6 +12,7 @@ import { modulosLigados } from "@/lib/instalacao/modulos";
 import { audit } from "@/lib/audit";
 import { isFirstPartyConnectionRequest } from "@/lib/mcp/connection-origin";
 import { oauthOrigin } from "@/lib/mcp/oauth";
+import { traduzir } from "@/lib/i18n/dicionario";
 export async function GET() {
   const auth = await requireRole("viewer", { resource: "mcp_action_approvals" });
   if (!auth.ok) return auth.response;
@@ -27,10 +28,11 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) return fail("internal_error", "Não foi possível consultar confirmações.", 500);
+  const espanhol = auth.user.idioma === "es";
   const approvals = await Promise.all(
     (data ?? []).map(async (row) => {
-      let resourceTitle = "Operação solicitada";
-      let summary = "Confira os detalhes antes de aprovar.";
+      let resourceTitle = traduzir("Operação solicitada", auth.user.idioma);
+      let summary = traduzir("Confira os detalhes antes de aprovar.", auth.user.idioma);
       let resourceUrl: string | null = null;
       if (row.tool_name === "knowledge_archive_page") {
         const { data: page } = await db
@@ -39,8 +41,10 @@ export async function GET() {
           .eq("organization_id", auth.org.orgId)
           .eq("id", row.args.id)
           .maybeSingle();
-        resourceTitle = page?.title ?? "Página indisponível";
-        summary = `Arquivar revisão ${row.args.expected_revision} da página.`;
+        resourceTitle = page?.title ?? traduzir("Página indisponível", auth.user.idioma);
+        summary = espanhol
+          ? `Archivar la revisión ${row.args.expected_revision} de la página.`
+          : `Arquivar revisão ${row.args.expected_revision} da página.`;
         resourceUrl = `/app/knowledge?page=${row.args.id}`;
       } else if (row.tool_name === "ai_publish_agent_draft") {
         const { data: agent } = await db
@@ -56,19 +60,28 @@ export async function GET() {
           .eq("agent_id", row.args.agent_id)
           .eq("id", row.args.version_id)
           .maybeSingle();
-        resourceTitle = agent?.name ?? "Agente indisponível";
-        summary = `Publicar versão ${version?.version_number ?? "?"} (${version?.status ?? "indisponível"}) para atendimento real.`;
-        resourceUrl = `/app/ai/agents/${row.args.agent_id}`;
+        resourceTitle = agent?.name ?? traduzir("Agente indisponível", auth.user.idioma);
+        const estado = version?.status ?? "indisponível";
+        summary = espanhol
+          ? `Publicar versión ${version?.version_number ?? "?"} (${traduzir(estado, auth.user.idioma)}) para la atención real.`
+          : `Publicar versão ${version?.version_number ?? "?"} (${estado}) para atendimento real.`;
+        resourceUrl = `/app/ai/agents/${row.args.agent_id}?reviewVersion=${encodeURIComponent(String(row.args.version_id))}`;
       } else if (row.tool_name === "content_generate_studio_post") {
-        resourceTitle = `Postagem ${row.args.format ?? ""}`;
-        summary = `Gerar imagem e legenda com créditos de IA: ${String(row.args.brief ?? "").slice(0, 240)}`;
+        const formato =
+          row.args.format === "square"
+            ? "Quadrado"
+            : row.args.format === "story"
+              ? "Story"
+              : "Feed";
+        resourceTitle = `${traduzir("Postagem", auth.user.idioma)} ${traduzir(formato, auth.user.idioma)}`;
+        summary = `${traduzir("Gerar imagem e legenda com créditos de IA:", auth.user.idioma)} ${String(row.args.brief ?? "")}`;
         resourceUrl = "/app/instagram";
       }
       return {
         id: row.id,
         status: row.status,
         expires_at: row.expires_at,
-        label: catalogEntry(row.tool_name)?.rotulo ?? row.tool_name,
+        label: traduzir(catalogEntry(row.tool_name)?.rotulo ?? row.tool_name, auth.user.idioma),
         resource_title: resourceTitle,
         summary,
         resource_url: resourceUrl,

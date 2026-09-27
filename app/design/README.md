@@ -6,9 +6,9 @@
 > underscore). Se preferir o prefixo, renomeia e adicione um redirect
 > em `next.config.ts`.
 
-Painel navegável e isolado para iterar a direção visual do escreve.ai antes de
-aplicar ao app real. Não toca em `app/layout.tsx` global; tem o seu próprio
-`layout.tsx` com `<VariantProvider>` e CSS escopado em `showcase.css`.
+Painel navegável e isolado para comparar a base atual com alternativas históricas.
+O aplicativo usa os tokens de `app/globals.css`; este showcase mantém tokens
+`--ds-*` próprios e não altera a marca configurada das organizações.
 
 ## Como rodar
 
@@ -40,11 +40,12 @@ A rota é pública (sem auth) e tem `robots: noindex`.
 11 stops de neutro greige, 4 estados (success/warning/error/info), versões
 **light e dark definidas separadamente** (não invertidas).
 
-### Pareamentos tipográficos (4)
-1. Bricolage Grotesque + Plus Jakarta Sans (default)
-2. Fraunces + Manrope
-3. Atkinson Hyperlegible (mono-stack a11y-first)
-4. Source Serif 4 + IBM Plex Sans
+### Pareamentos tipográficos (5)
+1. Manrope + IBM Plex Mono (base atual)
+2. Bricolage Grotesque + Plus Jakarta Sans
+3. Fraunces + Manrope
+4. Atkinson Hyperlegible
+5. Source Serif 4 + IBM Plex Sans
 
 Inter / Geist / Space Grotesk **proibidos** por saturação em training data.
 
@@ -55,11 +56,11 @@ Inter / Geist / Space Grotesk **proibidos** por saturação em training data.
 
 ## Arquitetura
 
-- `lib/tokens.ts` — única source-of-truth para cores, fontes, densidade, motion.
+- `lib/tokens.ts` — alternativas isoladas do showcase; os tokens do produto estão em `app/globals.css`.
 - `lib/fonts.ts` — todas as fontes carregadas via `next/font/google` no boot do
   `_design/layout.tsx` (escopo isolado). Variáveis CSS expostas globalmente.
-- `lib/variant-context.tsx` — Context React + `setProperty` em `:root` para
-  injetar tokens. Hidrata de `localStorage`.
+- `lib/variant-context.tsx` — Context React + `setProperty` na `.ds-root` para
+  injetar tokens sem afetar o tema e a marca do produto. Hidrata de `localStorage`.
 - `showcase.css` — todos os estilos do showcase prefixados `.ds-*`. Não interfere
   no resto do app.
 - `sections/Section*.tsx` — uma por aba.
@@ -67,9 +68,8 @@ Inter / Geist / Space Grotesk **proibidos** por saturação em training data.
 
 ## Decisões notáveis
 
-- **Default**: `Sage + Bricolage/Jakarta + Equilibrada + Light`. Sage projeta
-  calma operacional sem cair em "saúde mental clichê"; Bricolage tem width axis
-  útil para hierarquia em headers de inbox.
+- **Default**: `Sage + Manrope + Equilibrada + Light`. O seletor permite comparar
+  as alternativas sem declarar que elas estejam ativas no produto.
 - **Iconografia recomendada**: Phosphor (duotone). Justificativa na seção Iconografia.
 - **CSS variables, não Tailwind classes**: o showcase intencionalmente fica fora
   do tema do app para não poluí-lo antes da decisão final. Quando a variante for

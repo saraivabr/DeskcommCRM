@@ -5,7 +5,7 @@ import { StudioShell } from "../_shared";
 import { InstagramGrowthClient } from "@/app/app/growth/instagram/_client";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Instagram Growth | Saraiva CRM" };
+export const metadata: Metadata = { title: "Automações do Instagram | escreve.ai" };
 
 export default async function InstagramGrowthSubPage() {
   const user = await loadAuthUser();

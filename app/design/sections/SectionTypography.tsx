@@ -5,6 +5,10 @@ import type { TypoId } from "../lib/tokens";
 import { useVariant } from "../lib/variant-context";
 
 const TYPO_FONTS: Record<TypoId, { display: string; body: string }> = {
+  manrope: {
+    display: "var(--font-manrope)",
+    body: "var(--font-manrope)",
+  },
   "bricolage-jakarta": {
     display: "var(--font-bricolage)",
     body: "var(--font-jakarta)",
@@ -121,11 +125,12 @@ export function SectionTypography() {
     <div className="ds-section">
       <h2 className="ds-display">Tipografia</h2>
       <p className="ds-lede">
-        Quatro pareamentos avaliados. Critério: legibilidade em 8h-shifts, suporte a numerais tabulares,
+        A base ativa e quatro alternativas históricas. Critério: legibilidade em turnos longos, suporte a numerais tabulares,
         peso extremo disponível, italic real (não slanted). Inter / Geist / Space Grotesk foram banidos
         por saturação em training data.
       </p>
 
+      <PairBlock id="manrope" />
       <PairBlock id="bricolage-jakarta" />
       <PairBlock id="fraunces-manrope" />
       <PairBlock id="atkinson" />

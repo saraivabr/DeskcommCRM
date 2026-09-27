@@ -4,7 +4,7 @@ import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { MysteryShopperClient } from "./_client";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Cliente Oculto | Saraiva CRM" };
+export const metadata: Metadata = { title: "Cliente Oculto | escreve.ai" };
 
 export default async function MysteryShopperPage() {
   const user = await loadAuthUser();

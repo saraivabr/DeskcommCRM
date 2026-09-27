@@ -128,7 +128,7 @@ Sempre respeitar. Em vez de remover toda animação, **simplificar pra fade-only
 }
 ```
 
-Skeleton shimmer pode manter (não causa motion sickness).
+No produto, skeletons ficam estáticos com `prefers-reduced-motion: reduce`; progresso continua indicado pela forma e pelo contexto.
 
 ---
 

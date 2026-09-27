@@ -39,7 +39,9 @@
  *    encostar em gate nenhum. Fechar isso pede entrada na allowlist para cada
  *    ocorrência do showcase, e é dívida com issue própria — não deste arquivo.
  *
- * O caminho SUPORTADO de marca própria está em `docs/white-label.md`: o banco
+ * Nesta edição, a troca deliberada do padrão para escreve.ai acompanha a arte
+ * que já está no produto. O caminho SUPORTADO de marca própria continua em
+ * `docs/white-label.md`: o banco
  * (`platform_branding`, `organizations.settings.branding`) manda, e `APP_NAME`
  * no `.env` é a semente que o `install.sh` pergunta. Uma imagem Docker serve
  * todas as marcas — é por isso que a constante daqui é o PADRÃO do produto, e
@@ -54,7 +56,7 @@ import { DEFAULT_APP_NAME, resolveBranding } from "@/lib/branding";
  * importado de `lib/branding`, de propósito: um teste que compara a constante
  * com ela mesma passa sempre.
  */
-const MARCA_DO_PRODUTO = "DeskcommCRM";
+const MARCA_DO_PRODUTO = "escreve.ai";
 
 const COMO_PERSONALIZAR =
   "Para personalizar a marca da SUA instalação, não edite esta constante: " +
@@ -64,7 +66,7 @@ const COMO_PERSONALIZAR =
   "e some com a sua marca no próximo `git pull`.";
 
 describe("a marca padrão do produto", () => {
-  it("é DeskcommCRM — e trocá-la aqui é mudar o produto, não a sua instalação", () => {
+  it("é escreve.ai — e trocá-la aqui é mudar o produto, não a sua instalação", () => {
     expect(DEFAULT_APP_NAME, COMO_PERSONALIZAR).toBe(MARCA_DO_PRODUTO);
   });
 
@@ -76,7 +78,7 @@ describe("a marca padrão do produto", () => {
     expect(resolveBranding(undefined, undefined), COMO_PERSONALIZAR).toEqual({
       name: MARCA_DO_PRODUTO,
       logoUrl: null,
-      initial: "D",
+      initial: "E",
     });
   });
 });

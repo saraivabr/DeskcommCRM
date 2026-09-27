@@ -301,12 +301,12 @@ export function ProdutosClient({
         <p className="mt-1 text-sm text-muted-foreground">{textos.subtitulo}</p>
       </header>
 
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <input
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder={t("Buscar por nome, código ou marca")}
-          className="h-9 w-full max-w-sm rounded-md border px-3 text-sm"
+          className="h-9 w-full min-w-0 max-w-sm rounded-md border px-3 text-sm sm:min-w-48 sm:flex-1"
           data-testid="busca-produto"
         />
         {podeEditar ? (

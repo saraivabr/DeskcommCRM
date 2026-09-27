@@ -74,9 +74,13 @@ export function WorkspaceOverview() {
         won: Check,
       }) as Record<string, typeof Sparkles>
     )[id] ?? Sparkles;
+  // A ordem também escolhe o destino do atalho: prazos e respostas humanas
+  // exigem ação antes da simples contagem de conversas abertas.
+  const priority = ["tasks", "agent-cases", "leads", "conversations"];
   const attention = data?.attention
     .slice()
-    .sort((a, b) => Number(a.id === "tasks") - Number(b.id === "tasks"));
+    .sort((a, b) => priority.indexOf(a.id) - priority.indexOf(b.id));
+  const firstPending = attention?.find((item) => (item.count ?? 0) > 0);
   return (
     <div className={styles.overview} aria-busy={busy}>
       <section aria-labelledby="home-attention-title">
@@ -123,35 +127,45 @@ export function WorkspaceOverview() {
           </p>
         )}
         {!busy && data && (
-          <div className={styles.attention}>
-            {attention?.map((item) => {
-              const Icon = iconFor(item.id);
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  className={styles.attentionItem}
-                  data-kind={item.id}
-                  title={t(item.description)}
-                >
-                  <div className={styles.attentionTop}>
-                    <span className={styles.attentionNumber}>{item.count ?? "—"}</span>
-                    <Icon aria-hidden />
-                  </div>
-                  <h3 className={styles.attentionLabel}>{t(item.label)}</h3>
-                  <div className={styles.attentionMeta}>
-                    <span>{t(item.count === null ? "Consulta indisponível" : "Ver detalhes")}</span>
-                    <ArrowRight aria-hidden />
-                  </div>
-                  {item.count === null && (
-                    <span className="sr-only">
-                      {t("Não foi possível consultar. Atualize para tentar novamente.")}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
+          <>
+            {firstPending && (
+              <Link href={firstPending.href} className={styles.nextAction}>
+                {t("Abrir pendência")}: {t(firstPending.label)}
+                <ArrowRight size={16} aria-hidden />
+              </Link>
+            )}
+            <div className={styles.attention}>
+              {attention?.map((item) => {
+                const Icon = iconFor(item.id);
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className={styles.attentionItem}
+                    data-kind={item.id}
+                    title={t(item.description)}
+                  >
+                    <div className={styles.attentionTop}>
+                      <span className={styles.attentionNumber}>{item.count ?? "—"}</span>
+                      <Icon aria-hidden />
+                    </div>
+                    <h3 className={styles.attentionLabel}>{t(item.label)}</h3>
+                    <div className={styles.attentionMeta}>
+                      <span>
+                        {t(item.count === null ? "Consulta indisponível" : "Ver detalhes")}
+                      </span>
+                      <ArrowRight aria-hidden />
+                    </div>
+                    {item.count === null && (
+                      <span className="sr-only">
+                        {t("Não foi possível consultar. Atualize para tentar novamente.")}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </>
         )}
       </section>
       {!busy && data && (

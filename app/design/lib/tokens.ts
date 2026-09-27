@@ -1,9 +1,9 @@
-// Design tokens for DeskcommCRM showcase.
+// Design tokens for the escreve.ai showcase.
 // "Soft-tech / calmo" — neutros desaturados (greige/warm-gray), accent não-saturado.
 // 5-Constraint Rule applied: Shape, Color (exact hex), Typography, Motion, Layout.
 
 export type PaletteId = "sage" | "clay" | "mist" | "plum" | "olive";
-export type TypoId = "bricolage-jakarta" | "fraunces-manrope" | "atkinson" | "source-plex";
+export type TypoId = "manrope" | "bricolage-jakarta" | "fraunces-manrope" | "atkinson" | "source-plex";
 export type DensityId = "aerada" | "equilibrada" | "compacta";
 export type ThemeId = "light" | "dark";
 
@@ -191,6 +191,14 @@ export const DENSITIES: Record<DensityId, { label: string; rowH: string; gap: st
 // ─── Typography pairings ───────────────────────────────────────────────────
 
 export const TYPOS: Record<TypoId, { name: string; display: string; body: string; mono: string; description: string; scale: number }> = {
+  manrope: {
+    name: "Manrope + IBM Plex Mono",
+    display: '"Manrope", system-ui, sans-serif',
+    body: '"Manrope", system-ui, sans-serif',
+    mono: '"IBM Plex Mono", ui-monospace, monospace',
+    description: "Base ativa do aplicativo; Georgia fica restrita aos títulos editoriais.",
+    scale: 1.25,
+  },
   "bricolage-jakarta": {
     name: "Bricolage + Plus Jakarta",
     display: '"Bricolage Grotesque", system-ui, sans-serif',

@@ -7,6 +7,7 @@ import {
   areAlertsEnabled,
   assinarPermissao,
   getPermission,
+  getPermissionDoServidor,
   requestPermission,
   setAlertsEnabled,
   type NotificationPermissionState,
@@ -48,19 +49,16 @@ export function useNotificationPermission(): {
    * controle pronto para uso que sumia na frente dele — e um clique naquela
    * janela ia parar num `request()` que já estava decidido.
    *
-   * `useSyncExternalStore` lê o valor no PRÓPRIO render e reconcilia junto com
-   * a hidratação, sem chute e sem janela. No servidor `getPermission()` devolve
-   * `"unsupported"` sozinho (não existe `Notification` lá), o que é a verdade
-   * daquele ambiente e desabilita o controle no HTML — o único flash que sobra
-   * é o seguro, de desabilitado para habilitado, que nunca oferece o que talvez
-   * não funcione.
+   * `useSyncExternalStore` usa o mesmo snapshot seguro na renderização do
+   * servidor e na primeira passada do navegador. Após a hidratação, consulta
+   * a permissão real e atualiza o controle sem gerar HTML divergente.
    *
    * O custo dessa janela não foi teórico: ela deixou
    * `tests/e2e/notificacoes-diz-o-que-falta.spec.ts` passando por SORTE, e o
    * primeiro PR a mudar o timing o bastante para perder a corrida ficou vermelho
    * sem ter quebrado nada.
    */
-  const permission = useSyncExternalStore(assinarPermissao, getPermission, getPermission);
+  const permission = useSyncExternalStore(assinarPermissao, getPermission, getPermissionDoServidor);
   const [enabled, setEnabledState] = useState(false);
 
   useEffect(() => {

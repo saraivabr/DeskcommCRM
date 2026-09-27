@@ -82,12 +82,14 @@ function SortableHead({
   const emphasis = "text-foreground";
 
   return (
-    <TableHead className={className}>
+    <TableHead
+      className={className}
+      aria-sort={active ? (orderDir === "asc" ? "ascending" : "descending") : "none"}
+    >
       <button
         type="button"
         onClick={() => onSort(column)}
         className="inline-flex items-center gap-1 font-medium hover:text-foreground"
-        aria-sort={active ? (orderDir === "asc" ? "ascending" : "descending") : "none"}
       >
         {label}
         <span className="inline-flex flex-col -space-y-1" aria-hidden>

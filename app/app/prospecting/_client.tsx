@@ -102,6 +102,7 @@ export function ProspectingClient() {
   const [key, setKey] = useState("");
   const [settings, setSettings] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
   const [niche, setNiche] = useState("");
   const [source, setSource] = useState<"google_maps" | "instagram">("google_maps");
   const [location, setLocation] = useState("");
@@ -200,7 +201,7 @@ export function ProspectingClient() {
           </p>
         </div>
         <Button variant="outline" onClick={() => setSettings((s) => !s)}>
-          {t("Configurar busca")}
+          {t("Configurar provedor de busca")}
         </Button>
       </header>
       <Card className="overflow-hidden rounded-[1.35rem] border-border/60 bg-card shadow-[0_18px_60px_-44px_rgba(15,23,42,0.65)]">
@@ -209,7 +210,11 @@ export function ProspectingClient() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="rounded-full px-3 py-1">{t("BDR recomendado")}</Badge>
               <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                {t("Busca ativa")}
+                {!data
+                  ? t("Consultando buscas automáticas")
+                  : data.schedule?.schedule_enabled
+                    ? t("Buscas automáticas ativas")
+                    : t("Buscas automáticas desligadas")}
               </span>
             </div>
             <h2 className="mt-3 text-xl font-semibold tracking-tight">
@@ -308,8 +313,22 @@ export function ProspectingClient() {
       )}
       <div className="grid items-start gap-6 lg:grid-cols-[320px_1fr]">
         <aside className="flex flex-col gap-5 lg:sticky lg:top-6">
-          <Card className="rounded-[1.35rem] border-border/60 p-5 shadow-[0_18px_50px_-46px_rgba(15,23,42,0.7)]">
-            <h2 className="text-lg font-semibold">{t("1. Encontrar empresas")}</h2>
+          {campaign && !showSearch && (
+            <Button variant="outline" onClick={() => setShowSearch(true)}>
+              {t("Nova busca de empresas")}
+            </Button>
+          )}
+          <Card
+            className={`rounded-[1.35rem] border-border/60 p-5 shadow-[0_18px_50px_-46px_rgba(15,23,42,0.7)] ${campaign && !showSearch ? "hidden" : ""}`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">{t("1. Encontrar empresas")}</h2>
+              {campaign && (
+                <Button variant="ghost" size="sm" onClick={() => setShowSearch(false)}>
+                  {t("Fechar")}
+                </Button>
+              )}
+            </div>
             <form
               className="mt-4 space-y-4"
               onSubmit={async (e) => {
@@ -342,6 +361,7 @@ export function ProspectingClient() {
                 );
                 if (success) {
                   setSelected(null);
+                  setShowSearch(false);
                   searchAttempt.current = null;
                 }
               }}
@@ -451,6 +471,7 @@ export function ProspectingClient() {
                   type="button"
                   onClick={() => {
                     setSelected(c.id);
+                    setShowSearch(false);
                     setNotice(null);
                   }}
                   className={`w-full rounded-lg border p-3 text-left ${campaign?.id === c.id ? "border-primary bg-primary/5" : "bg-card"}`}

@@ -9,14 +9,14 @@ Lista canônica do que **não fazer** no escreve.ai. Anti-patterns ficam aqui pr
 ## 1. ❌ Inter como font family
 
 **Por quê:** ~70% dos SaaS atuais usam Inter. É correta, mas saturada. Diluição de marca.
-**✅ Sim:** Atkinson Hyperlegible (display + body) + IBM Plex Mono (dados). Ver `03-typography.md`.
+**✅ Sim:** Manrope na interface + IBM Plex Mono em dados. Ver `03-typography.md`.
 
 ---
 
 ## 2. ❌ Geist Sans, Space Grotesk, ou qualquer Vercel-default
 
 **Por quê:** mesma razão de Inter. Geist é a "nova Inter" de 2024–2025. Anti-genérico exige distância.
-**✅ Sim:** Atkinson.
+**✅ Sim:** Manrope na interface; Georgia somente em títulos editoriais definidos.
 
 ---
 
@@ -121,7 +121,7 @@ Lista canônica do que **não fazer** no escreve.ai. Anti-patterns ficam aqui pr
 ## 17. ❌ `border-radius: 0` em todos os controles ("flat brutalism")
 
 **Por quê:** brutalist é uma direção válida, mas não combina com soft-tech calmo. Vira hostil em uso prolongado.
-**✅ Sim:** `radius-xs` (4px) em controles, `radius-sm` (8px) em cards de lista. Radius 0 só em tabelas densas.
+**✅ Sim:** use os graus ativos em `app/globals.css`: controles compartilhados de 12px, cards de 16px e itens densos de 8px. Radius 0 só em tabelas densas.
 
 ---
 

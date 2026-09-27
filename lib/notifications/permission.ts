@@ -34,6 +34,12 @@ export function getPermission(): NotificationPermissionState {
   return Notification.permission;
 }
 
+// O snapshot usado na hidratação precisa ser igual no servidor e no navegador.
+// A permissão real só é aplicada após o React conectar a store no cliente.
+export function getPermissionDoServidor(): NotificationPermissionState {
+  return "unsupported";
+}
+
 export async function requestPermission(): Promise<NotificationPermissionState> {
   if (typeof Notification === "undefined") return "unsupported";
   const resultado = await Notification.requestPermission();

@@ -1,6 +1,6 @@
 # 02 — Paleta Sage
 
-> **Source of truth:** `app/design/lib/tokens.ts` → `PALETTES.sage`
+> **Source of truth:** `app/globals.css` para os valores padrão e `lib/branding/` para o accent resolvido por instalação ou organização. `app/design/lib/tokens.ts` alimenta apenas o showcase.
 
 ## Filosofia da paleta
 
@@ -22,9 +22,9 @@ A paleta tem **dois temas desenhados independentemente**, não invertidos. Light
 | 200 | `#c8d6c1` | Borders de elementos accent secundários |
 | 300 | `#a4ba9a` | Disabled state do accent, decorative dividers |
 | 400 | `#82a077` | Hover de elementos accent claros |
-| 500 | `#67885d` | **Brand accent canônico** — botão primary bg, link, focus ring color |
-| 600 | `#506d48` | Hover de primary button (escurece) |
-| 700 | `#41573b` | Pressed state de primary button |
+| 500 | `#67885d` | Anel de foco e uso direto da rampa no tema claro |
+| 600 | `#506d48` | Accent semântico padrão no tema claro (`--color-accent`) |
+| 700 | `#41573b` | Hover do botão primário padrão |
 | 800 | `#374731` | Texto sobre fundos accent claros (a11y AAA) |
 | 900 | `#2f3c2b` | — (raramente usado em light) |
 | 950 | `#171f15` | — (uso extremo, evite) |
@@ -126,7 +126,7 @@ Validações realizadas pela paleta:
 |------------|-------|-------|--------|
 | `text` (`#1c1a16`) sobre `bg` (`#faf9f6`) | ~14.8:1 | AAA | Prosa longa, body text |
 | `text-muted` (`#5d594f`) sobre `bg` | ~6.7:1 | AA+ | Secondary, helper, timestamps |
-| `accent-500` (`#67885d`) sobre `bg` | ~4.6:1 | AA | Texto UI 14px+, botão primary |
+| `accent-600` (`#506d48`) sobre `bg` | ~5.5:1 | AA | Accent semântico padrão no tema claro |
 | `accent-700` (`#41573b`) sobre `accent-soft` | ~7.2:1 | AAA | Link em chip, label sobre badge |
 | Dark: `text` (`#f5f4ef`) sobre `bg` (`#161510`) | ~14.1:1 | AAA | Body text |
 | Dark: `accent-400` (`#82a077`) sobre `bg` | ~5.9:1 | AA+ | Link, primary |

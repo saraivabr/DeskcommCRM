@@ -43,9 +43,9 @@ export function SidebarContent({
   const productBrand = !logo && name === DEFAULT_APP_NAME;
   const linkClass = (active: boolean) =>
     cn(
-      "workspace-nav-item min-h-[42px]! rounded-[9px]! px-[15px]! py-[10px]! text-[13px]!",
-      active && "is-active bg-primary/10! font-semibold! text-foreground! shadow-none!",
-      collapsed && "justify-center px-0!",
+      "workspace-nav-item",
+      active && "is-active font-semibold",
+      collapsed && "justify-center px-0",
     );
   return (
     <>
@@ -97,9 +97,9 @@ export function SidebarContent({
           {!collapsed && <span>{t("Início")}</span>}
         </Link>
         {workspaceGroups(destinations).map((group) => (
-          <div key={group.id} className="pt-[22px]!">
+          <div key={group.id} className="pt-[22px]">
             {!collapsed && (
-              <p className="px-[15px] pb-[8px] text-[9px] font-bold tracking-[0.18em] text-muted-foreground uppercase">
+              <p className="px-3 pb-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                 {t(group.label)}
               </p>
             )}
@@ -124,7 +124,7 @@ export function SidebarContent({
             })}
           </div>
         ))}
-        <div className="pt-7!">
+        <div className="pt-7">
           <Link
             href="/app/ferramentas"
             onClick={onNavigate}
@@ -164,7 +164,7 @@ export function SidebarContent({
               disabled={pending}
               onClick={() => startTransition(() => toggleSidebar(collapsed))}
               aria-label={t(collapsed ? "Expandir sidebar" : "Recolher sidebar")}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring lg:h-9 lg:w-9"
             >
               {collapsed ? (
                 <PanelLeftOpen size={18} aria-hidden />

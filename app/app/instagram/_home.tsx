@@ -46,6 +46,7 @@ export function InstagramHome() {
   const { items, loading, error, canCreate, reload } = useItems();
   const [triggers, setTriggers] = useState<GrowthTrigger[]>([]);
   const [loadingGrowth, setLoadingGrowth] = useState(true);
+  const [growthError, setGrowthError] = useState(false);
   const [postFilter, setPostFilter] = useState<"all" | "ready" | "generating">("all");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedCaptionId, setExpandedCaptionId] = useState<string | null>(null);
@@ -56,13 +57,12 @@ export function InstagramHome() {
     async function loadGrowth() {
       try {
         const res = await fetch("/api/v1/growth/instagram");
-        if (!res.ok) return;
+        if (!res.ok) throw new Error("growth unavailable");
         const data = await res.json();
-        if (active && data.triggers) {
-          setTriggers(data.triggers);
-        }
+        if (!Array.isArray(data.triggers)) throw new Error("growth response invalid");
+        if (active) setTriggers(data.triggers);
       } catch {
-        // Silencioso em caso de erro de rede
+        if (active) setGrowthError(true);
       } finally {
         if (active) setLoadingGrowth(false);
       }
@@ -153,12 +153,9 @@ export function InstagramHome() {
                   </div>
                   <div>
                     <p className="text-xs leading-tight font-semibold">{t("Seu Instagram")}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {t("Motor de Vendas Ativo")}
-                    </p>
+                    <p className="text-[10px] text-muted-foreground">{t("Exemplo ilustrativo")}</p>
                   </div>
                 </div>
-                <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
               </div>
               <div className="space-y-2 py-3 text-xs">
                 <div className="rounded-lg bg-muted/60 p-2.5">
@@ -166,7 +163,7 @@ export function InstagramHome() {
                   <p className="text-muted-foreground italic">{t('"EU QUERO o link!"')}</p>
                 </div>
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5">
-                  <p className="font-medium text-primary">{t("⚡ DM Automática disparada:")}</p>
+                  <p className="font-medium text-primary">{t("⚡ Exemplo de resposta por DM:")}</p>
                   <p className="line-clamp-2 text-[11px] text-muted-foreground">
                     {t('"Olá! Aqui está o link que você pediu..."')}
                   </p>
@@ -175,9 +172,8 @@ export function InstagramHome() {
               <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle size={14} weight="fill" />
-                  {t("Lead gerado no Funil")}
+                  {t("Possível lead no funil")}
                 </span>
-                <span className="font-bold">{t("+1 lead")}</span>
               </div>
             </div>
           </div>
@@ -209,7 +205,7 @@ export function InstagramHome() {
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold tracking-tight sm:text-3xl">
-              {loadingGrowth ? "…" : activeTriggersCount}
+              {loadingGrowth || growthError ? "—" : activeTriggersCount}
             </span>
             <Link
               href="/app/instagram/growth"
@@ -227,7 +223,7 @@ export function InstagramHome() {
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold tracking-tight sm:text-3xl">
-              {loadingGrowth ? "…" : totalDms}
+              {loadingGrowth || growthError ? "—" : totalDms}
             </span>
             <span className="text-xs text-muted-foreground">{t("automáticas")}</span>
           </div>
@@ -240,7 +236,7 @@ export function InstagramHome() {
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold tracking-tight text-emerald-600 sm:text-3xl dark:text-emerald-400">
-              {loadingGrowth ? "…" : totalLeads}
+              {loadingGrowth || growthError ? "—" : totalLeads}
             </span>
             <Link href="/app/kanban" className="text-xs text-muted-foreground hover:underline">
               {t("Ver no CRM")}
@@ -579,6 +575,10 @@ export function InstagramHome() {
           <div className="py-8 text-center text-sm text-muted-foreground">
             {t("Carregando automações de Instagram…")}
           </div>
+        ) : growthError ? (
+          <div role="alert" className="rounded-xl border border-destructive/30 p-5 text-sm">
+            {t("Não foi possível consultar as automações. Abra Automações para tentar novamente.")}
+          </div>
         ) : triggers.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border p-8 text-center">
             <div className="mb-3 rounded-full bg-muted p-3 text-muted-foreground">
@@ -607,8 +607,8 @@ export function InstagramHome() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="line-clamp-1 text-sm font-semibold">{trigger.name}</span>
-                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
-                      {t("Ativo")}
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                      {trigger.is_active ? t("Ativo") : t("Pausado")}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

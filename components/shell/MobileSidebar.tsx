@@ -30,7 +30,7 @@ export function MobileSidebar() {
           type="button"
           variant="ghost"
           size="icon"
-          className="h-11 w-11 md:hidden"
+          className="h-11 w-11 lg:hidden"
           aria-label={t("Abrir navegação")}
         >
           <List size={22} aria-hidden />

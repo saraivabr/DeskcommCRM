@@ -207,7 +207,7 @@ test.describe("ciclo de vida do convite (ponta a ponta + adversarial)", () => {
     await page.getByRole("button", { name: /Aceitar convite/i }).click();
     await page.waitForURL("**/app");
     await expect(page.getByRole("heading", { name: "O que vamos resolver hoje?" })).toBeVisible();
-    await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Inbox", exact: true }).click();
+    await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Conversas", exact: true }).click();
     await page.waitForURL("**/app/inbox");
 
     // depois do aceite: membership agent criada

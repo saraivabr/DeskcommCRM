@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 
 import {
   enderecoDeRetorno,
-  faltaParaConectarOGoogle,
   googleEstaConfigurado,
   origemLocalDosCabecalhos,
 } from "@/lib/agenda/google/config";
@@ -64,9 +63,8 @@ export default async function AgendaPage() {
   // render, como já fazia com o `locale`. O fuso entrou lá pela mesma razão.
   const fusoDeApresentacao = user.timezone ?? null;
 
-  // Resolvido no SERVIDOR: `GOOGLE_CALENDAR_*` é env de servidor e não pode
-  // atravessar para o cliente. A tela recebe o booleano e a lista do que falta,
-  // nunca o segredo.
+  // A configuração do Google é resolvida no servidor; a tela recebe apenas
+  // o estado necessário para mostrar a ação disponível a cada pessoa.
   /**
    * A SEMENTE vem do servidor, e não de um hook — porque a rota de leitura ainda
    * não existe.
@@ -239,12 +237,8 @@ export default async function AgendaPage() {
     .neq("status", "disconnected")
     .order("account_email");
 
-  // `await`: a credencial pode vir do BANCO agora (migration 0201), não só do
-  // `.env`. `faltaParaConectarOGoogle` já só devolve nomes de variável quando as
-  // DUAS fontes estão vazias — mandar editar o `.env` de uma instalação que
-  // gravou a credencial pela tela seria pior que não dizer nada.
+  // A credencial pode vir do banco ou do ambiente da instalação.
   const googleConfigurado = await googleEstaConfigurado();
-  const faltaNoGoogle = googleConfigurado ? [] : await faltaParaConectarOGoogle();
 
   return (
     <AgendaClient
@@ -261,8 +255,11 @@ export default async function AgendaPage() {
       usuarioId={user.id}
       googleConfigurado={googleConfigurado}
       contaConectada={conexoes?.map((c) => c.account_email).join(", ") || null}
-      enderecoDeRetorno={enderecoDeRetorno(origemLocal ?? undefined)}
-      faltaNoGoogle={faltaNoGoogle}
+      enderecoDeRetorno={
+        user.is_platform_admin && !user.support
+          ? enderecoDeRetorno(origemLocal ?? undefined)
+          : undefined
+      }
       // SÓ para quem administra a INSTALAÇÃO. A tela do app OAuth vive em
       // `/admin` e faz `notFound()` para o resto — oferecer o link a quem não
       // pode entrar seria trocar um beco por outro.

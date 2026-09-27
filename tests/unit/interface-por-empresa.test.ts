@@ -191,10 +191,13 @@ describe("a organização não consegue se trancar do lado de fora", () => {
 });
 
 describe("densidade do menu diário", () => {
-  it("menu completo tem sete destinos diários, Início e catálogo", () => {
-    expect(itensNoMenuLateral(INTERFACE_COMPLETA)).toBe(9);
-    expect(itensNoMenuLateral(undefined)).toBe(9);
-    expect(itensNoMenuLateral(combinarInterfaces(completa, completa))).toBe(9);
+  it("menu completo inclui Conhecimento entre os destinos diários, além de Início e catálogo", () => {
+    const destinosDiarios = workspaceGroups(searchable(false, "admin", INTERFACE_COMPLETA))
+      .flatMap((grupo) => grupo.items.map((item) => item.href));
+    expect(destinosDiarios).toContain("/app/knowledge");
+    expect(itensNoMenuLateral(INTERFACE_COMPLETA)).toBe(10);
+    expect(itensNoMenuLateral(undefined)).toBe(10);
+    expect(itensNoMenuLateral(combinarInterfaces(completa, completa))).toBe(10);
   });
 
   it("interface simplificada remove destinos avançados do menu diário", () => {

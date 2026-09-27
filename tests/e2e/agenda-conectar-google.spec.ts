@@ -112,7 +112,7 @@ test.describe("conectar a agenda do Google", () => {
     // 1. A TELA ABRE INTEIRA. Env opcional ausente degrada com explicação, não
     //    derruba o módulo — é o que `configuracaoDoGoogle()` devolvendo `null`
     //    existe para permitir.
-    await expect(page.getByTestId("tela-agenda")).toBeVisible({ timeout: ESPERA });
+    await expect(page.locator('[data-testid="tela-agenda"]:visible')).toBeVisible({ timeout: ESPERA });
     // `exact` porque o nome casa por SUBSTRING: com a agenda vazia, o aviso
     // "Sua agenda está livre esta semana" é um segundo heading, e os dois
     // coexistem desde que o vazio deixou de esconder a grade. Sem `exact`, dois
@@ -126,19 +126,16 @@ test.describe("conectar a agenda do Google", () => {
     // 3. E NO LUGAR DELE há explicação, com três propriedades que importam:
     const explicacao = page.getByTestId("google-nao-configurado");
     await expect(explicacao).toBeVisible();
-    //    (a) não culpa quem está lendo
-    await expect(explicacao).toContainText(/não é nada que você tenha feito/i);
-    //    (b) diz QUEM resolve
-    await expect(explicacao).toContainText(/quem instalou/i);
-    //    (c) diz o que continua funcionando — senão a pessoa acha que a agenda quebrou
+    //    (a) diz quem resolve sem expor detalhes técnicos
+    await expect(explicacao).toContainText(/quem administra o sistema/i);
+    await expect(page.getByTestId("endereco-de-retorno")).toHaveCount(0);
+    await expect(page.getByTestId("o-que-falta")).toHaveCount(0);
+    //    (b) diz o que continua funcionando — senão a pessoa acha que a agenda quebrou
     await expect(explicacao).toContainText(/funciona normalmente/i);
 
-    // 4. E o texto NÃO despeja código: nada de nome de variável com underscore
-    //    no meio da frase para quem não programa. A exceção é o bloco `o-que-falta`,
-    //    que é deliberadamente o nome técnico da chave — quem instalou precisa dele.
+    // 4. A tela de uso não mostra nomes de variáveis ou callback local.
     const corpo = await explicacao.innerText();
-    const semOBloco = corpo.replace((await page.getByTestId("o-que-falta").innerText().catch(() => "")) || "\u0000", "");
-    expect(semOBloco, `código cru na frase: ${semOBloco}`).not.toMatch(/[a-z]+_[a-z]+_[a-z]+/);
+    expect(corpo, `código cru na frase: ${corpo}`).not.toMatch(/[a-z]+_[a-z]+_[a-z]+|localhost/i);
   });
 
   test.skip("conectar a agenda do Google pela tela e ver a faixa mudar", async () => {

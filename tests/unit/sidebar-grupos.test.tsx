@@ -65,7 +65,7 @@ describe("Navegação leve do escreve.ai", () => {
   it("a barra recolhida mantém nomes acessíveis e destino ativo", () => {
     comoPapel("admin");
     render(<Sidebar collapsed />);
-    expect(screen.getByRole("link", { name: "Inbox" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Conversas" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Todas as ferramentas" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Expandir sidebar" })).toBeVisible();
   });

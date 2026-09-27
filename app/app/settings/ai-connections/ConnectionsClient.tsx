@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useT } from "@/hooks/i18n/useT";
+import { copyToClipboard } from "@/lib/clipboard";
 type Approval = {
   id: string;
   label: string;
@@ -11,6 +13,7 @@ type Approval = {
 };
 type Connection = { id: string; name: string; revoked_at: string | null };
 export function ConnectionsClient({ endpoint }: { endpoint: string }) {
+  const t = useT();
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [organization, setOrganization] = useState("");
@@ -30,7 +33,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [oauth, setOauth] = useState<Record<string, string> | null>(null);
-  async function reload() {
+  const reload = useCallback(async () => {
     const response = await fetch("/api/v1/mcp/connections");
     const body = await response.json();
     if (!response.ok) throw new Error(body.error?.message);
@@ -38,9 +41,9 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
     setOrganization(body.data.organization);
     setRole(body.data.role);
     const pending = await fetch("/api/v1/mcp/approvals");
-    if (!pending.ok) throw new Error("Não foi possível carregar confirmações.");
+    if (!pending.ok) throw new Error(t("Não foi possível carregar confirmações."));
     setApprovals((await pending.json()).data.approvals);
-  }
+  }, [t]);
   useEffect(() => {
     void reload().catch((e) => setError(e.message));
     const params = Object.fromEntries(new URLSearchParams(window.location.search));
@@ -48,7 +51,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
       setOauth(params);
       setKnowledgeRead(params.scope?.split(" ").includes("knowledge:read") ?? false);
     }
-  }, []);
+  }, [reload]);
   async function connect() {
     setBusy(true);
     setError("");
@@ -90,7 +93,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
   async function revoke(id: string) {
     try {
       const response = await fetch(`/api/v1/mcp/connections?id=${id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Não foi possível revogar.");
+      if (!response.ok) throw new Error(t("Não foi possível revogar."));
       await reload();
     } catch (e) {
       setError((e as Error).message);
@@ -112,32 +115,34 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
   }
   return (
     <main className="max-w-3xl space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Conectar minha IA</h1>
+      <h1 className="text-2xl font-semibold">{t("Conectar minha IA")}</h1>
       {approvals.length > 0 && (
-        <section className="space-y-3" aria-label="Confirmar operações">
-          <h2 className="font-semibold">Operações que precisam de você</h2>
+        <section className="space-y-3" aria-label={t("Confirmar operações")}>
+          <h2 className="font-semibold">{t("Operações que precisam de você")}</h2>
           {approvals.map((action) => (
-            <div className="space-y-2 rounded border p-4" key={action.id}>
+            <div className="space-y-2 rounded-md border p-4" key={action.id}>
               <p>
                 {action.label}: <strong>{action.resource_title}</strong>
               </p>
-              <p>{action.summary}</p>
+              <p className="break-words whitespace-pre-wrap">{action.summary}</p>
               <p>
                 {action.status === "pending"
-                  ? "Aguardando sua decisão"
+                  ? t("Aguardando sua decisão")
                   : action.status === "approved"
-                    ? "Aprovada. Sua IA pode repetir a operação."
-                    : "Confira o resultado no aplicativo antes de tentar outra operação."}
+                    ? t("Aprovada. Sua IA pode repetir a operação.")
+                    : t("Confira o resultado no aplicativo antes de tentar outra operação.")}
               </p>
               {action.resource_url && (
                 <a className="underline" href={action.resource_url}>
-                  Revisar no aplicativo
+                  {t("Revisar no aplicativo")}
                 </a>
               )}
               {action.status === "pending" && (
                 <div className="flex gap-4">
-                  <button onClick={() => void decide(action.id, true)}>Aprovar operação</button>
-                  <button onClick={() => void decide(action.id, false)}>Recusar</button>
+                  <button onClick={() => void decide(action.id, true)}>
+                    {t("Aprovar operação")}
+                  </button>
+                  <button onClick={() => void decide(action.id, false)}>{t("Recusar")}</button>
                 </div>
               )}
             </div>
@@ -145,22 +150,23 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
         </section>
       )}
       <p>
-        Organização: <strong>{organization}</strong>. Use o seletor de organização do aplicativo
-        para escolher outra antes de autorizar.
+        {t("Organização:")} <strong>{organization}</strong>
+        {t(". Use o seletor de organização do aplicativo para escolher outra antes de autorizar.")}
       </p>
       <p>
-        Consulte conhecimento, conversas, agentes e postagens. Com permissão específica, prepare
-        agentes e gere postagens para revisão. Publicar agentes exige confirmação adicional.
+        {t(
+          "Consulte conhecimento, conversas, agentes e postagens. Com permissão específica, prepare agentes e gere postagens para revisão. Publicar agentes exige confirmação adicional.",
+        )}
       </p>
       <p>
-        Endereço MCP: <code>{endpoint}</code>
+        {t("Endereço MCP:")} <code>{endpoint}</code>
       </p>
       {error && <p role="alert">{error}</p>}
       {oauth && (
         <p>
-          Endereço de retorno do aplicativo solicitante:{" "}
-          <code className="break-all">{oauth.redirect_uri}</code>. Confirme que pertence à IA que
-          você está conectando.
+          {t("Endereço de retorno do aplicativo solicitante:")}{" "}
+          <code className="break-all">{oauth.redirect_uri}</code>
+          {t(". Confirme que pertence à IA que você está conectando.")}
         </p>
       )}
       <form
@@ -168,12 +174,12 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
           e.preventDefault();
           void connect();
         }}
-        className="space-y-4 rounded border p-4"
+        className="space-y-4 rounded-md border p-4"
       >
         <label className="block">
-          Nome da conexão
+          {t("Nome da conexão")}
           <input
-            className="ml-3 rounded border p-2"
+            className="ml-3 rounded-md border p-2"
             value={name}
             maxLength={100}
             required
@@ -187,7 +193,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
               checked={knowledgeRead}
               onChange={(e) => setKnowledgeRead(e.target.checked)}
             />{" "}
-            Consultar páginas e pesquisar conhecimento
+            {t("Consultar páginas e pesquisar conhecimento")}
           </label>
         )}
         {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("whatsapp:read")) && (
@@ -197,7 +203,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
               checked={whatsapp}
               onChange={(e) => setWhatsapp(e.target.checked)}
             />{" "}
-            Consultar conversas e histórico do WhatsApp
+            {t("Consultar conversas e histórico do WhatsApp")}
           </label>
         )}
         {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("whatsapp:execute")) && (
@@ -207,19 +213,19 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
               checked={sendWhatsapp}
               onChange={(e) => setSendWhatsapp(e.target.checked)}
             />{" "}
-            Enviar mensagens pelo WhatsApp nas conversas que posso acessar
+            {t("Enviar mensagens pelo WhatsApp nas conversas que posso acessar")}
           </label>
         )}
         {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("crm:read")) && (
           <label className="block">
             <input type="checkbox" checked={crm} onChange={(e) => setCrm(e.target.checked)} />{" "}
-            Consultar contatos, leads e funis do CRM
+            {t("Consultar contatos, leads e funis do CRM")}
           </label>
         )}
         {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("knowledge:write")) && (
           <label className="block">
             <input type="checkbox" checked={write} onChange={(e) => setWrite(e.target.checked)} />{" "}
-            Permitir criar e editar páginas
+            {t("Permitir criar e editar páginas")}
           </label>
         )}
         {(role === "manager" || role === "admin") &&
@@ -230,7 +236,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
                 checked={agentsRead}
                 onChange={(e) => setAgentsRead(e.target.checked)}
               />{" "}
-              Consultar agentes e configurações
+              {t("Consultar agentes e configurações")}
             </label>
           )}
         {role === "admin" && (!oauth || oauth.scope?.split(" ").includes("automations:write")) && (
@@ -240,7 +246,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
               checked={agentsWrite}
               onChange={(e) => setAgentsWrite(e.target.checked)}
             />{" "}
-            Criar rascunhos de configuração dos agentes
+            {t("Criar rascunhos de configuração dos agentes")}
           </label>
         )}
         {role === "admin" &&
@@ -251,7 +257,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
                 checked={agentsPublish}
                 onChange={(e) => setAgentsPublish(e.target.checked)}
               />{" "}
-              Publicar agentes após minha confirmação
+              {t("Publicar agentes após minha confirmação")}
             </label>
           )}
         {(role === "manager" || role === "admin") &&
@@ -262,7 +268,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
                 checked={contentRead}
                 onChange={(e) => setContentRead(e.target.checked)}
               />{" "}
-              Consultar postagens do Estúdio
+              {t("Consultar postagens do Estúdio")}
             </label>
           )}
         {(role === "manager" || role === "admin") &&
@@ -273,41 +279,43 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
                 checked={contentGenerate}
                 onChange={(e) => setContentGenerate(e.target.checked)}
               />{" "}
-              Gerar postagens com créditos após minha confirmação
+              {t("Gerar postagens com créditos após minha confirmação")}
             </label>
           )}
-        <button className="rounded bg-primary px-4 py-2 text-primary-foreground" disabled={busy}>
-          {busy ? "Conectando…" : oauth ? "Autorizar acesso" : "Gerar token"}
+        <button className="rounded-md bg-primary px-4 py-2 text-primary-foreground" disabled={busy}>
+          {busy ? t("Conectando…") : oauth ? t("Autorizar acesso") : t("Gerar token")}
         </button>
       </form>
       {token && (
-        <div className="space-y-2 rounded border p-4">
-          <p>Copie este token agora. Ele não será exibido novamente e expira em 90 dias.</p>
+        <div className="space-y-2 rounded-md border p-4">
+          <p>{t("Copie este token agora. Ele não será exibido novamente e expira em 90 dias.")}</p>
           <input
-            aria-label="Token de conexão"
+            aria-label={t("Token de conexão")}
             className="w-full font-mono"
             readOnly
             value={token}
           />
           <button
-            onClick={() =>
-              void navigator.clipboard
-                .writeText(token)
-                .catch(() => setError("Selecione e copie o token manualmente."))
-            }
+            onClick={() => {
+              void copyToClipboard(token).then((copied) => {
+                if (!copied) setError(t("Selecione e copie o token manualmente."));
+              });
+            }}
           >
-            Copiar token
+            {t("Copiar token")}
           </button>
         </div>
       )}
-      <h2 className="text-lg font-semibold">Minhas conexões</h2>
+      <h2 className="text-lg font-semibold">{t("Minhas conexões")}</h2>
       {connections.map((c) => (
         <div className="flex justify-between border-b py-3" key={c.id}>
           <span>
             {c.name}
-            {c.revoked_at ? " · Revogada" : ""}
+            {c.revoked_at ? ` · ${t("Revogada")}` : ""}
           </span>
-          {!c.revoked_at && <button onClick={() => void revoke(c.id)}>Revogar acesso</button>}
+          {!c.revoked_at && (
+            <button onClick={() => void revoke(c.id)}>{t("Revogar acesso")}</button>
+          )}
         </div>
       ))}
     </main>

@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NEUTROS_DE_SAIDA, type MarcaDeSaida } from "@/lib/branding/saida";
 import type { SmtpConfig } from "@/lib/email/config";
+import { buildBudgetAlarmEmail } from "@/lib/email/templates/ai-budget-alarm";
 import { buildInviteEmail } from "@/lib/email/templates/invite";
 
 const MARCA: MarcaDeSaida = {
@@ -20,6 +21,27 @@ const MARCA: MarcaDeSaida = {
   accentFg: "#ffffff",
   origens: { nome: "banco", cor: "banco" },
 };
+
+describe("alerta de orçamento de IA", () => {
+  const opcoes = {
+    pct: 100,
+    consumedCents: 10000,
+    limitCents: 10000,
+    orgName: "Clínica Bem Viver",
+    dashboardUrl: "https://crm.exemplo.com.br/app/settings/ai",
+  };
+
+  it("usa a marca resolvida no assunto, mantendo organização e marca distintas", () => {
+    const email = buildBudgetAlarmEmail({ ...opcoes, marca: MARCA });
+    expect(email.subject).toContain("Vendas Turbo");
+    expect(email.subject).not.toContain("DeskcommCRM");
+    expect(email.html).toContain("Clínica Bem Viver");
+  });
+
+  it("sem contexto de marca usa o padrão desta edição", () => {
+    expect(buildBudgetAlarmEmail(opcoes).subject).toContain("escreve.ai");
+  });
+});
 
 describe("convite de time", () => {
   const convite = () =>
