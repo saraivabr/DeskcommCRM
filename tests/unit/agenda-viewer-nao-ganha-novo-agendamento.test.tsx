@@ -146,7 +146,6 @@ function montar({
         // caso não depender de quando roda.
         hojeNaOrganizacao="2026-09-16"
         googleConfigurado={false}
-        faltaNoGoogle={[]}
         tiposIniciais={tipos}
         agendamentosIniciais={[]}
         // #896: a tela passou a exigir quem está logado (o rótulo "Você" é de

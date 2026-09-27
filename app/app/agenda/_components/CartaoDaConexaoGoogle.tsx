@@ -27,7 +27,6 @@ import { GoogleLogo } from "@/lib/ui/icons";
  */
 export function CartaoDaConexaoGoogle({
   configurado,
-  falta,
   contaConectada,
   enderecoDeRetorno,
   linkDeConfiguracao,
@@ -39,8 +38,6 @@ export function CartaoDaConexaoGoogle({
    * resto, nomear a tela seria oferecer uma porta que dá em `notFound()`.
    */
   linkDeConfiguracao?: string;
-  /** O que falta, PELO NOME — para a tela dizer em vez de só esconder o botão. */
-  falta: string[];
   contaConectada?: string | null;
   /** O endereço EXATO que o Google exige registrado. Ver o bloco no JSX. */
   enderecoDeRetorno?: string;
@@ -56,32 +53,13 @@ export function CartaoDaConexaoGoogle({
         className="rounded-lg border border-border bg-surface-elevated/50 p-3"
       >
         <p className="text-sm font-medium text-text">{t("Sincronizar com o Google ainda não está disponível")}</p>
-        {/*
-          DUAS FRASES, porque são duas pessoas.
-          
-          Quem administra a instalação PODE resolver, e para essa pessoa nomear
-          variáveis de ambiente é pior que inútil: elas não são mais o caminho —
-          a credencial se cadastra pela tela desde a migration 0201. Para quem
-          não administra, o texto continua o de antes: dizer o que falta sem
-          oferecer uma porta que dá em `notFound()`.
-        */}
         {linkDeConfiguracao ? (
           <p className="mt-1 text-xs leading-4 text-text-muted">
             {t("Falta cadastrar o aplicativo do Google desta instalação. Leva um minuto e você faz por aqui mesmo.")}
           </p>
         ) : (
           <p className="mt-1 text-xs leading-4 text-text-muted">
-            {t("Esta instalação não tem as credenciais do Google cadastradas — não é nada que você tenha feito. Quem instalou o sistema precisa configurar")}
-            {falta.length > 0 ? (
-              <>
-                {" "}
-                <span data-testid="o-que-falta" className="font-mono text-[11px]">
-                  {falta.join(` ${t("e")} `)}
-                </span>
-              </>
-            ) : (
-              ` ${t("as credenciais")}`
-            )}
+            {t("O Google Agenda ainda não foi ativado nesta instalação. Peça a quem administra o sistema para configurar a integração.")}
           </p>
         )}
         {linkDeConfiguracao ? (
@@ -93,7 +71,7 @@ export function CartaoDaConexaoGoogle({
             {t("Cadastrar as credenciais do Google")}
           </a>
         ) : null}
-        {enderecoDeRetorno ? (
+        {linkDeConfiguracao && enderecoDeRetorno ? (
           <p className="mt-2 text-xs leading-4 text-text-muted">
             {/* ⚠️ ESTE BLOCO EXISTE PORQUE A AUSÊNCIA DELE JÁ CUSTOU UMA SESSÃO.
                 O Google compara o endereço de retorno BYTE A BYTE, e recusa com

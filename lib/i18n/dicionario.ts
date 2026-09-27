@@ -8091,7 +8091,7 @@ export const DICIONARIO: Traducoes = {
   "Por que está cancelando?": { es: "¿Por qué estás cancelando?" },
   "O paciente pediu para remarcar por telefone": { es: "El paciente pidió reprogramar por teléfono" },
   "Sincronizar com o Google ainda não está disponível": { es: "Sincronizar con Google todavía no está disponible" },
-  "Esta instalação não tem as credenciais do Google cadastradas — não é nada que você tenha feito. Quem instalou o sistema precisa configurar": { es: "Esta instalación no tiene registradas las credenciales de Google, y no se debe a nada que hayas hecho. Quien instaló el sistema necesita configurar" },
+  "O Google Agenda ainda não foi ativado nesta instalação. Peça a quem administra o sistema para configurar a integração.": { es: "Google Calendar todavía no está activado en esta instalación. Pide a quien administra el sistema que configure la integración." },
   "E, no console do Google, registrar este endereço de retorno —": { es: "Y, en la consola de Google, registrar esta URL de redirección —" },
   "exatamente assim": { es: "exactamente así" },
   "Até lá a agenda funciona normalmente, só não troca compromissos com o Google.": { es: "Mientras tanto, la agenda funciona con normalidad, pero no intercambia citas con Google." },
