@@ -4,7 +4,8 @@ type Approval = {
   id: string;
   label: string;
   resource_title: string;
-  args: { id: string; expected_revision: number };
+  summary: string;
+  resource_url: string | null;
   status: string;
   expires_at: string;
 };
@@ -20,6 +21,11 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
   const [sendWhatsapp, setSendWhatsapp] = useState(false);
   const [crm, setCrm] = useState(false);
   const [write, setWrite] = useState(false);
+  const [agentsRead, setAgentsRead] = useState(false);
+  const [agentsWrite, setAgentsWrite] = useState(false);
+  const [agentsPublish, setAgentsPublish] = useState(false);
+  const [contentRead, setContentRead] = useState(false);
+  const [contentGenerate, setContentGenerate] = useState(false);
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -58,6 +64,11 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             ...(whatsapp ? ["whatsapp:read"] : []),
             ...(sendWhatsapp ? ["whatsapp:execute"] : []),
             ...(crm ? ["crm:read"] : []),
+            ...(agentsRead ? ["automations:read"] : []),
+            ...(agentsWrite ? ["automations:write"] : []),
+            ...(agentsPublish ? ["automations:execute"] : []),
+            ...(contentRead ? ["content:read"] : []),
+            ...(contentGenerate ? ["content:execute"] : []),
           ],
           ...(oauth ? { oauth } : {}),
         }),
@@ -110,17 +121,19 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
               <p>
                 {action.label}: <strong>{action.resource_title}</strong>
               </p>
+              <p>{action.summary}</p>
               <p>
-                Revisão {action.args.expected_revision} ·{" "}
                 {action.status === "pending"
                   ? "Aguardando sua decisão"
                   : action.status === "approved"
                     ? "Aprovada. Sua IA pode repetir a operação."
-                    : "Consulte o estado da página antes de tentar outra operação."}
+                    : "Confira o resultado no aplicativo antes de tentar outra operação."}
               </p>
-              <a className="underline" href={`/app/knowledge?page=${action.args.id}`}>
-                Revisar página
-              </a>
+              {action.resource_url && (
+                <a className="underline" href={action.resource_url}>
+                  Revisar no aplicativo
+                </a>
+              )}
               {action.status === "pending" && (
                 <div className="flex gap-4">
                   <button onClick={() => void decide(action.id, true)}>Aprovar operação</button>
@@ -136,8 +149,8 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
         para escolher outra antes de autorizar.
       </p>
       <p>
-        Consulte e edite conhecimento, leia conversas do WhatsApp e consulte contatos, leads e
-        funis. As outras operações estão em desenvolvimento.
+        Consulte conhecimento, conversas, agentes e postagens. Com permissão específica, prepare
+        agentes e gere postagens para revisão. Publicar agentes exige confirmação adicional.
       </p>
       <p>
         Endereço MCP: <code>{endpoint}</code>
@@ -209,6 +222,60 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             Permitir criar e editar páginas
           </label>
         )}
+        {(role === "manager" || role === "admin") &&
+          (!oauth || oauth.scope?.split(" ").includes("automations:read")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={agentsRead}
+                onChange={(e) => setAgentsRead(e.target.checked)}
+              />{" "}
+              Consultar agentes e configurações
+            </label>
+          )}
+        {role === "admin" && (!oauth || oauth.scope?.split(" ").includes("automations:write")) && (
+          <label className="block">
+            <input
+              type="checkbox"
+              checked={agentsWrite}
+              onChange={(e) => setAgentsWrite(e.target.checked)}
+            />{" "}
+            Criar rascunhos de configuração dos agentes
+          </label>
+        )}
+        {role === "admin" &&
+          (!oauth || oauth.scope?.split(" ").includes("automations:execute")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={agentsPublish}
+                onChange={(e) => setAgentsPublish(e.target.checked)}
+              />{" "}
+              Publicar agentes após minha confirmação
+            </label>
+          )}
+        {(role === "manager" || role === "admin") &&
+          (!oauth || oauth.scope?.split(" ").includes("content:read")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={contentRead}
+                onChange={(e) => setContentRead(e.target.checked)}
+              />{" "}
+              Consultar postagens do Estúdio
+            </label>
+          )}
+        {(role === "manager" || role === "admin") &&
+          (!oauth || oauth.scope?.split(" ").includes("content:execute")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={contentGenerate}
+                onChange={(e) => setContentGenerate(e.target.checked)}
+              />{" "}
+              Gerar postagens com créditos após minha confirmação
+            </label>
+          )}
         <button className="rounded bg-primary px-4 py-2 text-primary-foreground" disabled={busy}>
           {busy ? "Conectando…" : oauth ? "Autorizar acesso" : "Gerar token"}
         </button>

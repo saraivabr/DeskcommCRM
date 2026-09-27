@@ -10,6 +10,8 @@ import { resolveConnection } from "@/lib/mcp/connections";
 import { ROLE_RANK, type Role } from "@/lib/auth/types";
 import { modulosLigados } from "@/lib/instalacao/modulos";
 import { audit } from "@/lib/audit";
+import { isFirstPartyConnectionRequest } from "@/lib/mcp/connection-origin";
+import { oauthOrigin } from "@/lib/mcp/oauth";
 export async function GET() {
   const auth = await requireRole("viewer", { resource: "mcp_action_approvals" });
   if (!auth.ok) return auth.response;
@@ -27,16 +29,49 @@ export async function GET() {
   if (error) return fail("internal_error", "Não foi possível consultar confirmações.", 500);
   const approvals = await Promise.all(
     (data ?? []).map(async (row) => {
-      const { data: page } = await db
-        .from("knowledge_pages")
-        .select("title")
-        .eq("organization_id", auth.org.orgId)
-        .eq("id", row.args.id)
-        .maybeSingle();
+      let resourceTitle = "Operação solicitada";
+      let summary = "Confira os detalhes antes de aprovar.";
+      let resourceUrl: string | null = null;
+      if (row.tool_name === "knowledge_archive_page") {
+        const { data: page } = await db
+          .from("knowledge_pages")
+          .select("title")
+          .eq("organization_id", auth.org.orgId)
+          .eq("id", row.args.id)
+          .maybeSingle();
+        resourceTitle = page?.title ?? "Página indisponível";
+        summary = `Arquivar revisão ${row.args.expected_revision} da página.`;
+        resourceUrl = `/app/knowledge?page=${row.args.id}`;
+      } else if (row.tool_name === "ai_publish_agent_draft") {
+        const { data: agent } = await db
+          .from("ai_agents")
+          .select("name")
+          .eq("organization_id", auth.org.orgId)
+          .eq("id", row.args.agent_id)
+          .maybeSingle();
+        const { data: version } = await db
+          .from("ai_agent_versions")
+          .select("version_number,status")
+          .eq("organization_id", auth.org.orgId)
+          .eq("agent_id", row.args.agent_id)
+          .eq("id", row.args.version_id)
+          .maybeSingle();
+        resourceTitle = agent?.name ?? "Agente indisponível";
+        summary = `Publicar versão ${version?.version_number ?? "?"} (${version?.status ?? "indisponível"}) para atendimento real.`;
+        resourceUrl = `/app/ai/agents/${row.args.agent_id}`;
+      } else if (row.tool_name === "content_generate_studio_post") {
+        resourceTitle = `Postagem ${row.args.format ?? ""}`;
+        summary = `Gerar imagem e legenda com créditos de IA: ${String(row.args.brief ?? "").slice(0, 240)}`;
+        resourceUrl = "/app/instagram";
+      }
       return {
-        ...row,
+        id: row.id,
+        status: row.status,
+        expires_at: row.expires_at,
         label: catalogEntry(row.tool_name)?.rotulo ?? row.tool_name,
-        resource_title: page?.title ?? "Página indisponível",
+        resource_title: resourceTitle,
+        summary,
+        resource_url: resourceUrl,
       };
     }),
   );
@@ -47,7 +82,7 @@ export async function POST(req: Request) {
   if (denied) return denied;
   const auth = await requireRole("viewer", { resource: "mcp_action_approvals" });
   if (!auth.ok) return auth.response;
-  if (auth.user.support || req.headers.get("origin") !== new URL(req.url).origin)
+  if (auth.user.support || !isFirstPartyConnectionRequest(req, oauthOrigin()))
     return fail("forbidden", "A confirmação exige sua sessão na interface.", 403);
   const parsed = z
     .object({ id: z.string().uuid(), approve: z.boolean() })
