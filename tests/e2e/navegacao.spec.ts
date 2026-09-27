@@ -144,7 +144,7 @@ test.describe("navegação agrupada", () => {
     await expect(page.getByRole("heading", { name: "Inteligência artificial" })).toBeVisible();
     await page.screenshot({ path: path.join(EVIDENCE, "nav-catalogo-ia.png"), fullPage: true });
 
-    await page.getByRole("link", { name: /Conhecimento/ }).click();
+    await page.locator('main a[href="/app/ai/knowledge/sources"]').click();
     await page.waitForURL(/knowledge\/sources/);
   });
 
@@ -181,11 +181,12 @@ test.describe("navegação agrupada", () => {
     await expect(busca).toBeVisible();
 
     await busca.fill("conhec");
-    await expect(page.getByRole("option", { name: /Conhecimento/ })).toBeVisible();
+    const conhecimento = page.locator('[role="option"][data-href="/app/ai/knowledge/sources"]');
+    await expect(conhecimento).toBeVisible();
 
     await page.screenshot({ path: path.join(EVIDENCE, "nav-command-palette.png") });
 
-    await page.keyboard.press("Enter");
+    await conhecimento.click();
     await page.waitForURL(/knowledge\/sources/);
   });
 

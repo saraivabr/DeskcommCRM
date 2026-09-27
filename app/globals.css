@@ -1044,7 +1044,7 @@
   font-weight: 700;
   letter-spacing: -.045em;
 }
-@media (min-width: 1024px) and (max-height: 800px) {
+@media (min-width: 1024px) and (max-height: 950px) {
   .workspace-sidebar .workspace-nav-item { min-height: 40px; padding-block: 8px; }
   .workspace-sidebar nav > div { padding-top: 8px; }
 }
