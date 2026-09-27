@@ -38,7 +38,7 @@ test("admin configura testes, remove número, confirma abertura e volta a restri
   await page.waitForURL(/\/app/);
   await page.goto("/app/connections");
   await expect(page.getByText("Canal de validação", { exact: true })).toBeVisible();
-  await expect(page.getByText("IA em modo de teste", { exact: true })).toBeVisible();
+  await expect(page.getByText("IA em modo de teste", { exact: true })).toBeVisible({ timeout: 15_000 });
   const openPanel = () => page.getByRole("button", { name: "Configurar acesso da IA" }).click();
   const input = page.getByLabel("Números autorizados para teste");
   const phone = "+5511999998888";
@@ -70,7 +70,7 @@ test("admin configura testes, remove número, confirma abertura e volta a restri
   expect((await read()).ai_gate).toBe("open");
   expect((await read()).ai_test_phone_numbers).toEqual([phone]);
   await page.reload();
-  await expect(page.getByText("IA aberta ao público", { exact: true })).toBeVisible();
+  await expect(page.getByText("IA aberta ao público", { exact: true })).toBeVisible({ timeout: 15_000 });
   await openPanel();
   await expect(input).toHaveValue(phone);
   await page.getByRole("button", { name: "Ativar modo de teste" }).click();

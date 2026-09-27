@@ -60,7 +60,7 @@ test.describe("knowledge pages and user-bound MCP", () => {
   test("persists editor content, preserves failed saves, and restores archived pages", async () => {
     const page = await context.newPage();
     await page.goto("/app/knowledge");
-    await page.getByRole("button", { name: "+ Nova página", exact: true }).click();
+    await page.getByRole("button", { name: "Nova página", exact: true }).click();
     await page.getByLabel("Título da página").fill("Manual QA");
     const editor = page.locator('.bn-editor[contenteditable="true"]');
     await editor.fill("O prazo de atendimento é dois dias úteis.");

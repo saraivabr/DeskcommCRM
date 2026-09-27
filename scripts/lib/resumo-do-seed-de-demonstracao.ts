@@ -29,7 +29,7 @@ export interface EstadoDaDemonstracao {
 /** Onde a pessoa vê o que o seed criou: o nome no menu, a rota e as abas, como a tela os escreve. */
 export const TELAS_DA_DEMONSTRACAO = [
   { tela: "Webhooks", rota: "/app/webhooks", abas: ["Automações", "Atividade"] },
-  { tela: "Follow-ups", rota: "/app/ai/followups", abas: ["Fluxos", "Fila"] },
+  { tela: "Retomadas", rota: "/app/ai/followups", abas: ["Fluxos", "Fila"] },
 ] as const;
 
 function quantos(n: number, singular: string, plural: string): string {
@@ -46,12 +46,12 @@ export function textoDoResumo(estado: EstadoDaDemonstracao): string {
     ({ tela, rota, abas }) => `${tela} › abas ${abas.join(" e ")} (${rota})`,
   ).join("; ");
   return (
-    `\n✅ Seed de automações e follow-ups completo. O que existe agora na organização de teste:` +
+    `\n✅ Seed de automações e retomadas completo. O que existe agora na organização de teste:` +
     `\n   Automações: ${quantos(regras.existem, "regra", "regras")} de demonstração, ` +
     `${quantos(regras.ligadas, "ligada", "ligadas")} (${nestaRodada(regras, "criada", "criadas")})` +
     `\n   Atividade:  ${quantos(execucoes.existem, "execução", "execuções")} no histórico ` +
     `(${nestaRodada(execucoes, "criada", "criadas")})` +
-    `\n   Follow-ups: fluxo "${fluxo.nome}" ${fluxo.ativo ? "ativo" : "NÃO ativo"}, ` +
+    `\n   Retomadas: fluxo "${fluxo.nome}" ${fluxo.ativo ? "ativo" : "NÃO ativo"}, ` +
     `${quantos(inscricoes.existem, "inscrição", "inscrições")} (${nestaRodada(inscricoes, "criada", "criadas")})` +
     `\n   Onde ver: ${telas}`
   );

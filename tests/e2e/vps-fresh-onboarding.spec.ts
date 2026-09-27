@@ -481,29 +481,17 @@ test.describe("J1 — onboarding do dono numa instalação fresca", () => {
       if (msUntilNextTotpWindow() < 4_000) await page.waitForTimeout(msUntilNextTotpWindow() + 300);
       await page.locator('input[aria-label="Dígito 1"]').click();
       await page.keyboard.type(generateTotp(secret), { delay: 40 });
-      try {
-        // MESMA ARMADILHA DO FECHO, e aqui ela desligava o retry: a página de
-        // Segurança tem a seção "Códigos de recuperação" impressa desde antes
-        // do enroll (`_client.tsx:176`, fora de condicional), então
-        // `getByRole('heading', /códigos de recuperação/i)` já valia ANTES de
-        // o modal chegar ao passo dos códigos — e passava na hora, mesmo com o
-        // TOTP recusado. Medido: com os dois títulos no DOM o strict mode
-        // reprova (`resolved to 2 elements`), então o verde só podia vir do
-        // casamento único, o da página. Resultado: este `for` nunca dava a
-        // segunda volta e a virada da janela TOTP caía lá embaixo, como falha
-        // confusa. `#mfa-title` é o título do passo ATUAL do modal (intro,
-        // scan e codes são ramos exclusivos), então prendê-lo aqui é o que
-        // pergunta de fato "o modal avançou?".
-        await expect(page.locator("#mfa-title")).toHaveText(/códigos de recuperação/i, {
-          timeout: 8_000,
-        });
-        break;
-      } catch {
-        if (attempt === 2) throw new Error("MFA enroll não chegou aos recovery codes");
-        // código recusado (janela virou) → limpa e tenta de novo
-        await page.locator('input[aria-label="Dígito 1"]').click();
-        for (let i = 0; i < 6; i++) await page.keyboard.press("Backspace");
-      }
+      // Aguarde o passo ATUAL do modal ou a rejeição do código. Um timeout
+      // curto no título podia disparar o retry enquanto a confirmação ainda
+      // corria: o input estava disabled e os códigos apareciam logo depois.
+      const resultado = await Promise.race([
+        page.locator("#mfa-title").filter({ hasText: /códigos de recuperação/i })
+          .waitFor({ state: "visible", timeout: 20_000 }).then(() => "codes" as const),
+        page.getByRole("dialog").locator(".text-destructive")
+          .waitFor({ state: "visible", timeout: 20_000 }).then(() => "retry" as const),
+      ]);
+      if (resultado === "codes") break;
+      if (attempt === 2) throw new Error("MFA enroll não chegou aos recovery codes");
     }
 
     // O BUG: a revalidação do server action desmontava o gate e o usuário
@@ -546,7 +534,7 @@ test.describe("J1 — onboarding do dono numa instalação fresca", () => {
     await expect(page.getByText("Desativada", { exact: true })).toHaveCount(0);
     // e a pessoa não ficou presa: o shell do app respondeu ao reload (se a
     // sessão tivesse caído no enroll, aqui seria a tela de login).
-    await expect(page.getByRole("link", { name: "Inbox", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Conversas", exact: true })).toBeVisible();
     await snap(page, "j1.10-verificacao-ativada");
   });
 

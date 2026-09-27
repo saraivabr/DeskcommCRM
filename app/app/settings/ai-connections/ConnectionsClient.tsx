@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
+import { copyToClipboard } from "@/lib/clipboard";
 type Approval = {
   id: string;
   label: string;
@@ -295,11 +296,11 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             value={token}
           />
           <button
-            onClick={() =>
-              void navigator.clipboard
-                .writeText(token)
-                .catch(() => setError(t("Selecione e copie o token manualmente.")))
-            }
+            onClick={() => {
+              void copyToClipboard(token).then((copied) => {
+                if (!copied) setError(t("Selecione e copie o token manualmente."));
+              });
+            }}
           >
             {t("Copiar token")}
           </button>

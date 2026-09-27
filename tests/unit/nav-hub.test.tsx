@@ -1,7 +1,7 @@
 /**
  * O hub é a vitrine de um grupo: mostra TUDO que ele tem, com descrição,
- * organizado pela jornada de quem usa. É onde as sete telas que só existiam
- * atrás das abas de IA passam a ser descobertas.
+ * organizado pela jornada de quem usa. Também torna descobertas as telas que
+ * antes só existiam atrás das abas de IA.
  *
  * A permissão é do registro (`navegacao-registry.test.ts`); aqui é o desenho.
  */
@@ -55,10 +55,11 @@ describe("NavHub", () => {
     },
   };
 
-  it("apresenta a IA nas três etapas da jornada, na ordem", () => {
+  it("apresenta o conhecimento compartilhado e as etapas do agente, na ordem", () => {
     render(<NavHub group="ia" isPlatformAdmin role={null} title="Agente de IA" subtitle="" />);
     const secoes = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent?.trim());
     expect(secoes).toEqual([
+      "Conhecimento",
       "Montar a equipe",
       "Montar o agente",
       "Ensinar o agente",
@@ -66,16 +67,21 @@ describe("NavHub", () => {
     ]);
   });
 
-  it("desenterra Conhecimento, que só existia atrás das abas", () => {
+  it("mantém distintos o conhecimento da equipe e as fontes do agente", () => {
     render(<NavHub group="ia" isPlatformAdmin role={null} title="Agente de IA" subtitle="" />);
-    const link = screen.getByRole("link", { name: /Conhecimento/ });
-    expect(link).toHaveAttribute("href", "/app/ai/knowledge/sources");
+    const links = screen.getAllByRole("link", { name: /Conhecimento/ });
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/app/knowledge",
+      "/app/ai/knowledge/sources",
+    ]);
   });
 
   it("cada card explica para que serve — é o que o sidebar não cabe dizer", () => {
     render(<NavHub group="ia" isPlatformAdmin role={null} title="Agente de IA" subtitle="" />);
-    const link = screen.getByRole("link", { name: /Conhecimento/ });
-    expect(link.textContent).toMatch(/consulta antes de responder/i);
+    const link = screen.getAllByRole("link", { name: /Conhecimento/ })
+      .find((item) => item.getAttribute("href") === "/app/ai/knowledge/sources");
+    expect(link).toBeDefined();
+    expect(link!.textContent).toMatch(/consulta antes de responder/i);
   });
 
   it("mostra também o que já está no sidebar — é inventário, não sobra", () => {
@@ -172,6 +178,7 @@ describe("NavHub", () => {
       screen.getByText("Todo lo que define quién atiende por ti, y cómo dar seguimiento a lo que hace."),
     ).toBeTruthy();
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent?.trim())).toEqual([
+      "Conocimiento",
       "Montar el equipo",
       "Configurar el agente",
       "Enseñar al agente",
