@@ -4,13 +4,12 @@ import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
-import { companyContext, companyLogo } from "@/lib/instagram/brand";
 import { createSchema } from "@/lib/instagram/schema";
 import { listItems } from "@/lib/instagram/store";
-import { createImage, createCaption, research, StudioError } from "@/lib/instagram/ai";
+import { research, StudioError } from "@/lib/instagram/ai";
+import { generateInstagramPost } from "@/lib/instagram/generate-post";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 const headers = { "Cache-Control": "no-store" };
@@ -99,31 +98,7 @@ export async function POST(req: Request) {
       metadata: { kind: input.kind },
     });
     if (input.kind === "post") {
-      const company = await companyContext(org);
-      let logo;
-      try {
-        logo = input.use_logo ? await companyLogo(org, company) : null;
-      } catch (error) {
-        throw new StudioError(
-          error instanceof Error ? error.message : "Não foi possível carregar o logo.",
-          422,
-        );
-      }
-      const caption =
-        input.carousel && input.carousel.slide > 1 ? "" : await createCaption(org, input, company);
-      const image = await createImage(org, input, company, logo);
-      const path = `${org}/instagram/${input.id}.png`;
-      const uploaded = await createAdminClient()
-        .storage.from("whatsapp-media")
-        .upload(path, image, { contentType: "image/png", upsert: false });
-      if (uploaded.error)
-        throw new StudioError(
-          "A imagem foi gerada, mas não pôde ser salva. Fale com a equipe antes de gerar novamente.",
-        );
-      await db.query(
-        "update instagram_studio_items set status='ready',asset_path=$3,caption=$4,updated_at=now() where organization_id=$1 and id=$2",
-        [org, input.id, path, caption],
-      );
+      await generateInstagramPost(org, input);
     } else if (input.kind === "research") {
       const result = await research(org, input);
       await db.query(
