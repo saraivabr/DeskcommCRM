@@ -71,6 +71,8 @@ export const DICIONARIO: Traducoes = {
   "Não foi possível carregar confirmações.": { es: "No se pudieron cargar las confirmaciones." },
   "Não foi possível revogar.": { es: "No se pudo revocar." },
   "Conectar minha IA": { es: "Conectar mi IA" },
+  "Autorize suas IAs a consultar e trabalhar com o conhecimento da organização.": { es: "Autoriza a tus IA a consultar y trabajar con el conocimiento de la organización." },
+  "Guarde páginas, ideias e documentos para sua equipe e suas IAs.": { es: "Guarda páginas, ideas y documentos para tu equipo y tus IA." },
   "Confirmar operações": { es: "Confirmar operaciones" },
   "Operações que precisam de você": { es: "Operaciones que requieren tu atención" },
   "Aguardando sua decisão": { es: "Esperando tu decisión" },
