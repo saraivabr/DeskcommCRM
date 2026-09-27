@@ -98,6 +98,12 @@ export async function requireRole(min: Role, opts: RequireRoleOpts = {}): Promis
 
   // Role efetivo do banco (não do snapshot do cookie/membership em memória).
   const supabase = await createClient({ signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) });
+  // Role e MFA são independentes, mas o papel insuficiente continua vencendo.
+  // A rejeição é capturada imediatamente para nunca ficar sem tratamento.
+  const mfaPendente = mfaEmDivida().then(
+    (required) => ({ required }),
+    (error: unknown) => ({ error }),
+  );
   const { data: effectiveRole, error } = await supabase.rpc("fn_user_role_in_org", {
     p_org: org.orgId,
   });
@@ -121,12 +127,12 @@ export async function requireRole(min: Role, opts: RequireRoleOpts = {}): Promis
   // resposta revele o estado de MFA de quem nem chegaria lá.
   let mfaRequired = false;
   if (rank >= ROLE_RANK[min]) {
-    try {
-      mfaRequired = await mfaEmDivida();
-    } catch (error) {
-      if (!isAuthUnavailable(error)) throw error;
+    const mfa = await mfaPendente;
+    if ("error" in mfa) {
+      if (!isAuthUnavailable(mfa.error)) throw mfa.error;
       return { ok: false, response: fail("auth_unavailable", "Não foi possível verificar a autenticação em duas etapas. Tente novamente.", 503, { requestId, headers: { "Retry-After": "2", "Cache-Control": "no-store" } }) };
     }
+    mfaRequired = mfa.required;
   }
   if (mfaRequired) {
     void audit({
