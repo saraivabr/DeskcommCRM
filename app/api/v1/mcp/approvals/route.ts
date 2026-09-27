@@ -65,7 +65,7 @@ export async function GET() {
         summary = espanhol
           ? `Publicar versión ${version?.version_number ?? "?"} (${traduzir(estado, auth.user.idioma)}) para la atención real.`
           : `Publicar versão ${version?.version_number ?? "?"} (${estado}) para atendimento real.`;
-        resourceUrl = `/app/ai/agents/${row.args.agent_id}`;
+        resourceUrl = `/app/ai/agents/${row.args.agent_id}?reviewVersion=${encodeURIComponent(String(row.args.version_id))}`;
       } else if (row.tool_name === "content_generate_studio_post") {
         const formato =
           row.args.format === "square"

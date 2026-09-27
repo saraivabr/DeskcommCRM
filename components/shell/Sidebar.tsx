@@ -97,7 +97,7 @@ export function SidebarContent({
           {!collapsed && <span>{t("Início")}</span>}
         </Link>
         {workspaceGroups(destinations).map((group) => (
-          <div key={group.id} className="pt-[22px]!">
+          <div key={group.id} className="pt-[22px]">
             {!collapsed && (
               <p className="px-3 pb-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                 {t(group.label)}
@@ -124,7 +124,7 @@ export function SidebarContent({
             })}
           </div>
         ))}
-        <div className="pt-7!">
+        <div className="pt-7">
           <Link
             href="/app/ferramentas"
             onClick={onNavigate}

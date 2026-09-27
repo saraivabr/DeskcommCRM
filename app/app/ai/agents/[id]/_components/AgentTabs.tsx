@@ -20,6 +20,7 @@ import type { AgentVersionRow } from "@/hooks/ai/useAgentVersions";
 import type { CredentialRow } from "@/hooks/ai/useCredentials";
 
 interface Props {
+  reviewVersionId?: string | null;
   /** Funis da org, para a marcação de escopo do agente (spec 17 passo 3). */
   funis?: FunilDaResposta[];
   cobertura?: CoberturaPorFunil;
@@ -45,7 +46,7 @@ export function AgentTabs(props: Props) {
   const t = useT();
   const [tab, setTab] = React.useState<
     "configuration" | "test" | "capacidades" | "runs" | "history" | "proposals"
-  >("configuration");
+  >(props.reviewVersionId ? "history" : "configuration");
   const hasVersion = !!(props.draft || props.published);
   const nextTab: "test" | "runs" | null = props.draft ? "test" : props.published ? "runs" : null;
 
@@ -128,6 +129,7 @@ export function AgentTabs(props: Props) {
         <VersionHistory
           agentId={props.agent.id}
           versions={props.versions}
+          reviewVersionId={props.reviewVersionId}
           readOnly={props.readOnly}
         />
       </TabsContent>

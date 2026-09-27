@@ -15,12 +15,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +35,7 @@ import { VersionDiff } from "./VersionDiff";
 interface Props {
   agentId: string;
   versions: AgentVersionRow[];
+  reviewVersionId?: string | null;
   readOnly?: boolean;
 }
 
@@ -77,7 +73,7 @@ function pickCounterpart(
   return null;
 }
 
-export function VersionHistory({ agentId, versions, readOnly }: Props) {
+export function VersionHistory({ agentId, versions, reviewVersionId, readOnly }: Props) {
   const t = useT();
   const router = useRouter();
   const [diffOpen, setDiffOpen] = React.useState(false);
@@ -93,8 +89,11 @@ export function VersionHistory({ agentId, versions, readOnly }: Props) {
     () => [...versions].sort((a, b) => b.version_number - a.version_number),
     [versions],
   );
+  const reviewVersion = reviewVersionId
+    ? sorted.find((version) => version.id === reviewVersionId)
+    : null;
 
-  if (sorted.length === 0) {
+  if (sorted.length === 0 && !reviewVersionId) {
     return <p className="text-sm text-muted-foreground">{t("Nenhuma versão criada ainda.")}</p>;
   }
 
@@ -135,10 +134,79 @@ export function VersionHistory({ agentId, versions, readOnly }: Props) {
 
   return (
     <>
+      {reviewVersionId && (
+        <section
+          className="space-y-4 rounded-lg border border-primary/50 bg-primary/5 p-4"
+          aria-label={t("Versão solicitada para publicação")}
+        >
+          {reviewVersion ? (
+            <>
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">
+                  {t("Versão solicitada para publicação")}: v{reviewVersion.version_number}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "Confira esta versão antes de aprovar a operação. A configuração aberta em outra aba pode ser diferente.",
+                  )}
+                </p>
+                {reviewVersion.status !== "draft" && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {t(
+                      "Esta versão não é mais um rascunho. Volte à confirmação e atualize a lista antes de aprovar.",
+                    )}
+                  </p>
+                )}
+              </div>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground">{t("Estado")}</dt>
+                  <dd>{t(STATUS_LABEL_PT[reviewVersion.status] ?? reviewVersion.status)}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{t("Modelo")}</dt>
+                  <dd>
+                    {reviewVersion.provider}/{reviewVersion.model}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{t("Canal")}</dt>
+                  <dd className="font-mono text-xs break-all">
+                    {reviewVersion.channel_session_id || "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{t("Ferramentas habilitadas")}</dt>
+                  <dd className="break-words">{reviewVersion.tool_ids?.join(", ") || "—"}</dd>
+                </div>
+              </dl>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold">{t("Instruções do agente")}</h3>
+                <pre className="max-h-96 overflow-auto rounded-md border bg-background p-3 text-xs leading-relaxed break-words whitespace-pre-wrap">
+                  {reviewVersion.system_prompt || "—"}
+                </pre>
+              </div>
+              <details className="text-sm">
+                <summary className="cursor-pointer font-medium">
+                  {t("Configuração completa desta versão")}
+                </summary>
+                <pre className="mt-2 max-h-96 overflow-auto rounded-md border bg-background p-3 text-xs leading-relaxed break-words whitespace-pre-wrap">
+                  {JSON.stringify(reviewVersion, null, 2)}
+                </pre>
+              </details>
+            </>
+          ) : (
+            <p role="alert" className="text-sm text-destructive">
+              {t(
+                "A versão solicitada não foi encontrada neste agente. Volte à confirmação e atualize a lista antes de aprovar.",
+              )}
+            </p>
+          )}
+        </section>
+      )}
       <ol className="flex flex-col gap-2">
         {sorted.map((v) => {
-          const canRevert =
-            !readOnly && v.status !== "draft" && v.status !== "archived";
+          const canRevert = !readOnly && v.status !== "draft" && v.status !== "archived";
           return (
             <li
               key={v.id}
@@ -164,11 +232,7 @@ export function VersionHistory({ agentId, versions, readOnly }: Props) {
                   {t("Diff")}
                 </Button>
                 {canRevert ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setRevertTarget(v)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setRevertTarget(v)}>
                     {t("Reverter")}
                   </Button>
                 ) : null}
@@ -191,18 +255,19 @@ export function VersionHistory({ agentId, versions, readOnly }: Props) {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog
-        open={revertTarget != null}
-        onOpenChange={(o) => !o && setRevertTarget(null)}
-      >
+      <AlertDialog open={revertTarget != null} onOpenChange={(o) => !o && setRevertTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t("Reverter para v")}{revertTarget?.version_number}?
+              {t("Reverter para v")}
+              {revertTarget?.version_number}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("Uma nova versão idêntica a v")}{revertTarget?.version_number}
-              {t(" será criada e publicada imediatamente. A versão atualmente publicada vira superseded.")}
+              {t("Uma nova versão idêntica a v")}
+              {revertTarget?.version_number}
+              {t(
+                " será criada e publicada imediatamente. A versão atualmente publicada vira superseded.",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
