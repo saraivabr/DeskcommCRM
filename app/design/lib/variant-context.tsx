@@ -23,6 +23,11 @@ const VariantCtx = React.createContext<Ctx | null>(null);
 const STORAGE = "deskcomm.designshowcase.v1";
 
 const TYPO_VAR_MAP: Record<TypoId, { display: string; body: string; mono: string }> = {
+  manrope: {
+    display: "var(--font-manrope)",
+    body: "var(--font-manrope)",
+    mono: "var(--font-plex-mono)",
+  },
   "bricolage-jakarta": {
     display: "var(--font-bricolage)",
     body: "var(--font-jakarta)",
@@ -47,7 +52,10 @@ const TYPO_VAR_MAP: Record<TypoId, { display: string; body: string; mono: string
 
 function applyToRoot(s: State) {
   if (typeof document === "undefined") return;
-  const root = document.documentElement;
+  // Showcase tokens must stay inside /design; documentElement belongs to the
+  // product theme and can carry an organization's brand across navigation.
+  const root = document.querySelector<HTMLElement>(".ds-root");
+  if (!root) return;
   const p = PALETTES[s.palette];
   const surfaces = s.theme === "dark" ? p.surfaces.dark : p.surfaces.light;
   const states = s.theme === "dark" ? p.states.dark : p.states.light;
@@ -100,7 +108,7 @@ function applyToRoot(s: State) {
 export function VariantProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<State>({
     palette: "sage",
-    typo: "bricolage-jakarta",
+    typo: "manrope",
     density: "equilibrada",
     theme: "light",
   });

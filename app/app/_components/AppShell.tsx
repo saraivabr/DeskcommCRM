@@ -63,7 +63,7 @@ export function AppShell({ sidebarCollapsed, podeAtender = false, children }: Ap
     <WorkspaceAssistantProvider>
       <div className="workspace-shell flex min-h-screen w-full bg-background">
         <BarraDeProgressoNavegacao />
-        <div className="hidden md:block">
+        <div className="hidden lg:block">
           <Sidebar collapsed={sidebarCollapsed} />
         </div>
         {/*

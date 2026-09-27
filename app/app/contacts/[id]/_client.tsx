@@ -4,6 +4,7 @@ import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 
 import { useT } from "@/hooks/i18n/useT";
 import { useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { ShieldCheck, PencilSimple } from "@/lib/ui/icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -99,6 +100,11 @@ export function ContactDetailClient({ contactId }: Props) {
   const contact = q.data.data;
   const isAdmin =
     (user.is_platform_admin && !user.support) || (activeOrg && ROLE_RANK[activeOrg.role] >= ROLE_RANK.admin);
+  const podeMarcar = Boolean(
+    activeOrg &&
+    ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent &&
+    user.support?.access_mode !== "support_readonly",
+  );
 
   // Uma decisão, um lugar (lib/contacts/rotulo-do-contato.ts). Esta tela era
   // uma das DUAS que ignoravam o telefone: contato com número e sem nome
@@ -156,7 +162,12 @@ export function ContactDetailClient({ contactId }: Props) {
           </div>
         </div>
         {!contact.is_anonymized && user.support?.access_mode !== "support_readonly" && (
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {podeMarcar && (
+              <Button asChild>
+                <Link href={`/app/agenda?contato=${contactId}`}>{t("Marcar compromisso")}</Link>
+              </Button>
+            )}
             <DialButton contactId={contactId} hasPhone={!!contact.phone_number} />
             <Button variant="outline" onClick={() => setEditOpen(true)} className="shrink-0">
               <PencilSimple size={16} weight="bold" aria-hidden />

@@ -12,6 +12,9 @@
   -webkit-font-smoothing: antialiased;
 }
 
+.ds-root[data-theme="dark"] { color-scheme: dark; }
+.ds-root[data-theme="light"] { color-scheme: light; }
+
 .ds-display {
   font-family: var(--ds-font-display, system-ui);
   letter-spacing: -0.02em;

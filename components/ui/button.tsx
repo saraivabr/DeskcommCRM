@@ -20,11 +20,11 @@ const buttonVariants = cva(
     "inline-flex items-center justify-center gap-2 whitespace-nowrap",
     "rounded-xl font-medium",
     "transition-[background-color,border-color,color,box-shadow,transform]",
-    "duration-fast ease-out",
+    "duration-fast ease-out motion-reduce:transition-none",
     "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
     "disabled:pointer-events-none disabled:opacity-50",
     "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-    "active:translate-y-px",
+    "active:translate-y-px motion-reduce:active:translate-y-0",
   ].join(" "),
   {
     variants: {

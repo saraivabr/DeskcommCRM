@@ -2,7 +2,7 @@
 
 Home editorial centrada nos resultados: atenção ao primeiro contato, continuidade da conversa e tempo para o negócio. Duas imagens conceituais originais, geradas com IA, estão otimizadas em WebP. O filme de 10 segundos criado no Google Flow é reproduzido somente por ação do visitante, em um diálogo com controles nativos.
 
-A página usa HTML, CSS e JavaScript sem framework. A demonstração de três etapas contém dados fictícios, não envia mensagens e não coleta formulários. Login/cadastro seguem em `os.escreve.ai`; o Conversa permanece acessível no rodapé. Navegação antiga por `#recursos`, `#como-funciona` e `#duvidas` é preservada.
+A página usa HTML, CSS e JavaScript sem framework. A demonstração de três etapas contém dados fictícios, não envia mensagens e não coleta formulários. O login segue em `os.escreve.ai/login`; os CTAs públicos levam à lista de espera em `os.escreve.ai/lista-de-espera`, pois o cadastro sem convite está fechado. O Conversa permanece acessível no rodapé. Navegação antiga por `#recursos`, `#como-funciona` e `#duvidas` é preservada.
 
 ## Desenvolvimento e publicação
 
@@ -18,7 +18,7 @@ O antigo redirecionamento da raiz para Conversa permanece desativado. Rollback d
 
 `node website/check-routing.mjs` exercita o conjunto de rotas, HEAD, queries e preservação de requisições legadas. `node --check website/assets/home.js` verifica a sintaxe do JavaScript.
 
-No navegador, conferir desktop e mobile, as três etapas interativas, abertura/fechamento do filme por botão e Escape, FAQ, links de cadastro/login e ausência de overflow. `prefers-reduced-motion` remove animações; conteúdo permanece visível sem JavaScript. As imagens não são casos de clientes nem depoimentos.
+No navegador, conferir desktop e mobile, as três etapas interativas, abertura/fechamento do filme por botão e Escape, FAQ, links da lista de espera/login e ausência de overflow. `prefers-reduced-motion` remove animações; conteúdo permanece visível sem JavaScript. As imagens não são casos de clientes nem depoimentos.
 
 ## Fontes dos ativos
 

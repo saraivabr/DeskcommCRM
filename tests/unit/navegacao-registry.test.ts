@@ -137,9 +137,9 @@ describe("sidebarGroups", () => {
       // é profile do compose, não estado que o aplicativo conheça).
     ]);
     // E continua alcançável: o hub é a porta dela.
-    expect(
-      hubSections("crm", true, null).flatMap((s) => s.items.map((i) => i.href)),
-    ).toContain("/app/comandas");
+    expect(hubSections("crm", true, null).flatMap((s) => s.items.map((i) => i.href))).toContain(
+      "/app/comandas",
+    );
     expect(NAV_GROUPS.find((g) => g.id === "crm")?.hub?.href).toBe("/app/crm");
   });
 
@@ -150,13 +150,14 @@ describe("sidebarGroups", () => {
     expect(ids).toContain("atendimento");
   });
 
-  it("a ordem dentro do grupo de IA é a do uso real: agentes, follow-ups, roteadores", () => {
+  it("a ordem dentro do grupo de IA começa pelo conhecimento e segue o uso real", () => {
     // Provedores e Execuções NÃO entram aqui, e a razão é medida: pô-las na
     // sidebar estourou a dobra em 900px (e2e `navegacao.spec.ts`). Elas seguem
     // o padrão das outras nove telas do grupo — alcançáveis pelo hub "Ver tudo
     // em IA", que é o desenho existente para tela de configuração.
     const ia = sidebarGroups(true, null).find((g) => g.group.id === "ia");
     expect(ia?.items.map((i) => i.href)).toEqual([
+      "/app/knowledge",
       "/app/ai/agents",
       "/app/ai/followups",
       "/app/ai/routers",
@@ -187,6 +188,7 @@ describe("hubSections", () => {
   it("agrupa a equipe digital e as três etapas da jornada, na ordem", () => {
     const secoes = hubSections("ia", true, null).map((s) => s.section);
     expect(secoes).toEqual([
+      "Conhecimento",
       "Montar a equipe",
       "Montar o agente",
       "Ensinar o agente",

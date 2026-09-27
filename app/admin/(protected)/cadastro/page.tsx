@@ -71,11 +71,11 @@ export default async function Page() {
       <FormularioDeCadastro modoInicial={modo} />
       {admin.platformAdmin.scope === "full" && <Card>
         <CardHeader>
-          <CardTitle>Lista de espera</CardTitle>
-          <CardDescription>Interessados em receber um convite. O cadastro geral continua fechado.</CardDescription>
+          <CardTitle>{traduzir("Lista de espera", usuario.idioma)}</CardTitle>
+          <CardDescription>{traduzir("Interessados em receber um convite. O cadastro geral continua fechado.", usuario.idioma)}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {interessados.length === 0 && <p className="text-sm text-muted-foreground">Nenhum interessado aguardando.</p>}
+          {interessados.length === 0 && <p className="text-sm text-muted-foreground">{traduzir("Nenhum interessado aguardando.", usuario.idioma)}</p>}
           {interessados.map((pessoa) => (
             <div key={pessoa.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
               <div className="min-w-0">
@@ -83,7 +83,7 @@ export default async function Page() {
                 <p className="text-sm text-muted-foreground">{pessoa.name} · {pessoa.email}</p>
               </div>
               <Link className="text-sm font-medium text-primary underline underline-offset-4" href={`/admin/tenants/new?email=${encodeURIComponent(pessoa.email)}&company=${encodeURIComponent(pessoa.company || pessoa.name)}`}>
-                Criar empresa e convidar
+                {traduzir("Criar empresa e convidar", usuario.idioma)}
               </Link>
             </div>
           ))}

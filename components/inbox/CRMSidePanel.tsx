@@ -658,13 +658,6 @@ export function CRMSidePanel({ conversation }: Props) {
         </Card>
       </section>
 
-      <LeadEnrichment
-        data={summaryContactId === contactId && !erro && !contact?.is_anonymized ? enrichment : null}
-        loading={sectionsLoading}
-        error={erro || (summaryContactId === contactId && enrichmentError)}
-        onRetry={recarregar}
-      />
-
       {contactId && defaultPipeline.data && (
         <NewLeadDialog
           open={leadDialogOpen}
@@ -678,16 +671,6 @@ export function CRMSidePanel({ conversation }: Props) {
           }}
         />
       )}
-
-      <Separator />
-
-      {!readonly && <ConversationTagsEditor
-        conversationId={conversation.id}
-        orgId={conversation.organization_id}
-        tags={conversation.tags ?? []}
-      />}
-
-      <Separator />
 
       {/* ANTES dos negócios de propósito (doutrina cap. 5): lead é o negócio,
           conversa é o canal, demanda é o que precisa acabar. Quem abre esta
@@ -750,6 +733,23 @@ export function CRMSidePanel({ conversation }: Props) {
           />
         )}
       </section>
+
+      <Separator />
+
+      <LeadEnrichment
+        data={summaryContactId === contactId && !erro && !contact?.is_anonymized ? enrichment : null}
+        loading={sectionsLoading}
+        error={erro || (summaryContactId === contactId && enrichmentError)}
+        onRetry={recarregar}
+      />
+
+      <Separator />
+
+      {!readonly && <ConversationTagsEditor
+        conversationId={conversation.id}
+        orgId={conversation.organization_id}
+        tags={conversation.tags ?? []}
+      />}
 
       <Separator />
 

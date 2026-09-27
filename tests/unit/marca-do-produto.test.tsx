@@ -45,7 +45,7 @@ const org = {
 let contexto: { user: AuthUser; activeOrg: ActiveOrg | null } = { user: usuario, activeOrg: org };
 vi.mock("@/hooks/auth/AuthProvider", () => ({ useAuth: () => contexto }));
 
-const PADRAO: Branding = { name: DEFAULT_APP_NAME, logoUrl: null, initial: "D" };
+const PADRAO: Branding = { name: DEFAULT_APP_NAME, logoUrl: null, initial: "E" };
 
 function renderSidebar(marca: Branding, collapsed: boolean) {
   return render(
@@ -61,8 +61,9 @@ afterEach(() => {
 });
 
 describe("marcaEhADoProduto", () => {
-  it("é verdade só sem logo E com o nome padrão", () => {
+  it("mostra a arte escreve.ai apenas quando nome e logo correspondem", () => {
     expect(marcaEhADoProduto(PADRAO)).toBe(true);
+    expect(marcaEhADoProduto({ name: "DeskcommCRM", logoUrl: null })).toBe(false);
   });
 
   it("quem trocou o nome NÃO recebe um logotipo que soletra outro nome", () => {

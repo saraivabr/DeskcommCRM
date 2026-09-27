@@ -523,7 +523,7 @@ test.describe("a moldura do logo no tema escuro", () => {
       "ainda há um <img> na barra — o logo enviado não foi removido, e o caso mediria outra coisa",
     ).toHaveCount(0, { timeout: 15_000 });
 
-    const marca = barra.getByRole("img", { name: "DeskcommCRM" });
+    const marca = barra.getByRole("img", { name: "escreve.ai" });
     await expect(
       marca,
       "a barra não caiu no ramo `marcaDoProduto` — sem ele não há fronteira para medir",

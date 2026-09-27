@@ -31,11 +31,8 @@ import { IdiomaProvider } from "@/lib/i18n/IdiomaProvider";
  * para que `tests/e2e/marca-logo.spec.ts` continue medindo "a fachada está sem
  * `<img>`" como "sem logo do revendedor".
  *
- * O NOME continua saindo de `branding()` dentro de cada página — não é descuido,
- * está medido em `tests/e2e/icone-da-marca.spec.ts:64-77`: aquela spec cruza duas
- * resoluções independentes (o título da aba, que lê o banco, contra o texto sob
- * o "Entrar", que lê o `.env`). Trocar o texto para este mesmo resolvedor
- * deixaria a spec verde medindo nada.
+ * O nome exibido pelas páginas também vem de `marcaDaSaida(null)`: título,
+ * logo e texto precisam usar a mesma precedência banco → ambiente.
  */
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const marca = await marcaDaSaida(null);
@@ -68,9 +65,9 @@ export default async function PublicLayout({ children }: { children: React.React
                 domínio do operador. Altura fixa e largura livre para não distorcer
                 arte de proporção desconhecida.
 
-                O `alt` é o nome DESTA resolução (`marca.nome`), e não o de
-                `branding()`: é a legenda da imagem que está ali, e nomeá-la com a
-                marca de outra fonte descreveria uma marca que não é a do logo.
+                O `alt` usa o nome DESTA resolução (`marca.nome`): é a legenda
+                da imagem que está ali. Outra fonte poderia descrever uma marca
+                diferente da exibida no logo.
 
                 O `data-testid` é lido por `tests/e2e/marca-logo.spec.ts`, que prova
                 que o logo da EMPRESA não vaza para cá. Sem ele a spec caía na

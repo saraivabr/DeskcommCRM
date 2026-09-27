@@ -1,7 +1,7 @@
 /**
  * Marca da instalação — nome e logo configuráveis pelo `.env`, SEM rebuild.
  *
- * Por que existe: quem instala o DeskcommCRM para clientes (agência, revendedor)
+ * Por que existe: quem instala o escreve.ai para clientes (agência, revendedor)
  * precisa da própria marca na interface. Fazer isso editando o código quebraria o
  * caminho de atualização — `update.sh` puxa a imagem nova e o patch local se perde,
  * que é exatamente a dor nº 1 de quem hospeda o próprio sistema. Configuração em
@@ -16,7 +16,7 @@
  * runtime em vez de lida do bundle.
  */
 
-export const DEFAULT_APP_NAME = "DeskcommCRM";
+export const DEFAULT_APP_NAME = "escreve.ai";
 
 export type Branding = {
   /** Nome exibido na interface e nos títulos de página. */
@@ -83,14 +83,14 @@ export function resolveBranding(
  * barulhento (o console acusa), e barulhento é o modo de falhar que se conserta.
  */
 /**
- * A marca em vigor é a do PRODUTO — e é só então que o símbolo e o logotipo
- * de `lib/branding/desenho.ts` podem aparecer.
+ * A marca em vigor é a do produto — e é só então que o símbolo e o logotipo
+ * de `components/branding/MarcaDoProduto.tsx` podem aparecer.
  *
  * Duas condições, e as duas são necessárias: sem logo configurado E com o nome
- * padrão. Quem só trocou o nome (para "Acme CRM") não pode receber um logotipo
- * que soletra outro nome; quem só subiu um logo já tem o dele na tela. Trocar a
- * cor de destaque não conta — a marca do produto continua sendo a que está
- * escrita, só pintada de outro jeito.
+ * escrito na arte. Quem usa outro nome (como "Acme CRM") não pode receber
+ * um logotipo que soletra escreve.ai. Quem subiu um logo já tem o dele
+ * na tela. Trocar a cor de destaque não conta — a marca continua sendo a escrita,
+ * só pintada de outro jeito.
  */
 export function marcaEhADoProduto(marca: Pick<Branding, "name" | "logoUrl">): boolean {
   return marca.logoUrl === null && marca.name === DEFAULT_APP_NAME;

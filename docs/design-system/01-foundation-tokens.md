@@ -32,13 +32,13 @@ Base 4px. Escala não-linear (4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64 / 80
 | Token | Valor | Use quando |
 |-------|-------|------------|
 | `radius-none` | 0 | Tabelas de dados, cabeçalhos de coluna, qualquer grid denso onde radius distrai |
-| `radius-xs` | 4px | **Default** para controles: botão, input, badge, dropdown menu item |
-| `radius-sm` | 8px | Cards de lista (item de inbox), kanban card, message bubble |
-| `radius-md` | 12px | Containers maiores (panel, side-card), modais menores |
-| `radius-lg` | 16px | Modal full-size, popover grande, sheet |
+| `radius-sm` | 4px | Controles compactos e ícones |
+| `radius-md` | 8px | Itens de lista e menus |
+| `radius-lg` | 12px | Botões, inputs e abas compartilhadas |
+| `radius-xl` | 16px | Cards e painéis maiores |
 | `radius-full` | 9999 | Avatar, pill badge, dot indicator, icon-button circular |
 
-Regra: **suba de radius só quando o componente for hierarquicamente "mais alto"**. Card (8) > Modal (16). Button (4) sempre menor que Card que o contém.
+Regra: use os graus existentes de `app/globals.css` e mantenha controles próximos entre si. O `Button` e o `Input` atuais usam 12px; o `Card`, 16px.
 
 ## Border
 

@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+const page = await readFile(new URL('./index.html', import.meta.url), 'utf8');
+assert.equal((page.match(/href="https:\/\/os\.escreve\.ai\/lista-de-espera"/g) ?? []).length, 3);
+assert.equal((page.match(/href="https:\/\/os\.escreve\.ai\/login"/g) ?? []).length, 2);
+assert.doesNotMatch(page, /href="https:\/\/(?:crm|os)\.escreve\.ai\/signup"/);
 const source = await readFile(new URL('./worker.mjs', import.meta.url), 'utf8');
 const {default:worker} = await import(`data:text/javascript;base64,${Buffer.from(source.replace("import html from './index.html';", 'const html = "<h1>site</h1>";')).toString('base64')}`);
 const originalFetch = globalThis.fetch;

@@ -5,15 +5,19 @@
  * limpeza do teto de orçamento (0159) por nunca ter tido agendador. Quem avisa o
  * cliente que o gasto passou do ponto escolhido é o item `budget_warning` na
  * Central (`agent_inbox_items`), aberto pelo próprio gate. Este arquivo fica de
- * pé porque o alarme POR E-MAIL continua sendo uma peça desejada — e é a dívida
- * D1 de marca (`tests/unit/branding.test.ts`): ele ainda escreve o nosso nome,
- * o que só passa a importar no dia em que ele voltar a ser enviado.
+ * pé porque o alarme POR E-MAIL continua sendo uma peça desejada. Quando voltar
+ * a ter chamador, ele deve passar `marcaDaSaida(organizationId)` para usar a
+ * marca da organização; sem essa informação vale o padrão do produto.
  */
+import { DEFAULT_APP_NAME } from "@/lib/branding";
+import type { MarcaDeSaida } from "@/lib/branding/saida";
+
 export interface BudgetAlarmEmailOptions {
   pct: number;
   consumedCents: number;
   limitCents: number;
   orgName?: string | null;
+  marca?: Pick<MarcaDeSaida, "nome">;
   dashboardUrl: string;
 }
 
@@ -32,7 +36,7 @@ export function buildBudgetAlarmEmail(opts: BudgetAlarmEmailOptions): {
   text: string;
 } {
   const pctStr = `${opts.pct.toFixed(2)}%`;
-  const subject = `Alerta IA: orçamento atingiu ${pctStr} — DeskcommCRM`;
+  const subject = `Alerta IA: orçamento atingiu ${pctStr} — ${opts.marca?.nome.trim() || DEFAULT_APP_NAME}`;
   const orgLine = opts.orgName
     ? `<p style="margin:0 0 16px;font-size:14px;color:#57534e">Organização: <strong>${escapeHtml(opts.orgName)}</strong></p>`
     : "";

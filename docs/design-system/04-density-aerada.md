@@ -15,7 +15,7 @@ aerada: { rowH: "56px", gap: "24px", padX: "20px", padY: "16px" }
 | `--density-pad-x` | 20px | Padding horizontal interno de row |
 | `--density-pad-y` | 16px | Padding vertical interno de row |
 
-CSS vars são consumidas por componentes de lista, kanban e cards de inbox. Componentes de form (input, button) **não** dependem de densidade — têm altura fixa (36px).
+CSS vars são consumidas por componentes de lista, kanban e cards de inbox. Controles compartilhados usam pelo menos 44px de altura em telas touch; no desktop podem ser mais compactos.
 
 ## Por que Aerada (e não Equilibrada/Compacta)
 
@@ -24,7 +24,7 @@ escreve.ai tem como persona principal o **atendente que passa 8h/dia na ferramen
 1. **Fadiga visual cumulativa.** Densidade alta (Linear-like, 32px row) é eficiente em sessões curtas; em sessões longas, gera tensão e erros. Aerada respira.
 2. **Não é banking ou planilha.** Em CRM de e-commerce, precisão extrema (ver 200 linhas em uma tela) importa menos que **conforto e velocidade na linha que você está lendo agora**.
 3. **Hit-target generoso.** 56px de altura permite click confortável com mouse e dedo (em tablet), sem exigir precisão. Reduz miscliques.
-4. **Whitespace como hierarquia.** Aerada dá ar pra hierarquia tipográfica (Atkinson Hyperlegible, weights 400/700) funcionar — não precisa truncar tudo em 1 linha.
+4. **Whitespace como hierarquia.** Aerada dá ar para a hierarquia tipográfica funcionar sem truncar tudo em uma linha.
 5. **Diferenciação de mercado.** A maioria dos CRMs converge pra densidade equilibrada (~44px) ou compacta. Aerada projeta confiança operacional sem urgência.
 
 Comparativo:
@@ -71,7 +71,7 @@ Lógica: navegação é vista 100% do tempo; comprimir economiza altura útil pr
 ### 4. Forms e settings
 
 Aerada nos campos:
-- Input height: 36px (não 56 — input não precisa do mesmo conforto que linha de lista clicável)
+- Input height: 44px em mobile e 40px em desktop (sem confundir campo com linha de lista)
 - Espaçamento entre fields: `space-5` (20px)
 - Espaçamento entre groups: `space-8` (32px)
 

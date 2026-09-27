@@ -169,8 +169,8 @@ export const NAV_CATALOG = [
   },
   {
     href: "/app/instagram/growth",
-    label: "Instagram Growth",
-    description: "Responda comentários com DMs e gere leads no Instagram.",
+    label: "Conversas do Instagram",
+    description: "Responda comentários por mensagem e acompanhe os contatos interessados.",
     icon: "Megaphone",
     group: "canais",
     minRole: "admin",
@@ -210,8 +210,8 @@ export const NAV_CATALOG = [
   {
     href: "/app/inbox",
     workspace: { section: "trabalhar", order: 1 },
-    label: "Inbox",
-    description: "As conversas de WhatsApp, com você e a IA atendendo lado a lado.",
+    label: "Conversas",
+    description: "Veja quem chamou no WhatsApp e quem precisa de resposta.",
     icon: "Inbox",
     group: "atendimento",
     sidebar: true,
@@ -488,8 +488,8 @@ export const NAV_CATALOG = [
   },
   {
     href: "/app/ai/followups",
-    label: "Follow-ups",
-    description: "Como o agente retoma uma conversa que esfriou, para nenhuma morrer no silêncio.",
+    label: "Retomadas",
+    description: "Defina quando o assistente volta a falar com quem demonstrou interesse.",
     icon: "FlowArrow",
     group: "ia",
     section: "Montar o agente",
@@ -558,8 +558,8 @@ export const NAV_CATALOG = [
   },
   {
     href: "/app/ai/skills",
-    label: "Skills",
-    description: "As ações que o agente pode executar sozinho durante o atendimento.",
+    label: "Ações do assistente",
+    description: "Escolha o que o assistente pode fazer durante o atendimento.",
     icon: "PuzzlePiece",
     group: "ia",
     section: "Ensinar o agente",

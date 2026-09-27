@@ -139,8 +139,22 @@
   color: var(--foreground);
 }
 .overview {
-  margin-top: 33px;
+  margin-top: 28px;
 }
+.nextAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+.nextAction:hover { opacity: 0.9; }
+.nextAction:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .sectionHead {
   display: flex;
   align-items: center;

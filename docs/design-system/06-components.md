@@ -1,22 +1,22 @@
 # 06 — Componentes
 
-> **Source of truth:** `components/ui/*` (shadcn customizado), `app/design/showcase.css` (`.ds-*` canônicos).
+> **Source of truth:** `components/ui/*` (shadcn customizado) e `app/globals.css` (tokens ativos). `app/design/showcase.css` pertence ao showcase histórico.
 
 Inventário completo dos componentes de UI do escreve.ai. Cada um tem variants finitos, states nomeados e regras de uso. Não fork, não custom-CSS solto: se um componente precisa de variant novo, ele entra aqui.
 
 ## Componentes shadcn instalados
 
-Localização: `components/ui/`. Os 14 instalados (ver `ls components/ui/`):
+Localização: `components/ui/`. Consulte o diretório para o inventário atualizado:
 
 `avatar` · `badge` · `button` · `card` · `dialog` · `dropdown-menu` · `input` · `label` · `scroll-area` · `separator` · `sheet` · `skeleton` · `sonner` · `tabs` · `textarea`
 
-Próximas adições previstas (não instalados ainda): `tooltip`, `select`, `command`, `popover`, `toggle`, `progress`. Quando chegarem, atualizar este doc.
+`tooltip`, `select` e `popover` já estão instalados. Novas adições devem seguir os mesmos tokens e estados.
 
 ---
 
 ## Button
 
-5 variants × 4 states. Altura fixa 36px (não escala com densidade).
+Variantes `primary`, `secondary`, `ghost`, `destructive` e `link`, com aliases `default` e `outline`. Alvo de 44px abaixo de `lg`; no desktop as variantes compactas podem ter 32–36px.
 
 | Variant | bg | fg | Border | Uso |
 |---------|----|----|--------|-----|
@@ -26,7 +26,7 @@ Próximas adições previstas (não instalados ainda): `tooltip`, `select`, `com
 | `destructive` | `error` | `#fff` | none | Apagar, cancelar definitivamente, ações irreversíveis |
 | `link` | transparent | `accent` | none | Inline em texto, navegação textual |
 
-States: `default`, `hover`, `active`, `disabled`, `focus-visible`. Focus sempre `outline: 2px solid var(--ds-accent)` com `outline-offset: 2px`.
+States: `default`, `hover`, `active`, `disabled`, `focus-visible`. Focus visível de 2px com offset, usando a rampa da marca resolvida; movimento de pressão desliga com `prefers-reduced-motion`.
 
 ```tsx
 <Button variant="primary">Salvar</Button>
@@ -40,17 +40,17 @@ States: `default`, `hover`, `active`, `disabled`, `focus-visible`. Focus sempre 
 
 ## Input
 
-Altura 36px. Border `border-thin` default, `border-focus` 2px no focus.
+Altura 44px abaixo de `lg`, 40px no desktop. Borda padrão de 1px, anel de foco visível de 2px e estado `aria-invalid`.
 
 | Variant/state | Como ativar | Visual |
 |---------------|-------------|--------|
 | `default` | — | border `border`, bg `bg` |
-| `with-icon` | `<Input leadingIcon={<MagnifyingGlass/>}/>` | Padding-left 36px, ícone inserido |
+| `with-icon` | Ícone em wrapper adjacente ao `<Input />` | Ajustar padding do campo no ponto de uso |
 | `error` | `aria-invalid="true"` | border `error`, focus ring `error/18%` |
 | `disabled` | `disabled` | opacity 0.55, cursor not-allowed |
 | `focus` | tab/click | border `accent`, box-shadow `0 0 0 3px var(--ds-accent-soft)` |
 
-Search input usa o mesmo Input com `type="search"` + leading `MagnifyingGlass`. Não há `<SearchInput>` separado.
+Busca simples usa o mesmo Input com `type="search"`. Ícone é composição da tela, não propriedade do componente.
 
 ---
 
@@ -77,7 +77,7 @@ Composição interna canônica:
 </Card>
 ```
 
-Padding: `space-5` (20px) em Aerada. Radius: `radius-md` (12px).
+O `Card` compartilhado usa raio de 16px e `CardHeader`/`CardContent` usam padding de 24px. Use variações de layout apenas quando o conteúdo pedir; cards interativos devem ter foco e hover explícitos no elemento acionável.
 
 ---
 
