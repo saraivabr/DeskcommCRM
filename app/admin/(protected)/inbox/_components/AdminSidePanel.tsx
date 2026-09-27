@@ -5,9 +5,11 @@ import Link from "next/link";
 import type { AdminConversationDetailResponse } from "@/hooks/useAdminConversation";
 import { Buildings, Phone, ArrowRight } from "@/lib/ui/icons";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
+import { cn } from "@/lib/utils";
 
 interface Props {
   data: AdminConversationDetailResponse;
+  compact?: boolean;
 }
 
 function maskEmail(email: string | null | undefined): string {
@@ -18,12 +20,19 @@ function maskEmail(email: string | null | undefined): string {
   return `${visible}@${domain}`;
 }
 
-export function AdminSidePanel({ data }: Props) {
+export function AdminSidePanel({ data, compact = false }: Props) {
   const t = useT();
   const { contact, organization } = data;
 
   return (
-    <aside className="flex h-full w-[320px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-border bg-muted/20 px-4 py-4">
+    <aside
+      className={cn(
+        "flex flex-col gap-6 bg-muted/20 px-4 py-4",
+        compact
+          ? "mt-2 w-full rounded-md border border-border"
+          : "hidden h-full w-[320px] shrink-0 overflow-y-auto border-l border-border 2xl:flex",
+      )}
+    >
       {/* ── Contact info ── */}
       <section>
         <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

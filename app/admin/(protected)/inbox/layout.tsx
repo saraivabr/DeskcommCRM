@@ -1,20 +1,31 @@
+"use client";
+
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useT } from "@/hooks/i18n/useT";
 import { InboxList } from "./_components/InboxList";
 
-/**
- * 3-column layout: list (360px fixed) | thread (flex) | side panel (320px fixed)
- * List is always visible. Thread+side are rendered by child pages via `children`.
- */
 export default function AdminInboxLayout({ children }: { children: ReactNode }) {
+  const t = useT();
+  const params = useParams();
+  const conversaAberta = typeof params?.conversationId === "string";
+
   return (
     <div className="flex h-full w-full overflow-hidden">
-      {/* ── Conversation list — fixed 360px ── */}
-      <aside className="flex h-full w-[360px] shrink-0 flex-col border-r border-border">
+      <aside className={`${conversaAberta ? "hidden" : "flex w-full"} h-full min-w-0 flex-col border-r border-border xl:flex xl:w-[360px] xl:shrink-0`}>
         <InboxList />
       </aside>
 
-      {/* ── Thread + side panel area ── */}
-      <div className="flex min-w-0 flex-1 overflow-hidden">
+      <div className={`${conversaAberta ? "flex" : "hidden"} min-w-0 flex-1 flex-col overflow-hidden xl:flex`}>
+        {conversaAberta ? (
+          <Link
+            href="/admin/inbox"
+            className="border-b border-border px-4 py-3 text-sm font-medium text-primary xl:hidden"
+          >
+            ← {t("Voltar às conversas")}
+          </Link>
+        ) : null}
         {children}
       </div>
     </div>
