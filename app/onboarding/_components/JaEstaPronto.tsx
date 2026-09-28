@@ -19,11 +19,23 @@ import { traduzir } from "@/lib/i18n/dicionario";
 export function JaEstaPronto({
   retrato,
   idioma,
+  semCreditoIa = false,
 }: {
   retrato: RetratoDaInstalacao;
   idioma: Idioma;
+  semCreditoIa?: boolean;
 }) {
   const t = (texto: string) => traduzir(texto, idioma);
+  if (semCreditoIa) {
+    return (
+      <section className="rounded-lg border bg-background p-5">
+        <h3 className="text-sm font-medium">{t("Seu espaço Free está disponível")}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t("Você pode organizar seu negócio e conectar seu canal. Este acesso não inclui crédito de IA; as etapas de treinar e testar um agente ficam para quando você escolher um plano com IA.")}
+        </p>
+      </section>
+    );
+  }
   const itens: { pronto: boolean; texto: string }[] = [
     {
       pronto: true,

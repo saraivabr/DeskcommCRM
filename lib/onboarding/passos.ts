@@ -37,6 +37,10 @@ export interface PassoDoOnboarding {
 export interface ContextoDoPasso {
   /** A integração de loja está ligada nesta instalação? */
   lojaLigada: boolean;
+  /** O Free da organização não inclui geração de IA. */
+  semCreditoIa?: boolean;
+  /** Não há uma segunda vaga para convidar alguém. */
+  semVagasEquipe?: boolean;
 }
 
 /** Um passo marcado no estado — com ou sem `skipped`. */
@@ -75,7 +79,7 @@ export const PASSOS: readonly PassoDoOnboarding[] = [
   {
     segmento: "setup-ai",
     rotulo: "Treinar",
-    existe: () => true,
+    existe: (ctx) => !ctx.semCreditoIa,
     cumprido: (s) => marcado(s.ai),
     pulado: (s) => foiPulado(s.ai),
   },
@@ -96,14 +100,14 @@ export const PASSOS: readonly PassoDoOnboarding[] = [
     // sistema" em "contratei alguém" — e é onde o erro aparece antes do
     // primeiro cliente real, não depois.
     rotulo: "Ver ele atender",
-    existe: () => true,
+    existe: (ctx) => !ctx.semCreditoIa,
     cumprido: (s) => marcado(s.teste),
     pulado: (s) => foiPulado(s.teste),
   },
   {
     segmento: "invite-team",
     rotulo: "Quem trabalha com ele",
-    existe: () => true,
+    existe: (ctx) => !ctx.semVagasEquipe,
     cumprido: (s) => marcado(s.team),
     pulado: (s) => foiPulado(s.team),
   },
@@ -112,6 +116,16 @@ export const PASSOS: readonly PassoDoOnboarding[] = [
 /** Os passos que existem NESTA instalação, na ordem. */
 export function passosVisiveis(ctx: ContextoDoPasso): PassoDoOnboarding[] {
   return PASSOS.filter((p) => p.existe(ctx));
+}
+
+export function rotuloDoPasso(passo: PassoDoOnboarding, ctx: ContextoDoPasso): string {
+  if (!ctx.semCreditoIa) return passo.rotulo;
+  switch (passo.segmento) {
+    case "connect-whatsapp": return "Seu canal";
+    case "funil": return "Seu quadro de clientes";
+    case "invite-team": return "Sua equipe";
+    default: return passo.rotulo;
+  }
 }
 
 /**
@@ -143,7 +157,7 @@ export function resumoDoOnboarding(
 ): ItemDoResumo[] {
   return passosVisiveis(ctx).map((p) => ({
     segmento: p.segmento,
-    rotulo: p.rotulo,
+    rotulo: rotuloDoPasso(p, ctx),
     feito: p.cumprido(state) && !p.pulado(state),
     pulado: p.pulado(state),
   }));

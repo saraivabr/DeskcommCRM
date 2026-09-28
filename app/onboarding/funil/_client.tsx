@@ -22,9 +22,11 @@ import type { Sugestao } from "@/lib/onboarding/sugerir-funil";
 export function QuadroClient({
   atual,
   sugestao,
+  semCreditoIa = false,
 }: {
   atual: QuadroAtual | null;
   sugestao: Sugestao;
+  semCreditoIa?: boolean;
 }) {
   const t = useT();
   const inicial: PropostaDeFunil =
@@ -94,14 +96,14 @@ export function QuadroClient({
       ) : (
         <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
           <p>
-            {t("Não consegui pedir uma sugestão para o seu funcionário agora")}
-            {sugestao.porque ? <> — {t(sugestao.porque)}</> : null}. {t("Comecei por um quadro pronto de")}{" "}
+            {semCreditoIa ? null : <>{t("Não consegui pedir uma sugestão para o seu funcionário agora")}{sugestao.porque ? <> — {t(sugestao.porque)}</> : null}. </>}
+            {t(semCreditoIa ? "Comece com um quadro pronto de" : "Comecei por um quadro pronto de")}{" "}
             <strong>{t(sugestao.pacote.comoSeApresenta)}</strong>.
           </p>
           <p className="text-xs text-muted-foreground">
-            {t(
-              "Isso não trava nada: escolha outro modelo abaixo ou ajuste as colunas na mão. Dá para mudar tudo depois, quando quiser.",
-            )}
+            {t(semCreditoIa
+              ? "Escolha outro modelo abaixo ou ajuste as colunas. Você pode mudar tudo depois."
+              : "Isso não trava nada: escolha outro modelo abaixo ou ajuste as colunas na mão. Dá para mudar tudo depois, quando quiser.")}
           </p>
         </div>
       )}

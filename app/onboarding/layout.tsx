@@ -7,9 +7,11 @@ import { OutrasOrganizacoes } from "./_components/OutrasOrganizacoes";
 import { SkipToEnd } from "./_components/SkipToEnd";
 import { SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
 import { branding, marcaEhADoProduto } from "@/lib/branding";
-import { passosVisiveis } from "@/lib/onboarding/passos";
+import { passosVisiveis, rotuloDoPasso } from "@/lib/onboarding/passos";
 import { env } from "@/lib/env";
 import { IdiomaProvider } from "@/lib/i18n/IdiomaProvider";
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { readCommercialAccount } from "@/lib/billing/entitlements";
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const user = await requireAuth();
@@ -23,12 +25,16 @@ export default async function OnboardingLayout({ children }: { children: React.R
 
   const { state, onboardedAt } = await loadOnboardingState(activeOrg.orgId);
   if (onboardedAt) redirect("/app/inbox");
+  const account = await readCommercialAccount(getRequestPool(), activeOrg.orgId);
+  const semCreditoIa = account.classification === "free_public" && account.free_enabled && account.free_ai_credit_cents === 0;
 
   // Os passos que ESTA instalação oferece, com o que já foi resolvido. O
   // indicador não decide mais nada sozinho — ele desenha o que recebe.
-  const passos = passosVisiveis({ lojaLigada: env.NUVEMSHOP_ENABLED }).map((p) => ({
+  const contexto = { lojaLigada: env.NUVEMSHOP_ENABLED, semCreditoIa,
+    semVagasEquipe: account.classification === "free_public" && account.free_enabled && account.free_seats === 1 };
+  const passos = passosVisiveis(contexto).map((p) => ({
     segmento: p.segmento,
-    rotulo: p.rotulo,
+    rotulo: rotuloDoPasso(p, contexto),
     cumprido: p.cumprido(state),
   }));
 

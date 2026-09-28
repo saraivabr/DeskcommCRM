@@ -9,6 +9,8 @@ import { capacidadesPadraoDoOnboarding } from "@/lib/ai/agents/capacidades-padra
 import { TOOL_CATALOG } from "@/lib/mcp/tools/catalog";
 import { CONFERENCIAS_DE_SAIDA } from "@/lib/ai/guardrails/lista-de-conferencia";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { readCommercialAccount } from "@/lib/billing/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,8 @@ export default async function SetupAiPage() {
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/login");
+  const account = await readCommercialAccount(getRequestPool(), activeOrg.orgId);
+  if (account.classification === "free_public" && account.free_enabled && account.free_ai_credit_cents === 0) redirect("/onboarding");
   const idioma = user.idioma;
 
   const supabase = await createClient();

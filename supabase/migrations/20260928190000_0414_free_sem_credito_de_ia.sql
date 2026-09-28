@@ -1,7 +1,7 @@
 -- An active Free account may have no AI allowance while retaining its non-AI resources.
 -- A reservation rejects zero credit before creating a period or calling a model.
 alter table public.org_commercial_accounts
-  drop constraint org_commercial_accounts_free_ai_credit_cents_check;
+  drop constraint if exists org_commercial_accounts_free_ai_credit_cents_check;
 alter table public.org_commercial_accounts
   add constraint org_commercial_accounts_free_ai_credit_cents_check
   check (free_ai_credit_cents >= 0);

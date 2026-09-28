@@ -37889,6 +37889,11 @@ create table if not exists public.org_commercial_accounts (
  updated_by uuid references auth.users(id),
  check (not free_enabled or (classification='free_public' and free_seats is not null and free_channels is not null and free_agents is not null and free_ai_credit_cents is not null and free_ai_usd_to_brl_rate is not null and free_period_start is not null and free_period_end is not null and isfinite(free_period_start) and isfinite(free_period_end) and free_period_start<free_period_end))
 );
+alter table public.org_commercial_accounts
+  drop constraint if exists org_commercial_accounts_free_ai_credit_cents_check;
+alter table public.org_commercial_accounts
+  add constraint org_commercial_accounts_free_ai_credit_cents_check
+  check (free_ai_credit_cents >= 0);
 alter table public.org_commercial_accounts enable row level security;
 revoke all on public.org_commercial_accounts from public,anon,authenticated,service_role;
 grant select,insert,update on public.org_commercial_accounts to service_role;
