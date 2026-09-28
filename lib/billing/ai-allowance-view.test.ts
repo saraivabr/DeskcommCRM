@@ -20,6 +20,12 @@ describe("commercial AI balance", () => {
       reserved: 100,
     });
   });
+  it("represents an active Free account with no AI credit as zero remaining", () => {
+    expect(allowanceView({ ...row, source: "free", budget: "0", used: "0", reserved: "0" }, now))
+      .toMatchObject({ status: "ready", budget: 0, remaining: 0 });
+    expect(() => allowanceView({ ...row, source: "paid", budget: "0" }, now))
+      .toThrow("Invalid AI allowance snapshot");
+  });
   it("does not infer an unconfirmed cycle", () => {
     expect(allowanceView({ ...row, current_period_start: null }, now)).toMatchObject({
       status: "unconfirmed",

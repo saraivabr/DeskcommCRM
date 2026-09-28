@@ -4,6 +4,8 @@ import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { dadosDoPasso } from "@/app/actions/onboarding/montarQuadro";
 import { QuadroClient } from "./_client";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { readCommercialAccount } from "@/lib/billing/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -24,23 +26,24 @@ export default async function FunilPage() {
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/login");
   const idioma = user.idioma;
+  const account = await readCommercialAccount(getRequestPool(), activeOrg.orgId);
+  const semCreditoIa = account.classification === "free_public" && account.free_enabled && account.free_ai_credit_cents === 0;
 
-  const { atual, sugestao } = await dadosDoPasso(activeOrg.orgId, activeOrg.name);
+  const { atual, sugestao } = await dadosDoPasso(activeOrg.orgId, activeOrg.name, semCreditoIa);
 
   return (
     <div className="space-y-6">
       <header>
         <h2 className="text-2xl font-semibold tracking-tight">
-          {traduzir("Onde ele organiza seus clientes", idioma)}
+          {traduzir(semCreditoIa ? "Organize seus clientes" : "Onde ele organiza seus clientes", idioma)}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {traduzir(
-            "Cada cliente vira um cartão que anda por essas colunas. Ele mesmo move o cartão conforme a conversa avança — por isso cada coluna diz também quando ele deve usá-la.",
-            idioma,
-          )}
+          {traduzir(semCreditoIa
+            ? "Cada cliente vira um cartão que você pode mover pelo quadro conforme o atendimento avança."
+            : "Cada cliente vira um cartão que anda por essas colunas. Ele mesmo move o cartão conforme a conversa avança — por isso cada coluna diz também quando ele deve usá-la.", idioma)}
         </p>
       </header>
-      <QuadroClient atual={atual} sugestao={sugestao} />
+      <QuadroClient atual={atual} sugestao={sugestao} semCreditoIa={semCreditoIa} />
     </div>
   );
 }

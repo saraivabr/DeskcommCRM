@@ -48,6 +48,19 @@ describe("passos visíveis", () => {
       "invite-team",
     ]);
   });
+
+  it("Free sem crédito de IA não pede treinamento nem teste de agente", () => {
+    const ctx = { lojaLigada: false, semCreditoIa: true, semVagasEquipe: true };
+    expect(passosVisiveis(ctx).map((p) => p.segmento)).toEqual([
+      "welcome", "connect-whatsapp", "funil",
+    ]);
+    const state: OnboardingState = {
+      welcome: { accepted_at: "x", timezone: "America/Sao_Paulo", display_name: "N" },
+      whatsapp: { status: "skipped", skipped: true },
+    };
+    expect(proximoPasso(state, ctx)?.segmento).toBe("funil");
+    expect(resumoDoOnboarding(state, ctx).map((p) => p.segmento)).not.toContain("testar");
+  });
 });
 
 describe("próximo passo", () => {

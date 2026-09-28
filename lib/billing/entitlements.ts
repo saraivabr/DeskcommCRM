@@ -19,7 +19,7 @@ export const commercialAccountSchema = z
     free_seats: z.number().int().min(1).max(100000).nullable(),
     free_channels: nullableCount,
     free_agents: nullableCount,
-    free_ai_credit_cents: z.number().int().positive().max(100000000).nullable(),
+    free_ai_credit_cents: z.number().int().min(0).max(100000000).nullable(),
     free_ai_usd_to_brl_rate: z.number().positive().max(100000).nullable(),
     free_period_start: z.iso.datetime().nullable(),
     free_period_end: z.iso.datetime().nullable(),

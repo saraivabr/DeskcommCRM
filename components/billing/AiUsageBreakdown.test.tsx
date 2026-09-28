@@ -45,6 +45,25 @@ it("não oferece checkout nem inventa franquia para Free aguardando ativação",
   expect(screen.queryByRole("button")).toBeNull();
   expect(screen.getAllByText("A definir")).toHaveLength(3);
 });
+it("mostra Free ativo sem crédito e não oferece geração", () => {
+  render(
+    <FreeBetaCard
+      now={new Date("2026-09-25").getTime()}
+      idioma="pt-BR"
+      account={{
+        free_enabled: true,
+        free_seats: 1,
+        free_channels: 1,
+        free_agents: 1,
+        free_ai_credit_cents: 0,
+        free_period_start: "2026-09-24",
+        free_period_end: "2026-10-01",
+      }}
+    />,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent("não tem crédito de IA");
+  expect(screen.queryByRole("link", { name: "Criar minha primeira postagem" })).toBeNull();
+});
 it("inclui IA em todos os planos preservando preços e deixando o beta explícito", () => {
   render(<PlanComparison idioma="pt-BR" />);
   expect(screen.getByRole("heading", { name: "IA em todos os planos" })).toBeInTheDocument();

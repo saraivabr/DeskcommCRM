@@ -26,6 +26,13 @@ it("leaves legacy unmetered; explicit Free disabled fails closed", () => {
   );
   expect(() => reserve(id)).toThrow(/Free beta indisponível/);
 });
+it("activates Free with no AI credit and rejects AI before creating an allowance period", () => {
+  const id = org();
+  activate(id, 0);
+  expect(sql(`select free_enabled from org_commercial_accounts where organization_id='${id}'`)).toBe("t");
+  expect(() => reserve(id)).toThrow(/não tem crédito de IA/);
+  expect(sql(`select count(*) from subscription_ai_periods where organization_id='${id}'`)).toBe("0");
+});
 it("shares bounded reservations, blocks exhaustion and prevents resetting period", () => {
   const id = org();
   activate(id);

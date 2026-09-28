@@ -3,6 +3,8 @@ import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { loadOnboardingState } from "@/app/actions/onboarding/_shared";
 import { proximoPasso } from "@/lib/onboarding/passos";
 import { env } from "@/lib/env";
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { readCommercialAccount } from "@/lib/billing/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +24,10 @@ export default async function OnboardingIndex() {
 
   const { state, onboardedAt } = await loadOnboardingState(activeOrg.orgId);
   if (onboardedAt) redirect("/app/inbox");
+  const account = await readCommercialAccount(getRequestPool(), activeOrg.orgId);
+  const semCreditoIa = account.classification === "free_public" && account.free_enabled && account.free_ai_credit_cents === 0;
 
-  const passo = proximoPasso(state, { lojaLigada: env.NUVEMSHOP_ENABLED });
+  const passo = proximoPasso(state, { lojaLigada: env.NUVEMSHOP_ENABLED, semCreditoIa,
+    semVagasEquipe: account.classification === "free_public" && account.free_enabled && account.free_seats === 1 });
   redirect(passo ? `/onboarding/${passo.segmento}` : "/onboarding/done");
 }

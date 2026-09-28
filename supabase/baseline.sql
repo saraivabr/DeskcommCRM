@@ -37377,6 +37377,9 @@ begin
  if credit is null or conversion is null then
    raise exception 'Franquia de IA indisponível para este plano.' using errcode='P4021';
  end if;
+ if credit = 0 then
+   raise exception 'Esta conta Free não tem crédito de IA.' using errcode='P4021';
+ end if;
  insert into public.subscription_ai_periods(organization_id,provider_subscription_id,period_start,period_end,budget_brl_cents,usd_to_brl_rate)
  values(p_org,s.provider_subscription_id,s.current_period_start,s.current_period_end,credit,conversion)
  on conflict(organization_id,provider_subscription_id,period_start) do nothing;
@@ -37877,7 +37880,7 @@ create table if not exists public.org_commercial_accounts (
  free_seats integer check (free_seats>0),
  free_channels integer check (free_channels>=0),
  free_agents integer check (free_agents>=0),
- free_ai_credit_cents integer check (free_ai_credit_cents>0),
+ free_ai_credit_cents integer check (free_ai_credit_cents>=0),
  free_ai_usd_to_brl_rate numeric check (free_ai_usd_to_brl_rate>0 and free_ai_usd_to_brl_rate<'Infinity'::numeric),
  free_period_start timestamptz,
  free_period_end timestamptz,
@@ -37886,6 +37889,11 @@ create table if not exists public.org_commercial_accounts (
  updated_by uuid references auth.users(id),
  check (not free_enabled or (classification='free_public' and free_seats is not null and free_channels is not null and free_agents is not null and free_ai_credit_cents is not null and free_ai_usd_to_brl_rate is not null and free_period_start is not null and free_period_end is not null and isfinite(free_period_start) and isfinite(free_period_end) and free_period_start<free_period_end))
 );
+alter table public.org_commercial_accounts
+  drop constraint if exists org_commercial_accounts_free_ai_credit_cents_check;
+alter table public.org_commercial_accounts
+  add constraint org_commercial_accounts_free_ai_credit_cents_check
+  check (free_ai_credit_cents >= 0);
 alter table public.org_commercial_accounts enable row level security;
 revoke all on public.org_commercial_accounts from public,anon,authenticated,service_role;
 grant select,insert,update on public.org_commercial_accounts to service_role;
@@ -38017,6 +38025,9 @@ begin
  end if;
  if credit is null or conversion is null then
    raise exception 'Franquia de IA indisponível para este plano.' using errcode='P4021';
+ end if;
+ if credit = 0 then
+   raise exception 'Esta conta Free não tem crédito de IA.' using errcode='P4021';
  end if;
  insert into public.subscription_ai_periods(organization_id,provider_subscription_id,period_start,period_end,budget_brl_cents,usd_to_brl_rate)
  values(p_org,s.provider_subscription_id,s.current_period_start,s.current_period_end,credit,conversion)

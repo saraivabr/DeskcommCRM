@@ -23,9 +23,11 @@ export default async function DonePage() {
   // Antes era uma terceira lista, fixa, e por isso ela listava "Loja Nuvemshop
   // (pulado)" em instalações que nunca ofereceram esse passo — o wizard
   // acusando a pessoa de não fazer o que ninguém lhe pediu.
-  const itens = resumoDoOnboarding(state, { lojaLigada: env.NUVEMSHOP_ENABLED });
   const db = getRequestPool();
   const account = await readCommercialAccount(db, activeOrg.orgId);
+  const noAiCredit = account.classification === "free_public" && account.free_enabled && account.free_ai_credit_cents === 0;
+  const itens = resumoDoOnboarding(state, { lojaLigada: env.NUVEMSHOP_ENABLED, semCreditoIa: noAiCredit,
+    semVagasEquipe: account.classification === "free_public" && account.free_enabled && account.free_seats === 1 });
   const { rows: [subscription] } = await db.query<SubscriptionSnapshot>(
     "select provider,provider_customer_id,provider_subscription_id,plan_id,status,current_period_end,checkout_session_id,checkout_expires_at from org_subscriptions where organization_id=$1",
     [activeOrg.orgId],
@@ -34,5 +36,6 @@ export default async function DonePage() {
     !account.free_enabled && !subscriptionView(subscription).active;
 
   return <DoneClient itens={itens} pecas={oQueMaisExiste()} needsPlan={needsPlan}
+    noAiCredit={noAiCredit}
     canChoosePlan={ROLE_RANK[activeOrg.role] >= ROLE_RANK.admin} />;
 }

@@ -4,6 +4,8 @@ import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TestarClient } from "./_client";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { readCommercialAccount } from "@/lib/billing/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,8 @@ export default async function TestarPage() {
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/login");
+  const account = await readCommercialAccount(getRequestPool(), activeOrg.orgId);
+  if (account.classification === "free_public" && account.free_enabled && account.free_ai_credit_cents === 0) redirect("/onboarding");
   const idioma = user.idioma;
 
   const admin = createAdminClient();

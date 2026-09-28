@@ -126,7 +126,7 @@ export interface DadosDoPasso {
  * passo com a proposta pronta na tela; pedir que ela clique em "gerar sugestão"
  * primeiro seria cobrar um passo a mais para chegar ao mesmo lugar.
  */
-export async function dadosDoPasso(orgId: string, negocio: string): Promise<DadosDoPasso> {
+export async function dadosDoPasso(orgId: string, negocio: string, semCreditoIa = false): Promise<DadosDoPasso> {
   const admin = createAdminClient();
   const atual = await carregarQuadroAtual(admin, orgId);
 
@@ -139,6 +139,16 @@ export async function dadosDoPasso(orgId: string, negocio: string): Promise<Dado
   }
 
   const ctx = { nome: negocio, oQueFaz };
+  if (semCreditoIa) {
+    return {
+      atual,
+      sugestao: {
+        origem: "pacote",
+        pacote: escolherPacotePorTexto(`${negocio} ${oQueFaz}`),
+        porque: "",
+      },
+    };
+  }
   const cerebro = await cerebroDoFuncionario(admin, orgId);
 
   if ("erro" in cerebro) {

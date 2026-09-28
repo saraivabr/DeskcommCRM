@@ -6,6 +6,8 @@ import { nomeCurtoDaSessao } from "@/lib/channels/nome-da-sessao";
 import { getWahaClient } from "@/lib/waha/client";
 import { ConnectWhatsappClient } from "./_client";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { readCommercialAccount } from "@/lib/billing/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,8 @@ export default async function ConnectWhatsappPage() {
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/login");
   const idioma = user.idioma;
+  const account = await readCommercialAccount(getRequestPool(), activeOrg.orgId);
+  const semCreditoIa = account.classification === "free_public" && account.free_enabled && account.free_ai_credit_cents === 0;
 
   const wahaConfigured = getWahaClient() !== null;
 
@@ -30,12 +34,11 @@ export default async function ConnectWhatsappPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h2 className="text-2xl font-semibold tracking-tight">{traduzir("Dê um telefone a ele", idioma)}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{traduzir(semCreditoIa ? "Conecte seu WhatsApp" : "Dê um telefone a ele", idioma)}</h2>
         <p className="text-sm text-muted-foreground">
-          {traduzir(
-            "É por este número que ele vai atender seus clientes. Se você conecta pelo celular, tenha ele por perto.",
-            idioma,
-          )}
+          {traduzir(semCreditoIa
+            ? "Conecte um número para organizar o atendimento da sua equipe. Este Free não inclui respostas geradas por IA."
+            : "É por este número que ele vai atender seus clientes. Se você conecta pelo celular, tenha ele por perto.", idioma)}
         </p>
       </header>
       <p className="text-sm text-muted-foreground">
@@ -45,6 +48,7 @@ export default async function ConnectWhatsappPage() {
         wahaConfigured={wahaConfigured}
         sessionName={nomeCurtoDaSessao(activeOrg.orgId)}
         oficialPodeReceber={oficialPodeReceber}
+        semCreditoIa={semCreditoIa}
       />
     </div>
   );

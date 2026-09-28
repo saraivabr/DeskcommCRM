@@ -1,12 +1,19 @@
 import { emailConfigurado } from "@/lib/email/roteador";
 import { InviteTeamForm } from "./_form";
-import { requireAuth } from "@/lib/auth/server";
+import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { redirect } from "next/navigation";
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { readCommercialAccount } from "@/lib/billing/entitlements";
 
 export const dynamic = "force-dynamic";
 
 export default async function InviteTeamPage() {
   const user = await requireAuth();
+  const activeOrg = await resolveActiveOrg(user);
+  if (!activeOrg) redirect("/login");
+  const account = await readCommercialAccount(getRequestPool(), activeOrg.orgId);
+  if (account.classification === "free_public" && account.free_enabled && account.free_seats === 1) redirect("/onboarding");
   const idioma = user.idioma;
   const emailReady = await emailConfigurado();
   return (

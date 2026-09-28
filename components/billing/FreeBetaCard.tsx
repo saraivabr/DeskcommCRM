@@ -36,7 +36,7 @@ export function FreeBetaCard({
     account.free_channels !== null &&
     account.free_agents !== null &&
     account.free_ai_credit_cents !== null &&
-    account.free_ai_credit_cents > 0;
+    account.free_ai_credit_cents >= 0;
   const active = account.free_enabled && configured && start <= now && end > now;
   const message =
     !account.free_enabled || !configured
@@ -44,10 +44,10 @@ export function FreeBetaCard({
       : start > now
         ? t("Seu Free beta está programado e aguarda o início do período.")
         : end <= now
-          ? t(
-              "Seu período Free beta expirou. Solicite a renovação manual à administração para voltar a gerar.",
-            )
-          : t("Acesso gratuito de experimentação, com IA incluída.");
+          ? t("Seu período Free beta expirou. Solicite a renovação manual à administração.")
+          : account.free_ai_credit_cents === 0
+            ? t("Acesso Free ativo. Esta conta não tem crédito de IA.")
+            : t("Acesso gratuito de experimentação, com IA incluída.");
   return (
     <section className="space-y-3 rounded-2xl border bg-card p-5" aria-label={t("Seu Free beta")}>
       <h2 className="text-xl font-semibold">{t("Free beta")}</h2>
@@ -76,11 +76,11 @@ export function FreeBetaCard({
           </p>
         )}
       <p className="text-sm text-muted-foreground">
-        {t(
-          "Os limites são desta conta de teste. Confira abaixo a validade e o saldo disponível antes de gerar. Sem cobrança automática de excedente.",
-        )}
+        {t(account.free_ai_credit_cents === 0
+          ? "Os limites e a validade desta conta estão indicados acima. A geração de IA não está incluída."
+          : "Os limites são desta conta de teste. Confira abaixo a validade e o saldo disponível antes de gerar. Sem cobrança automática de excedente.")}
       </p>
-      {active && (
+      {active && account.free_ai_credit_cents !== 0 && (
         <a className="text-sm underline" href="/app/instagram/new?first_post=1">
           {t("Criar minha primeira postagem")}
         </a>
