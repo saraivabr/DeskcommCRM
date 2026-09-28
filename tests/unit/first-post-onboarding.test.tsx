@@ -38,8 +38,14 @@ it("mantém a saída original disponível", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Começar a usar" }));
   await waitFor(() => expect(finish).toHaveBeenCalledWith());
 });
+it("Free sem crédito termina no espaço sem oferecer geração de IA", async () => {
+  render(<DoneClient itens={[]} pecas={[]} noAiCredit />);
+  expect(screen.queryByRole("button", { name: "Criar minha primeira postagem" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Ir para meu espaço" }));
+  await waitFor(() => expect(finish).toHaveBeenCalledWith("workspace"));
+});
 it("gera no Studio existente apenas após confirmar, preservando contexto e abrindo revisão", async () => {
-  api.mockResolvedValue({ id: "post-1" });
+  api.mockResolvedValue({ id: "post-1", status: "ready" });
   render(
     <CreatePost
       firstPost

@@ -14,9 +14,11 @@ export function AiAllowanceCard({ balance, idioma }: { balance: AiAllowanceView;
       ? "O uso de IA está pausado enquanto conferimos um consumo anterior. Seu saldo foi preservado."
       : balance.status === "inactive"
         ? "Este saldo não está liberado para uso. Confira a situação da sua assinatura."
-        : balance.remaining === 0
-          ? "O saldo está usado ou reservado por atendimentos em andamento. Não haverá cobrança automática de excedente."
-          : null;
+        : balance.budget === 0
+          ? "Este Free não inclui crédito de IA. Você pode usar os demais recursos do seu espaço."
+          : balance.remaining === 0
+            ? "O saldo está usado ou reservado por atendimentos em andamento. Não haverá cobrança automática de excedente."
+            : null;
   return (
     <section
       aria-label={t("Sua franquia de IA")}
@@ -58,15 +60,17 @@ export function AiAllowanceCard({ balance, idioma }: { balance: AiAllowanceView;
               {t(notice)}
             </p>
           )}
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            {t(
-              "Texto, imagens e voz usam este mesmo saldo. Durante uma operação, parte dele fica reservada. Ao concluir, descontamos o consumo e liberamos a diferença.",
-            )}
-          </p>
-          <p className="text-xs leading-5 text-muted-foreground">
-            {t("Tarifa fixa deste ciclo:")} {formatBRL(balance.rate * 100)}{" "}
-            {t("por US$ 1 de consumo de IA. Sem cobrança automática de excedente.")}
-          </p>
+          {balance.budget > 0 && (
+            <>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                {t("Texto, imagens e voz usam este mesmo saldo. Durante uma operação, parte dele fica reservada. Ao concluir, descontamos o consumo e liberamos a diferença.")}
+              </p>
+              <p className="text-xs leading-5 text-muted-foreground">
+                {t("Tarifa fixa deste ciclo:")} {formatBRL(balance.rate * 100)}{" "}
+                {t("por US$ 1 de consumo de IA. Sem cobrança automática de excedente.")}
+              </p>
+            </>
+          )}
         </>
       )}
     </section>

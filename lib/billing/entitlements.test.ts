@@ -33,6 +33,7 @@ describe("closed Free activation", () => {
       free_period_end: "2026-10-01T00:00:00.000Z",
     };
     expect(commercialAccountSchema.safeParse(account).success).toBe(true);
+    expect(commercialAccountSchema.safeParse({ ...account, free_ai_credit_cents: 0 }).success).toBe(true);
     expect(
       commercialAccountSchema.safeParse({ ...account, classification: "courtesy" }).success,
     ).toBe(false);

@@ -37377,6 +37377,9 @@ begin
  if credit is null or conversion is null then
    raise exception 'Franquia de IA indisponível para este plano.' using errcode='P4021';
  end if;
+ if credit = 0 then
+   raise exception 'Esta conta Free não tem crédito de IA.' using errcode='P4021';
+ end if;
  insert into public.subscription_ai_periods(organization_id,provider_subscription_id,period_start,period_end,budget_brl_cents,usd_to_brl_rate)
  values(p_org,s.provider_subscription_id,s.current_period_start,s.current_period_end,credit,conversion)
  on conflict(organization_id,provider_subscription_id,period_start) do nothing;
@@ -37877,7 +37880,7 @@ create table if not exists public.org_commercial_accounts (
  free_seats integer check (free_seats>0),
  free_channels integer check (free_channels>=0),
  free_agents integer check (free_agents>=0),
- free_ai_credit_cents integer check (free_ai_credit_cents>0),
+ free_ai_credit_cents integer check (free_ai_credit_cents>=0),
  free_ai_usd_to_brl_rate numeric check (free_ai_usd_to_brl_rate>0 and free_ai_usd_to_brl_rate<'Infinity'::numeric),
  free_period_start timestamptz,
  free_period_end timestamptz,
@@ -38017,6 +38020,9 @@ begin
  end if;
  if credit is null or conversion is null then
    raise exception 'Franquia de IA indisponível para este plano.' using errcode='P4021';
+ end if;
+ if credit = 0 then
+   raise exception 'Esta conta Free não tem crédito de IA.' using errcode='P4021';
  end if;
  insert into public.subscription_ai_periods(organization_id,provider_subscription_id,period_start,period_end,budget_brl_cents,usd_to_brl_rate)
  values(p_org,s.provider_subscription_id,s.current_period_start,s.current_period_end,credit,conversion)

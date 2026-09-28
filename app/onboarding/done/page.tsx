@@ -34,5 +34,6 @@ export default async function DonePage() {
     !account.free_enabled && !subscriptionView(subscription).active;
 
   return <DoneClient itens={itens} pecas={oQueMaisExiste()} needsPlan={needsPlan}
+    noAiCredit={account.classification === "free_public" && account.free_enabled && account.free_ai_credit_cents === 0}
     canChoosePlan={ROLE_RANK[activeOrg.role] >= ROLE_RANK.admin} />;
 }

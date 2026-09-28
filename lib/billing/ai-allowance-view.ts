@@ -32,7 +32,7 @@ export function allowanceView(row: Row, now = Date.now()): AiAllowanceView {
   const unknown = Number(row.unknown_count);
   if (
     ![budget, rate, used, reserved, unknown].every(Number.isFinite) ||
-    budget <= 0 ||
+    budget < 0 || (budget === 0 && row.source !== "free") ||
     rate <= 0 ||
     used < 0 ||
     reserved < 0 ||
