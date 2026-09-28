@@ -36,7 +36,7 @@ const FUSOS: { id: string; cidade: string }[] = [
   { id: "UTC", cidade: "Outro (horário universal)" },
 ];
 
-export function WelcomeForm({ defaultOrgName }: { defaultOrgName: string }) {
+export function WelcomeForm({ defaultOrgName, semCreditoIa = false }: { defaultOrgName: string; semCreditoIa?: boolean }) {
   const t = useT();
   const [displayName, setDisplayName] = useState(defaultOrgName);
   const [oQueFaz, setOQueFaz] = useState("");
@@ -94,9 +94,9 @@ export function WelcomeForm({ defaultOrgName }: { defaultOrgName: string }) {
           placeholder={t("Ex.: clínica odontológica, ou venda de roupa fitness pelo WhatsApp")}
         />
         <p className="text-xs text-muted-foreground">
-          {t(
-            "Uma linha basta. É com isso que seu funcionário aprende com quem ele está falando — e que a gente monta o quadro de clientes do seu jeito.",
-          )}
+          {t(semCreditoIa
+            ? "Uma linha basta. Usamos isso para sugerir um quadro de clientes para o seu negócio."
+            : "Uma linha basta. É com isso que seu funcionário aprende com quem ele está falando — e que a gente monta o quadro de clientes do seu jeito.")}
         </p>
       </div>
 
@@ -116,7 +116,9 @@ export function WelcomeForm({ defaultOrgName }: { defaultOrgName: string }) {
         </Select>
         <input type="hidden" name="timezone" value={timezone} />
         <p className="text-xs text-muted-foreground">
-          {t("Decide o horário em que seu funcionário pode falar com clientes.")}
+          {t(semCreditoIa
+            ? "Define o fuso horário usado nas datas e horários do seu espaço."
+            : "Decide o horário em que seu funcionário pode falar com clientes.")}
         </p>
       </div>
 
