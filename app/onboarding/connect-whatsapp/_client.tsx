@@ -14,6 +14,7 @@ import { CanalParceiroClient } from "@/components/connections/CanalParceiroClien
 interface Props {
   wahaConfigured: boolean;
   sessionName: string;
+  semCreditoIa?: boolean;
   /**
    * A volta do canal oficial depende de um valor que mora no `.env` do
    * servidor, e o instalador NÃO o escreve — então numa instalação recém-feita
@@ -220,6 +221,7 @@ export function ConnectWhatsappClient({
   wahaConfigured,
   sessionName,
   oficialPodeReceber,
+  semCreditoIa = false,
 }: Props) {
   const t = useT();
   const [pending, startTransition] = useTransition();
@@ -425,7 +427,9 @@ export function ConnectWhatsappClient({
           <p className="mt-1">
             {t("Ele roda no seu próprio servidor. Dá para seguir sem ele agora e conectar o número depois, em")}{" "}
             <strong>{t("Canais › Conexões")}</strong> —{" "}
-            {t("seu funcionário fica pronto de qualquer jeito, só não terá por onde atender ainda.")}
+            {t(semCreditoIa
+              ? "você pode terminar a configuração do espaço e conectar o número depois."
+              : "seu funcionário fica pronto de qualquer jeito, só não terá por onde atender ainda.")}
           </p>
         </div>
       )}

@@ -140,7 +140,11 @@ export function QuadroClient({
                     maxLength={60}
                   />
                   <p className="text-xs text-muted-foreground">
-                    {explicacao
+                    {semCreditoIa
+                      ? explicacao
+                        ? `${t("Mova o cliente para cá quando")} ${t(explicacao)}.`
+                        : t("Você pode mover clientes para esta coluna.")
+                      : explicacao
                       ? `${t("Ele move o cliente para cá quando")} ${t(explicacao)}.`
                       : t("Coluna que só vocês movem — ele não mexe nesta.")}
                   </p>
