@@ -92,7 +92,7 @@ export function StageColumn({
     : undefined;
 
   return (
-    <div className="flex w-80 shrink-0 flex-col rounded-lg border border-border bg-surface-muted/40">
+    <div className="workspace-stage flex w-80 shrink-0 flex-col rounded-lg border border-border bg-surface-muted/40">
       <div className="group/etapa flex items-center gap-2 border-b border-border px-3 py-2.5">
         {/* "Selecionar a etapa inteira" é o gesto que faz a ação em lote valer a
             pena: sem ele, mover trinta cards deixa de ser trinta arrastes e vira
@@ -148,7 +148,7 @@ export function StageColumn({
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={cn(
-              "flex flex-1 flex-col gap-2 p-2 transition-colors",
+              "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 transition-colors",
               snapshot.isDraggingOver && "bg-accent/5",
             )}
           >

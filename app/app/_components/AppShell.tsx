@@ -61,7 +61,7 @@ export function AppShell({ sidebarCollapsed, podeAtender = false, children }: Ap
   const ocupacaoDoRodape = useOcupacaoDoRodape();
   return (
     <WorkspaceAssistantProvider>
-      <div className="workspace-shell flex min-h-screen w-full bg-background">
+      <div className="workspace-shell workspace-app flex min-h-screen w-full bg-background">
         <BarraDeProgressoNavegacao />
         <div className="hidden lg:block">
           <Sidebar collapsed={sidebarCollapsed} />

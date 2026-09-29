@@ -22,17 +22,15 @@ test.beforeAll(async () => {
     (role) => users.users.find((user) => user.email === creds.users[role]!.email)?.id,
   );
   if (owners.some((owner) => !owner)) throw new Error("Usuários de teste ausentes");
-  const result = await db
-    .from("crm_tasks")
-    .insert(
-      owners.map((owner, i) => ({
-        id: taskIds[i],
-        organization_id: org.id,
-        title: "Home QA pendência",
-        assigned_to: owner,
-        due_date: "2020-01-01T12:00:00Z",
-      })),
-    );
+  const result = await db.from("crm_tasks").insert(
+    owners.map((owner, i) => ({
+      id: taskIds[i],
+      organization_id: org.id,
+      title: "Home QA pendência",
+      assigned_to: owner,
+      due_date: "2020-01-01T12:00:00Z",
+    })),
+  );
   if (result.error) throw result.error;
 });
 test.afterAll(async () => {
@@ -50,20 +48,20 @@ test.describe("Home e assistente global", () => {
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
     await page.waitForURL(/\/app(?:\/|$)/);
     await page.goto("/app");
-    await expect(page.getByRole("heading", { name: "O que vamos resolver hoje?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Visão geral" })).toBeVisible();
     const scope = page.getByRole("combobox", { name: "Escopo das pendências" });
     await expect(scope).toBeEnabled();
     await expect(scope).toHaveValue("mine");
     const taskCard = page
       .getByRole("link")
       .filter({ has: page.getByRole("heading", { name: "Tarefas atrasadas", exact: true }) });
-    const personal = Number(await taskCard.locator("span").first().textContent());
+    const personal = Number(await taskCard.locator("strong").textContent());
     expect(personal).toBeGreaterThanOrEqual(1);
     await scope.selectOption("team");
     await expect(scope).toBeEnabled();
     await expect(scope).toHaveValue("team");
     await expect
-      .poll(async () => Number(await taskCard.locator("span").first().textContent()))
+      .poll(async () => Number(await taskCard.locator("strong").textContent()))
       .toBeGreaterThan(personal);
     await expect(page.getByRole("heading", { name: "Movimento da operação" })).toBeVisible();
     await expect(page.getByText("Consulta indisponível", { exact: true })).toHaveCount(0);

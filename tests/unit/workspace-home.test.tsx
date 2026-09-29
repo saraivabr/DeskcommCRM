@@ -85,7 +85,7 @@ describe("Home produtiva", () => {
 
   it("usa título aprovado, composer único e padrão pessoal sem opção equipe não autorizada", async () => {
     render(<WorkspaceHome />);
-    expect(screen.getByRole("heading", { name: "O que vamos resolver hoje?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Visão geral" })).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", { name: "O que você quer saber sobre seu CRM?" }),
     ).toBeInTheDocument();

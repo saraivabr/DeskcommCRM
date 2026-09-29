@@ -1,0 +1,380 @@
+/* Authenticated surfaces and portals share the same tokens. Brand colors remain
+   owned by the branding resolver; amber is an attention accent, not a brand. */
+body:has(.workspace-shell) {
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text);
+  --secondary: var(--color-surface-elevated);
+  --secondary-foreground: var(--color-text);
+  --muted: var(--color-surface-elevated);
+  --muted-foreground: var(--color-text-muted);
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --workspace-amber: #ff9a66;
+  --workspace-ink: #332820;
+  --workspace-paper: #fcf8f1;
+  --workspace-glass: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  --workspace-shadow: 0 18px 48px -30px #1b100e66;
+  --color-bg: #eee5da;
+  --color-surface: #fffaf3;
+  --color-surface-elevated: #f2e9de;
+  --color-text: #302820;
+  --color-text-muted: #6a5b50;
+  --color-text-subtle: #766354;
+  --color-border: #dacbbd;
+  --color-border-strong: #b8a28e;
+}
+[data-theme="dark"] body:has(.workspace-shell) {
+  --color-bg: #211c19;
+  --color-surface: #342d29;
+  --color-surface-elevated: #443a33;
+  --color-text: #fff8ef;
+  --color-text-muted: #d1c0b2;
+  --color-text-subtle: #bba99b;
+  --color-border: #5e4e42;
+  --color-border-strong: #86705f;
+  --workspace-glass: #342d29e8;
+  --workspace-shadow: 0 20px 56px -26px #0009;
+}
+.workspace-app {
+  background:
+    radial-gradient(ellipse at 8% 0%, #b784502b, transparent 48%),
+    radial-gradient(ellipse at 95% 100%, #a8623424, transparent 45%), var(--color-bg);
+  padding: 14px;
+  gap: 14px;
+}
+.workspace-app > div:last-child {
+  min-height: calc(100dvh - 28px);
+}
+.workspace-app .workspace-sidebar {
+  top: 14px;
+  height: calc(100dvh - 28px);
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: var(--workspace-glass);
+  box-shadow: var(--workspace-shadow);
+  backdrop-filter: blur(20px);
+}
+.workspace-app .workspace-sidebar > a {
+  height: 76px;
+}
+.workspace-app .workspace-sidebar nav {
+  padding-top: 16px;
+}
+.workspace-app .workspace-nav-item {
+  min-height: 44px;
+  border-radius: 12px;
+}
+.workspace-app .workspace-nav-item.is-active {
+  background: var(--workspace-amber);
+  color: var(--workspace-ink);
+  box-shadow: 0 5px 18px #e6763524;
+}
+.workspace-app .workspace-nav-item.is-active svg {
+  color: inherit;
+}
+.workspace-app .workspace-topbar {
+  top: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--workspace-glass);
+  box-shadow: var(--workspace-shadow);
+}
+.workspace-app main[data-workspace] {
+  margin-top: 14px;
+  background: var(--workspace-glass);
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  box-shadow: var(--workspace-shadow);
+  min-height: calc(100dvh - 106px);
+}
+.workspace-app main[data-workspace="preferences"] [data-slot="card"],
+.workspace-app [data-slot="card"] {
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px -20px #0005;
+}
+.workspace-app :is(input, textarea, select) {
+  border-radius: 10px;
+}
+.workspace-app :is(input, textarea, select):focus-visible {
+  outline: 2px solid var(--workspace-amber);
+  outline-offset: 3px;
+}
+.workspace-app .artisan-table {
+  border: 1px solid var(--color-border);
+}
+.workspace-app .workspace-inbox {
+  border-radius: 18px;
+  box-shadow: var(--workspace-shadow);
+}
+.workspace-app .workspace-inbox-list {
+  background: var(--color-surface);
+}
+.workspace-app .workspace-inbox-conversation {
+  background: radial-gradient(ellipse at 50% 0%, #b77f4520, transparent 65%), var(--color-bg);
+}
+.workspace-app .workspace-conversation-item {
+  width: calc(100% - 16px);
+  margin: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 14px 10px;
+}
+.workspace-app .workspace-conversation-item[aria-current="true"] {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-elevated);
+}
+.workspace-app .workspace-conversation-item[aria-current="true"] > span[aria-hidden] {
+  inset-block: 12px;
+  border-radius: 999px;
+  background: var(--workspace-amber);
+}
+.workspace-app [data-testid="message-bubble"]:not([data-bare-sticker]) {
+  padding: 12px 14px;
+  box-shadow: 0 4px 14px #0000000a;
+}
+.workspace-app [data-testid="message-bubble"][data-direction="inbound"]:not([data-bare-sticker]) {
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+}
+@media (max-width: 1023px) {
+  .workspace-app {
+    padding: 8px;
+  }
+  .workspace-app .workspace-topbar {
+    top: 8px;
+    border-radius: 16px;
+  }
+  .workspace-app main[data-workspace] {
+    margin-top: 8px;
+    border-radius: 18px;
+  }
+}
+@media (max-width: 640px) {
+  .workspace-app {
+    padding: 0;
+  }
+  .workspace-app .workspace-topbar {
+    top: 0;
+    border-radius: 0;
+    border-inline: 0;
+  }
+  .workspace-app main[data-workspace] {
+    margin-top: 0;
+    border-radius: 0;
+    border: 0;
+  }
+  .workspace-app .workspace-inbox {
+    border-radius: 12px;
+  }
+}
+
+/* Conversation height is shared by the guide, history and composer. Flex sizing
+   keeps the reply field visible without a second viewport-height calculation. */
+.workspace-shell.workspace-app:has(main[data-workspace="conversation"]) {
+  height: 100dvh;
+  overflow: hidden;
+}
+.workspace-shell.workspace-app:has(main[data-workspace="conversation"]) > div:last-child {
+  min-height: 0;
+}
+.workspace-shell.workspace-app main[data-workspace="conversation"] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px;
+  padding-bottom: calc(18px + var(--rodape-ocupado, 0px));
+}
+.workspace-shell.workspace-app main[data-workspace="conversation"] > .workspace-inbox {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+}
+.workspace-chat-header {
+  flex: none;
+}
+.workspace-chat-header > div:first-child {
+  flex: 1;
+}
+.workspace-chat-actions button:has(.sr-only) {
+  padding-inline: 10px;
+}
+.workspace-shell.workspace-app main[data-workspace="conversation"] .journey-guide {
+  margin-bottom: 12px;
+  flex: none;
+}
+.workspace-shell.workspace-app main[data-workspace="home"] h1 {
+  font-size: 32px;
+}
+@media (max-width: 640px) {
+  .workspace-shell.workspace-app main[data-workspace="conversation"] {
+    padding: 8px;
+    padding-bottom: calc(8px + var(--rodape-ocupado, 0px));
+  }
+  .workspace-chat-header {
+    padding: 12px;
+    gap: 10px;
+  }
+  .workspace-chat-actions {
+    width: 100%;
+  }
+  .workspace-shell.workspace-app main[data-workspace="home"] h1 {
+    font-size: 28px;
+  }
+}
+
+.workspace-search {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+}
+.workspace-pipeline {
+  padding: 8px;
+}
+.workspace-pipeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 8px 8px 0;
+}
+.workspace-pipeline-back {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.workspace-pipeline-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--color-surface-muted);
+}
+.workspace-pipeline-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 24px;
+  min-width: 0;
+}
+.workspace-pipeline-summary span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.workspace-pipeline-summary strong {
+  font-size: 24px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.workspace-pipeline-summary > div + div {
+  border-left: 1px solid var(--border);
+}
+.workspace-shell .workspace-stage {
+  border-radius: 20px;
+  background: var(--color-surface-muted);
+  border-color: transparent;
+}
+.workspace-shell .workspace-stage > div:first-child {
+  padding: 18px 16px;
+  border-bottom: 0;
+}
+.workspace-shell .workspace-stage > div:nth-child(2) {
+  padding: 0 16px 14px;
+  font-size: 13px;
+  border-bottom: 0;
+}
+.workspace-shell .workspace-lead-card {
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 4px 16px #0000000a;
+}
+.workspace-shell .workspace-lead-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.workspace-shell .workspace-lead-card > p {
+  margin-top: 10px;
+  font-size: 18px;
+  height: auto;
+}
+@media (max-width: 640px) {
+  .workspace-pipeline {
+    padding: 0;
+  }
+  .workspace-pipeline-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .workspace-pipeline-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace-pipeline-summary > div {
+    padding: 16px;
+  }
+  .workspace-pipeline-summary > div:nth-child(3) {
+    border-left: 0;
+  }
+  .workspace-pipeline-summary strong {
+    font-size: 20px;
+  }
+}
+
+.workspace-shell.workspace-app:has(main[data-workspace="board"]) {
+  height: 100dvh;
+  overflow: hidden;
+}
+.workspace-shell.workspace-app:has(main[data-workspace="board"]) > div:last-child {
+  min-height: 0;
+}
+.workspace-shell.workspace-app main[data-workspace="board"] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px;
+  padding-bottom: calc(18px + var(--rodape-ocupado, 0px));
+}
+.workspace-shell.workspace-app main[data-workspace="board"] > .workspace-pipeline {
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+}
+.workspace-pipeline > header,
+.workspace-pipeline-summary,
+.workspace-pipeline > [role="search"] {
+  flex-shrink: 0;
+}
+.workspace-shell .workspace-stage {
+  width: 300px;
+}
+.workspace-shell .workspace-lead-card {
+  flex-shrink: 0;
+}
+.workspace-shell .workspace-stage > div:first-child {
+  flex-shrink: 0;
+}
+.workspace-shell .workspace-board {
+  padding: 4px 0;
+}
+@media (max-width: 640px) {
+  .workspace-shell.workspace-app main[data-workspace="board"] {
+    padding: 10px;
+    overflow: auto;
+  }
+  .workspace-shell .workspace-stage {
+    width: 280px;
+  }
+  .workspace-shell .workspace-board {
+    min-height: 320px;
+  }
+}

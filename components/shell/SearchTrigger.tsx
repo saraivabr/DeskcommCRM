@@ -20,10 +20,11 @@ export function SearchTrigger() {
         variant="outline"
         size="sm"
         aria-label={t("Buscar telas")}
-        className="h-9 gap-2 rounded-lg border-0 bg-transparent px-2 text-muted-foreground shadow-none hover:bg-muted"
+        className="workspace-search h-10 gap-3 rounded-xl px-3 text-muted-foreground shadow-none"
         onClick={() => setOpen(true)}
       >
-        <Search size={14} aria-hidden />
+        <Search size={16} aria-hidden />
+        <span className="hidden text-xs md:inline">{t("Buscar no espaço de trabalho")}</span>
         <kbd className="hidden rounded-sm border border-border bg-transparent px-1 py-0.5 text-[9px] md:inline">
           ⌘K
         </kbd>

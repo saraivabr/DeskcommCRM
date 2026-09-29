@@ -143,3 +143,12 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     ).toBeNull();
   });
 });
+
+it("abre a ficha sob demanda sem alterar a conversa", async () => {
+  const openContact = vi.fn();
+  render(<ConversationHeader conversation={conversa("open")} onOpenContact={openContact} />);
+  await userEvent.setup().click(screen.getByRole("button", { name: "Ficha" }));
+  expect(openContact).toHaveBeenCalledOnce();
+  expect(closeMutate).not.toHaveBeenCalled();
+  expect(arquivarMutate).not.toHaveBeenCalled();
+});

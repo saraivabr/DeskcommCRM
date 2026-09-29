@@ -112,6 +112,7 @@ const sidebar = (page: Page) => page.getByRole("navigation", { name: "Navegaçã
 async function irParaFunis(page: Page): Promise<void> {
   await sidebar(page).getByRole("link", { name: "Funis", exact: true }).click();
   await page.waitForURL(/\/app\/kanban/);
+  await page.getByRole("link", { name: "Todos os funis" }).click();
   await expect(page.getByRole("heading", { name: "Funis", level: 1 })).toBeVisible();
 }
 

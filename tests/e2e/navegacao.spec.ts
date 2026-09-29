@@ -128,11 +128,11 @@ test.describe("navegação agrupada", () => {
     await page.waitForURL(/\/app\/products/);
   });
 
-  test("e a lista de funis é o item vizinho, com nome próprio", async ({ page }) => {
+  test("Funis abre o quadro padrão da operação", async ({ page }) => {
     await loginAdmin(page);
     await sidebar(page).getByRole("link", { name: "Funis", exact: true }).click();
     await page.waitForURL(/\/app\/kanban/);
-    await expect(page.getByRole("heading", { name: "Funis", level: 1 })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Resumo do funil" })).toBeVisible();
   });
 
   test("chega em Conhecimento, que só existia atrás das abas de IA", async ({ page }) => {

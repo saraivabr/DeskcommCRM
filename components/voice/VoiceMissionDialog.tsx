@@ -48,15 +48,21 @@ type Panel = {
 const selectClass =
   "w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring";
 
-export function VoiceMissionDialog({ conversationId }: { conversationId: string }) {
+export function VoiceMissionDialog({
+  conversationId,
+  compact = false,
+}: {
+  conversationId: string;
+  compact?: boolean;
+}) {
   const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant={compact ? "ghost" : "outline"} title={t("Pedir ligação à IA")}>
           <Phone size={15} aria-hidden />
-          {t("Pedir ligação à IA")}
+          <span className={compact ? "sr-only" : undefined}>{t("Pedir ligação à IA")}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90dvh] w-[calc(100%-1rem)] max-w-xl overflow-y-auto rounded-2xl">

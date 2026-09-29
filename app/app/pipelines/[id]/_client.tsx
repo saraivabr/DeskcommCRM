@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { formatCents, MOEDA_PADRAO } from "@/lib/money";
 import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/hooks/i18n/useT";
@@ -53,6 +55,16 @@ export function PipelinePageClient({
   const [newOpen, setNewOpen] = useState(false);
 
   const filteredLeads = data ? applyFilters(data.leads, filters) : [];
+  const openLeads = filteredLeads.filter((lead) => lead.status === "open");
+  const amounts = new Map<string, number>();
+  for (const lead of openLeads) {
+    if (lead.value_cents == null) continue;
+    const currency = lead.currency || MOEDA_PADRAO;
+    amounts.set(currency, (amounts.get(currency) ?? 0) + lead.value_cents);
+  }
+  const openValue = [...amounts]
+    .map(([currency, cents]) => formatCents(cents, currency))
+    .join(" · ");
   const hasActiveFilters = Boolean(filtersToParams(filters));
   // NÃO é a conta do FilterBar: o seletor de filtro lista as três caixas
   // (`marcadoresDoCard`: negócio, contato e conversa), e esta lista, a da tag em
@@ -68,7 +80,7 @@ export function PipelinePageClient({
 
   return (
     <div
-      className="flex h-full flex-col gap-4"
+      className="workspace-pipeline flex h-full min-h-0 flex-col gap-4"
       // OBSERVÁVEL de propósito, e é a razão de existir desta linha: "a
       // assinatura morreu" e "nada aconteceu" produzem o MESMO silêncio na
       // tela, e sem este valor nem o produto nem o teste conseguem separar as
@@ -92,14 +104,42 @@ export function PipelinePageClient({
           limite curto) + botão na mesma linha sem quebra empurrava o botão pra
           fora da viewport em telas estreitas. De `sm:` pra cima volta a ser
           uma linha só, como sempre foi. */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight">
-          {data?.pipeline.name ?? initialName}
-        </h1>
+      <header className="workspace-pipeline-header">
+        <div className="min-w-0">
+          <Link href="/app/kanban?view=manage" className="workspace-pipeline-back">
+            {t("Todos os funis")} ↗
+          </Link>
+          <h1 className="truncate text-3xl font-semibold tracking-tight">
+            {data?.pipeline.name ?? initialName}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("Da primeira conversa ao negócio fechado.")}
+          </p>
+        </div>
         <Button onClick={() => setNewOpen(true)} disabled={!data} className="shrink-0">
           <Plus size={16} className="mr-2" /> {t("Novo Lead")}
         </Button>
       </header>
+      <section className="workspace-pipeline-summary" aria-label={t("Resumo do funil")}>
+        <div>
+          <span>{t("Em negociação")}</span>
+          <strong>{data ? openLeads.length : "—"}</strong>
+        </div>
+        <div>
+          <span>{t("Valor em aberto")}</span>
+          <strong>{data ? openValue || "—" : "—"}</strong>
+        </div>
+        <div>
+          <span>{t("Negócios ganhos")}</span>
+          <strong>
+            {data ? filteredLeads.filter((lead) => lead.status === "won").length : "—"}
+          </strong>
+        </div>
+        <div>
+          <span>{t("Etapas")}</span>
+          <strong>{data ? data.stages.length : "—"}</strong>
+        </div>
+      </section>
       {data && (
         <NewLeadDialog
           open={newOpen}

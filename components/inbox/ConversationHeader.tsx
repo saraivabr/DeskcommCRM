@@ -36,11 +36,22 @@ import type { ConversationWithContact } from "@/hooks/inbox/useConversationsReal
 import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
 import { VoiceMissionDialog } from "@/components/voice/VoiceMissionDialog";
+import {
+  LogOut,
+  Pause,
+  Bot,
+  ArrowRightLeft,
+  Check,
+  Archive,
+  RotateCcw,
+  ContactRound,
+} from "lucide-react";
 
 interface Props {
   conversation: ConversationWithContact;
   /** Seleciona outra conversa no Inbox — a aba Número do Transferir abre a do outro número. */
   onAbrirConversa?: (id: string) => void;
+  onOpenContact?: () => void;
 }
 
 /**
@@ -69,7 +80,7 @@ const STATUS_LABEL: Record<string, string> = {
   archived: "Arquivada",
 };
 
-export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
+export function ConversationHeader({ conversation, onAbrirConversa, onOpenContact }: Props) {
   const t = useT();
   const { user } = useAuth();
   const claim = useClaimConversation();
@@ -144,29 +155,23 @@ export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
    * distribui sem calar, de propósito, senão uma org em round_robin ficaria sem
    * automático nenhum.
    */
-  const podePausar =
-    automaticoAtivo && !encerrada && conversation.assigned_to_user_id !== null;
+  const podePausar = automaticoAtivo && !encerrada && conversation.assigned_to_user_id !== null;
 
-  if (user.support?.access_mode === "support_readonly") return <header className="flex items-center justify-between border-b p-4">
-    <strong>{displayName}</strong><span className="text-sm text-muted-foreground">{STATUS_LABEL[status] ?? status} · Somente leitura</span>
-  </header>;
+  if (user.support?.access_mode === "support_readonly")
+    return (
+      <header className="flex items-center justify-between border-b p-4">
+        <strong>{displayName}</strong>
+        <span className="text-sm text-muted-foreground">
+          {STATUS_LABEL[status] ?? status} · Somente leitura
+        </span>
+      </header>
+    );
   return (
-    // `flex-wrap` porque este header travava a LARGURA DA TELA INTEIRA. Ele
-    // media 707px de `min-content` — a identidade do contato encolhia bem
-    // (`min-w-0` + `truncate`), mas a barra de ações era `shrink-0` e não
-    // quebrava. Como a coluna do meio do inbox é `1fr`, que é
-    // `minmax(auto, 1fr)`, ela não podia ficar menor que esses 707px, e o
-    // painel de CRM era empurrado 311px para fora da viewport em 1280px.
-    //
-    // Reorganizar em vez de esconder: acima de ~1440px o header fica IDÊNTICO ao
-    // de antes (uma linha), e quando aperta a barra desce para a linha de baixo.
-    // Nenhuma ação some — um menu "mais" esconderia o "Lembrar" que a spec
-    // `canais-baseline` clica, e, pior, esconderia ação de quem atende.
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-4 py-3">
+    <div className="workspace-chat-header flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-5 py-4">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <ChannelLogo channel={conversation.channel_sessions} size={20} />
-          <h2 className="truncate text-sm font-semibold">{displayName}</h2>
+          <h2 className="truncate text-base font-semibold">{displayName}</h2>
           <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
             {t(STATUS_LABEL[status] ?? status)}
           </Badge>
@@ -218,12 +223,15 @@ export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
         )}
       </div>
 
-      {/* `shrink-0` saiu daqui: era ele que impunha o piso de largura. Agora a
-          barra pode encolher e quebrar internamente, e os botões continuam
-          todos visíveis e clicáveis — só que em duas linhas quando preciso. */}
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-        {!encerrada && !conversation.is_group && <VoiceMissionDialog conversationId={conversation.id} />}
-        {isOpen && (
+      <div
+        role="toolbar"
+        aria-label={t("Ações da conversa")}
+        className="workspace-chat-actions flex min-w-0 flex-wrap items-center gap-1.5"
+      >
+        {!encerrada && !conversation.is_group && (
+          <VoiceMissionDialog conversationId={conversation.id} compact />
+        )}
+        {isOpen && !isMineAssigned && (
           <Button
             size="sm"
             variant="default"
@@ -246,11 +254,13 @@ export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
         {isMineAssigned && (
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
+            title={t("Liberar")}
             disabled={release.isPending}
             onClick={() => release.mutate({ conversation_id: conversation.id })}
           >
-            {t("Liberar")}
+            <LogOut size={16} aria-hidden />
+            <span className="sr-only">{t("Liberar")}</span>
           </Button>
         )}
         {/* O INTERRUPTOR. Um botão, dois rótulos, um slot.
@@ -268,7 +278,7 @@ export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
         {podeDevolver && (
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             disabled={retomar.isPending}
             data-testid="devolver-ao-automatico"
             // O ALCANCE DA VOLTA NÃO É SEMPRE O MESMO, e a tela precisa dizer qual é.
@@ -279,18 +289,23 @@ export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
             // que às vezes faz mais do que o nome promete precisa dizer quando.
             title={
               motivo === "contato_travado"
-                ? t("Religa o atendimento automático para este cliente — vale para todas as conversas dele.")
+                ? t(
+                    "Religa o atendimento automático para este cliente — vale para todas as conversas dele.",
+                  )
                 : t("Devolve esta conversa ao atendimento automático.")
             }
             onClick={() => retomar.mutate({ conversation_id: conversation.id })}
           >
-            {retomar.isPending ? t("Devolvendo...") : t("Devolver ao automático")}
+            <Bot size={16} aria-hidden />
+            <span className="sr-only">
+              {retomar.isPending ? t("Devolvendo...") : t("Devolver ao automático")}
+            </span>
           </Button>
         )}
         {podePausar && (
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             disabled={pausar.isPending}
             data-testid="pausar-o-automatico"
             // `podePausar` já exige dono != null, então este botão NUNCA aparece
@@ -299,34 +314,57 @@ export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
             title={t("O atendimento automático para nesta conversa. O dono não muda.")}
             onClick={() => pausar.mutate({ conversation_id: conversation.id })}
           >
-            {pausar.isPending ? t("Pausando...") : t("Pausar o automático")}
+            <Pause size={16} aria-hidden />
+            <span className="sr-only">
+              {pausar.isPending ? t("Pausando...") : t("Pausar o automático")}
+            </span>
           </Button>
         )}
         {!encerrada && (
-          <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
-            {t("Transferir")}
+          <Button
+            size="sm"
+            variant="ghost"
+            title={t("Transferir")}
+            onClick={() => setReassignOpen(true)}
+          >
+            <ArrowRightLeft size={16} aria-hidden />
+            <span className="sr-only">{t("Transferir")}</span>
           </Button>
         )}
         {!encerrada && (
           <SnoozeButton
             conversationId={conversation.id}
             snoozeUntil={conversation.snooze_until ?? null}
+            compact
           />
         )}
         {!encerrada && (
           <Button
             size="sm"
-            variant="outline"
+            variant={isMineAssigned ? "default" : "ghost"}
             disabled={close.isPending}
             onClick={() => setConfirmFecharOpen(true)}
           >
+            <Check size={16} aria-hidden />
             {t("Fechar")}
           </Button>
         )}
-        {encerrada && <Button size="sm" variant="outline" disabled={reopen.isPending}
-          onClick={() => reopen.mutate({ conversation_id: conversation.id, expected_revision: conversation.service_revision })}>
-          {t("Reabrir")}
-        </Button>}
+        {encerrada && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={reopen.isPending}
+            onClick={() =>
+              reopen.mutate({
+                conversation_id: conversation.id,
+                expected_revision: conversation.service_revision,
+              })
+            }
+          >
+            <RotateCcw size={16} aria-hidden />
+            {t("Reabrir")}
+          </Button>
+        )}
         {/* ARQUIVAR (#923): tira da frente sem destruir.
             A conversa já arquivada não mostra o botão — arquivar duas vezes não
             é um gesto que exista, e o botão só reapareceria como um clique que
@@ -339,30 +377,30 @@ export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
           <Button
             size="sm"
             variant="ghost"
+            title={t("Arquivar")}
             disabled={arquivar.isPending}
             onClick={() => setConfirmArquivarOpen(true)}
           >
-            {arquivar.isPending ? t("Arquivando...") : t("Arquivar")}
+            <Archive size={16} aria-hidden />
+            <span className="sr-only">
+              {arquivar.isPending ? t("Arquivando...") : t("Arquivar")}
+            </span>
           </Button>
         )}
-        {/* `xl:hidden` porque a partir de 1280px o painel lateral de CRM entra
-            na tela — e ele já tem um "Ver contato", para o MESMO contato, a um
-            palmo de distância. Duas portas idênticas na mesma tela não são
-            redundância inofensiva: são a linha a mais que empurrava a barra de
-            ações para uma segunda fileira justo na largura mais apertada.
-            Medido: sem a duplicata, os botões voltam a caber em UMA linha em
-            1280px.
-
-            Abaixo de 1280 o painel não existe, e aí esta é a única porta para o
-            contato — por isso a condição é a mesma do painel, e não um valor
-            escolhido à parte. Não é esconder ação; é não repeti-la. */}
-        {c?.id && (
-          <Button asChild size="sm" variant="ghost" className="xl:hidden">
-            <Link href={`/app/contacts/${c.id}`} className="flex items-center gap-1">
-              {t("Ver contato")}
-              <ArrowRight size={12} weight="regular" aria-hidden />
-            </Link>
+        {onOpenContact ? (
+          <Button size="sm" variant="outline" onClick={onOpenContact}>
+            <ContactRound size={16} aria-hidden />
+            {t("Ficha")}
           </Button>
+        ) : (
+          c?.id && (
+            <Button asChild size="sm" variant="ghost">
+              <Link href={`/app/contacts/${c.id}`}>
+                {t("Ver contato")}
+                <ArrowRight size={12} aria-hidden />
+              </Link>
+            </Button>
+          )
         )}
       </div>
       <ReassignDialog
