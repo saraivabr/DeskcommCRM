@@ -342,6 +342,8 @@ function janelaDe(deps: DepsDoRetorno): JanelaDeRetorno {
 /** Quando nem o cliente nem o negócio existem, não há retorno a falar de quem. */
 export type FalhaDeAlvo = Extract<ResolucaoDoAlvo, { ok: false }>;
 
+type FalhaDeAgendamento = FalhaDeAlvo | { ok: false; codigo: "cliente_do_negocio_divergente" };
+
 /**
  * O `reason` NÃO REPETE O RÓTULO — descoberto olhando a tela, não o teste.
  *
@@ -373,9 +375,14 @@ export async function agendaRetornoNoCrm(
   deps: DepsDoRetorno,
   ref: { leadId?: string | null; contactId?: string | null },
   input: AgendaRetornoInput,
-): Promise<(ResultadoDoAgendamento & { alvo?: AlvoDoRetorno }) | FalhaDeAlvo> {
+): Promise<(ResultadoDoAgendamento & { alvo?: AlvoDoRetorno }) | FalhaDeAgendamento> {
   const alvo = await resolveAlvoDoRetorno(deps.admin, deps.orgId, ref);
   if (!alvo.ok) return { ok: false, codigo: alvo.codigo };
+  // A confirmação fixa o cliente. Uma troca de vínculo após a revisão não pode
+  // redirecionar o retorno para outra pessoa, nem iniciar atendimento dela.
+  if (ref.contactId && ref.contactId !== alvo.alvo.contactId) {
+    return { ok: false, codigo: "cliente_do_negocio_divergente" };
+  }
 
   const agora = deps.agora ?? new Date();
   const resultado = await agendaRetorno(

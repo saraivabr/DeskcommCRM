@@ -17,7 +17,7 @@ export function actionHash(tool: string, args: Record<string, unknown>): string 
 }
 /** Only a session-authenticated person can change pending to approved. A claim is single use. */
 export async function withActionApproval(
-  tool: McpToolDefinition,
+  tool: Pick<McpToolDefinition, "name" | "category" | "permission">,
   args: Record<string, unknown>,
   ctx: McpContext,
   execute: () => Promise<unknown>,

@@ -38,6 +38,8 @@ const CONTATO = "aaaaaaaa-3333-4333-8333-333333333333";
 const RETORNO = "aaaaaaaa-4444-4444-8444-444444444444";
 const STAGE = "aaaaaaaa-5555-4555-8555-555555555555";
 const STAGE_PERDA = "aaaaaaaa-6666-4666-8666-666666666666";
+const OUTRO_CONTATO = "aaaaaaaa-7777-4777-8777-777777777777";
+const OPERATION = "aaaaaaaa-8888-4888-8888-888888888888";
 
 type Op = "select" | "insert" | "update";
 type Terminal = "maybeSingle" | "single" | "list";
@@ -126,6 +128,16 @@ function ctxDe(resolve: Resolver, cap: Capturas): McpContext {
   } as McpContext;
 }
 
+function ctxPessoal(resolve: Resolver, cap: Capturas): McpContext {
+  return {
+    ...ctxDe(resolve, cap),
+    connectionId: "personal-connection",
+    userId: "aaaaaaaa-9999-4999-8999-999999999999",
+    role: "manager",
+    actor: { type: "user", id: "aaaaaaaa-9999-4999-8999-999999999999", role: "manager" },
+  };
+}
+
 /** Quando o agendamento chega ao fim: negócio existe, contato existe, sem retorno vivo. */
 const caminhoLivre: Resolver = (c) => {
   if (c.table === "crm_leads" && c.terminal === "maybeSingle") {
@@ -154,6 +166,78 @@ function daquiADias(dias: number): string {
 }
 
 describe("crm_schedule_followup", () => {
+  const personalInput = {
+    operation_id: OPERATION,
+    lead_id: LEAD,
+    contact_id: CONTATO,
+    in_hours: 24,
+    reason: "Enviar proposta",
+    promise: "Volto amanhã",
+  };
+
+  it("exige contact_id com lead_id pessoal antes da aprovação e da execução", async () => {
+    const cap = novasCapturas();
+    const ctx = ctxPessoal(caminhoLivre, cap);
+    const input = { ...personalInput, contact_id: undefined };
+    await expect(crmScheduleFollowup.validateBeforeApproval!(input, ctx)).rejects.toThrow(
+      "Informe também contact_id",
+    );
+    await expect(crmScheduleFollowup.handler(input, ctx)).rejects.toThrow(
+      "Informe também contact_id",
+    );
+    expect(cap).toEqual(novasCapturas());
+  });
+
+  it("recusa contato divergente antes de criar a aprovação", async () => {
+    const cap = novasCapturas();
+    const ctx = ctxPessoal(caminhoLivre, cap);
+    await expect(
+      crmScheduleFollowup.validateBeforeApproval!(
+        { ...personalInput, contact_id: OUTRO_CONTATO },
+        ctx,
+      ),
+    ).rejects.toThrow("não corresponde ao contact_id");
+    expect(cap).toEqual(novasCapturas());
+  });
+
+  it("recusa um vínculo alterado após a aprovação sem cron, atendimento ou atividade", async () => {
+    const cap = novasCapturas();
+    let contatoVinculado = CONTATO;
+    const ctx = ctxPessoal((c) => {
+      if (c.table === "crm_leads") {
+        expect(c.filtros).toMatchObject({ organization_id: ORG, id: LEAD });
+        return { data: { id: LEAD, contact_id: contatoVinculado }, error: null };
+      }
+      return caminhoLivre(c);
+    }, cap);
+    await crmScheduleFollowup.validateBeforeApproval!(personalInput, ctx);
+    contatoVinculado = OUTRO_CONTATO;
+    await expect(crmScheduleFollowup.handler(personalInput, ctx)).rejects.toThrow(
+      "cliente vinculado à oportunidade mudou",
+    );
+    expect(cap).toEqual(novasCapturas());
+  });
+
+  it("o adaptador canônico barra troca de cliente após o guard do handler", async () => {
+    const cap = novasCapturas();
+    let consultas = 0;
+    const ctx = ctxPessoal((c) => {
+      if (c.table === "crm_leads") {
+        consultas += 1;
+        return {
+          data: { id: LEAD, contact_id: consultas < 3 ? CONTATO : OUTRO_CONTATO },
+          error: null,
+        };
+      }
+      throw new Error(`Não deveria consultar ${c.table} após a divergência`);
+    }, cap);
+    await crmScheduleFollowup.validateBeforeApproval!(personalInput, ctx);
+    const res = await crmScheduleFollowup.handler(personalInput, ctx);
+    expect(res).toMatchObject({ agendado: false, motivo: "cliente_do_negocio_divergente" });
+    expect(consultas).toBe(3);
+    expect(cap).toEqual(novasCapturas());
+  });
+
   it("agenda, grava o retorno e EMITE atividade na timeline do negócio", async () => {
     const cap = novasCapturas();
     const res = (await crmScheduleFollowup.handler(

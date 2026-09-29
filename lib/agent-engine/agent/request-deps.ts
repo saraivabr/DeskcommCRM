@@ -1,16 +1,13 @@
 import { previewFixtureRegistry } from './preview-fixture';
-import { loadEnv } from '../env';
-import { crmEdgeConfigFromEnv } from '../edge/crm/mcp-client';
-import { llmEdgeConfigFromEnv } from '../edge/llm/run-model-call';
-import { createLogger } from '../obs/logger';
-import { turnKnobsFromEnv } from './turn-knobs';
+import { productionRequestTurnDeps } from './production-request-deps';
 import type { InboundTurnDeps } from './inbound-turn';
 export function requestTurnDeps(): InboundTurnDeps {
-  const env = loadEnv();
+  const deps = productionRequestTurnDeps();
   const fixture = process.env.INTERNAL_AGENT_RUN_STUB === 'true';
-  const llmCfg = llmEdgeConfigFromEnv(env);
+  const llmCfg = deps.llmCfg;
   if (fixture) llmCfg.anthropicApiKey = 'local-controlled-provider';
   return {
+    ...deps,
     ...(fixture
       ? {
           registry: previewFixtureRegistry(),
@@ -21,12 +18,6 @@ export function requestTurnDeps(): InboundTurnDeps {
           }),
         }
       : {}),
-    crmCfg: crmEdgeConfigFromEnv({
-      SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY,
-    }),
     llmCfg,
-    knobs: turnKnobsFromEnv(env),
-    log: createLogger(),
   };
 }

@@ -607,6 +607,7 @@ jobs:
         pre-go-live-whatsapp.spec.ts
         smoke.spec.ts auth.spec.ts error-pages.spec.ts
         knowledge-pages-mcp.spec.ts
+        mcp-copilot.spec.ts
         icone-da-marca.spec.ts
         password-recovery.spec.ts signup-journey.spec.ts
         primeiro-acesso-sem-organizacao.spec.ts

@@ -39,6 +39,7 @@
  * a chamada como malsucedida).
  */
 import { z } from "zod";
+import { personalOperationShape, requirePersonalOperation } from "@/lib/mcp/action-input";
 
 import { audit } from "@/lib/audit";
 import {
@@ -76,13 +77,38 @@ const ENSINO_DE_ALVO: Record<string, string> = {
     "esta oportunidade não tem cliente vinculado, então não há para quem voltar a falar. Vincule um cliente antes de marcar um retorno.",
   cliente_nao_encontrado:
     "informe o identificador da oportunidade (lead_id) ou do cliente (contact_id) — um dos dois é obrigatório e precisa existir nesta organização.",
+  cliente_do_negocio_divergente:
+    "o cliente vinculado à oportunidade mudou ou não corresponde ao contact_id informado. Consulte a oportunidade e peça uma nova aprovação com o cliente correto antes de agendar.",
 };
+
+/** Personal approval fixes both the deal and the person who will receive the return. */
+async function requirePersonalFollowupTarget(
+  input: { lead_id?: string; contact_id?: string },
+  ctx: McpContext,
+) {
+  if (!ctx.connectionId || !input.lead_id) return;
+  if (!input.contact_id) {
+    throw new Error("Informe também contact_id ao agendar um retorno pessoal com lead_id.");
+  }
+  const { data, error } = await ctx.supabase
+    .from("crm_leads")
+    .select("contact_id")
+    .eq("organization_id", ctx.organizationId)
+    .eq("id", input.lead_id)
+    .maybeSingle();
+  if (error) throw new Error("Não foi possível verificar o cliente da oportunidade.");
+  if (!data) throw new Error("Oportunidade não encontrada nesta organização.");
+  if (data.contact_id !== input.contact_id) {
+    throw new Error(ENSINO_DE_ALVO.cliente_do_negocio_divergente);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // crm_schedule_followup
 // ---------------------------------------------------------------------------
 
 const agendarShape = {
+  ...personalOperationShape,
   /** Preferido: o alvo é exato e a timeline nunca cai no negócio errado. */
   lead_id: z.string().uuid().optional(),
   contact_id: z.string().uuid().optional(),
@@ -112,6 +138,7 @@ export const crmScheduleFollowup: McpToolDefinition<typeof agendarShape> = {
   name: "crm_schedule_followup",
   description:
     "Agenda o retorno ao cliente num momento futuro. Informe lead_id OU contact_id. " +
+    "Em conexão pessoal, ao informar lead_id inclua também o contact_id vinculado para fixar o cliente da aprovação. " +
     "QUANDO: informe `in_hours` (prazo a partir de agora — ex.: 72 para 'daqui a três dias') " +
     "OU `promised_at` (instante ISO 8601 absoluto). SE VOCÊ NÃO SABE QUE DIA É HOJE, USE " +
     "`in_hours` — é o caminho certo e não exige adivinhar a data. " +
@@ -125,7 +152,12 @@ export const crmScheduleFollowup: McpToolDefinition<typeof agendarShape> = {
   category: "write",
   requiresRole: "ai_operator",
   requiresScope: "mcp:write",
+  validateBeforeApproval: async (input, ctx) => {
+    await requirePersonalOperation(input, ctx);
+    await requirePersonalFollowupTarget(input, ctx);
+  },
   handler: async (input, ctx) => {
+    await requirePersonalFollowupTarget(input, ctx);
     // ⚠️ UM RELÓGIO SÓ para decidir E para ensinar. O modelo NÃO SABE QUE DIA É
     // HOJE — medido num turno real: pedido "daqui a três dias", ele mandou
     // `2023-10-13`, a data do treino dele. A recusa antiga dizia só "já passou",
@@ -251,6 +283,7 @@ export const crmScheduleFollowup: McpToolDefinition<typeof agendarShape> = {
 // ---------------------------------------------------------------------------
 
 const cancelarShape = {
+  ...personalOperationShape,
   followup_id: z.string().uuid(),
   reason: z.string().min(1).max(200),
 };
@@ -267,6 +300,7 @@ export const crmCancelFollowup: McpToolDefinition<typeof cancelarShape> = {
   category: "write",
   requiresRole: "ai_operator",
   requiresScope: "mcp:write",
+  validateBeforeApproval: requirePersonalOperation,
   handler: async (input, ctx) => {
     const resultado = await cancelaRetornoNoCrm(
       {

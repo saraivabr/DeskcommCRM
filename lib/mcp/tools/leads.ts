@@ -24,6 +24,47 @@ import {
 import { createLeadSchema, updateLeadSchema } from "@/lib/schemas/leads";
 import { resolveUserNames } from "./_users";
 import type { McpContext, McpToolDefinition } from "../types";
+import { personalOperationShape, requirePersonalOperation } from "../action-input";
+
+async function requirePersonalLeadAccess(ctx: McpContext, leadId: string) {
+  const access = await conversationAccess(ctx);
+  if (!access) return;
+  const { data, error } = await ctx.supabase
+    .from("crm_leads")
+    .select("owner_user_id")
+    .eq("organization_id", ctx.organizationId)
+    .eq("id", leadId)
+    .maybeSingle();
+  if (error || !data || !canViewConversation(access, data.owner_user_id ?? null))
+    throw new Error("Lead não encontrado ou sem acesso.");
+}
+
+/** Personal writes validate references before handing service-role data to the shared handler. */
+async function requirePersonalLeadReferences(
+  ctx: McpContext,
+  input: { contact_id?: string; owner_user_id?: string },
+) {
+  if (!ctx.connectionId) return;
+  if (input.contact_id) {
+    const { data, error } = await ctx.supabase
+      .from("contacts")
+      .select("id")
+      .eq("organization_id", ctx.organizationId)
+      .eq("id", input.contact_id)
+      .maybeSingle();
+    if (error || !data) throw new Error("Contato não encontrado nesta organização.");
+  }
+  if (input.owner_user_id) {
+    const { data, error } = await ctx.supabase
+      .from("user_organizations")
+      .select("user_id")
+      .eq("organization_id", ctx.organizationId)
+      .eq("user_id", input.owner_user_id)
+      .is("revoked_at", null)
+      .maybeSingle();
+    if (error || !data) throw new Error("Responsável não encontrado nesta organização.");
+  }
+}
 
 /**
  * Enriquece rows de lead com os campos de governança aditivos (G6-03):
@@ -157,6 +198,7 @@ export const crmGetLead: McpToolDefinition<typeof getInputShape> = {
 // ---------------------------------------------------------------------------
 
 const createInputShape = {
+  ...personalOperationShape,
   pipeline_id: z.string().uuid(),
   stage_id: z.string().uuid(),
   title: z.string().min(2).max(200),
@@ -183,7 +225,12 @@ export const crmCreateLead: McpToolDefinition<typeof createInputShape> = {
   category: "write",
   requiresRole: "agent",
   requiresScope: "mcp:write",
+  validateBeforeApproval: async (input, ctx) => {
+    await requirePersonalOperation(input, ctx);
+    await requirePersonalLeadReferences(ctx, input);
+  },
   handler: async (input, ctx) => {
+    await requirePersonalLeadReferences(ctx, input);
     const parsed = createLeadSchema.parse({
       pipeline_id: input.pipeline_id,
       stage_id: input.stage_id,
@@ -218,6 +265,7 @@ export const crmCreateLead: McpToolDefinition<typeof createInputShape> = {
 // ---------------------------------------------------------------------------
 
 const updateInputShape = {
+  ...personalOperationShape,
   lead_id: z.string().uuid(),
   title: z.string().min(2).max(200).optional(),
   description: z.string().max(2000).optional(),
@@ -257,8 +305,15 @@ export const crmUpdateLead: McpToolDefinition<typeof updateInputShape> = {
   category: "write",
   requiresRole: "agent",
   requiresScope: "mcp:write",
+  validateBeforeApproval: async (input, ctx) => {
+    await requirePersonalOperation(input, ctx);
+    await requirePersonalLeadAccess(ctx, input.lead_id);
+    await requirePersonalLeadReferences(ctx, input);
+  },
   handler: async (input, ctx) => {
-    const { lead_id, ...rest } = input;
+    const { lead_id, operation_id: _operationId, ...rest } = input;
+    await requirePersonalLeadAccess(ctx, lead_id);
+    await requirePersonalLeadReferences(ctx, rest);
     const parsed = updateLeadSchema.parse(rest);
     const lead = await updateLeadHandler(
       ctx.supabase,
@@ -279,6 +334,7 @@ export const crmUpdateLead: McpToolDefinition<typeof updateInputShape> = {
 // ---------------------------------------------------------------------------
 
 const moveInputShape = {
+  ...personalOperationShape,
   lead_id: z.string().uuid(),
   to_stage_id: z.string().uuid(),
   position_in_stage: z.number().finite().optional(),
@@ -300,7 +356,12 @@ export const crmMoveLeadStage: McpToolDefinition<typeof moveInputShape> = {
   category: "write",
   requiresRole: "agent",
   requiresScope: "mcp:write",
+  validateBeforeApproval: async (input, ctx) => {
+    await requirePersonalOperation(input, ctx);
+    await requirePersonalLeadAccess(ctx, input.lead_id);
+  },
   handler: async (input, ctx) => {
+    await requirePersonalLeadAccess(ctx, input.lead_id);
     const lead = await moveLeadHandler(
       ctx.supabase,
       {

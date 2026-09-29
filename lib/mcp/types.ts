@@ -29,7 +29,11 @@ export interface McpContext {
 export type McpToolCategory = "read" | "write" | "handoff";
 
 export interface McpToolDefinition<TInput extends z.ZodRawShape = z.ZodRawShape> {
-  permission?: { area: import("./permissions").McpArea; operation: import("./permissions").McpOperation; confirmation?: boolean };
+  permission?: {
+    area: import("./permissions").McpArea;
+    operation: import("./permissions").McpOperation;
+    confirmation?: boolean;
+  };
   name: string;
   description: string;
   inputSchema: TInput;
@@ -71,8 +75,7 @@ export interface McpToolDefinition<TInput extends z.ZodRawShape = z.ZodRawShape>
    * transformaria comportamento normal em alarme.
    */
   motivoDoVazio?: (resultado: unknown) => string | null;
-  handler: (
-    input: z.infer<z.ZodObject<TInput>>,
-    ctx: McpContext,
-  ) => Promise<unknown>;
+  /** Read-only resource validation before storing a personal approval request. */
+  validateBeforeApproval?(input: z.infer<z.ZodObject<TInput>>, ctx: McpContext): Promise<void>;
+  handler: (input: z.infer<z.ZodObject<TInput>>, ctx: McpContext) => Promise<unknown>;
 }
