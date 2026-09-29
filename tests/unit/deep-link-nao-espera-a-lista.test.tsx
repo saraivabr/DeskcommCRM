@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -27,14 +27,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * ## Por que este teste e não uma leitura do fonte
  *
  * O que precisa continuar valendo é COMPORTAMENTO: com a lista ainda no ar, a
- * conversa do deep-link já tem objeto e o painel do contato já pode carregar.
+ * conversa do deep-link já tem objeto e, ao abrir a Ficha, o painel do contato
+ * já pode carregar. A ficha abre sob demanda em um Sheet, em todas as larguras.
  * Um teste que procurasse `!listQ.isLoading` no arquivo aprovaria qualquer outra
  * forma de reintroduzir a espera (um `enabled` novo, um `useEffect` que segura).
  * Aqui a lista NUNCA responde: se a busca única voltar a depender dela, o
  * painel fica sem conversa e o caso reprova.
  */
 
-const { ORG, CONVERSA, CONTATO, CONVERSA_ROW } = vi.hoisted(() => {
+const { ORG, CONVERSA, CONVERSA_ROW } = vi.hoisted(() => {
   const ORG = "00000000-0000-4000-8000-0000000000aa";
   const CONVERSA = "00000000-0000-4000-8000-0000000000cc";
   const CONTATO = "00000000-0000-4000-8000-0000000000c1";
@@ -115,7 +116,13 @@ vi.mock("@/components/inbox/ConversationList", () => ({ ConversationList: () => 
 vi.mock("@/components/inbox/InboxFilters", () => ({ InboxFilters: () => null }));
 vi.mock("@/components/inbox/ChatThread", () => ({ ChatThread: () => null }));
 vi.mock("@/components/inbox/Composer", () => ({ Composer: () => null }));
-vi.mock("@/components/inbox/ConversationHeader", () => ({ ConversationHeader: () => null }));
+vi.mock("@/components/inbox/ConversationHeader", () => ({
+  ConversationHeader: ({ onOpenContact }: { onOpenContact: () => void }) => (
+    <button type="button" onClick={onOpenContact}>
+      Ficha
+    </button>
+  ),
+}));
 vi.mock("@/components/inbox/RetentionNotice", () => ({ RetentionNotice: () => null }));
 vi.mock("@/components/inbox/InboxKeyboardShortcuts", () => ({
   InboxKeyboardShortcuts: () => null,
@@ -127,11 +134,12 @@ import { InboxLayout } from "@/components/inbox/InboxLayout";
 
 function montar() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const tela = render(
     <QueryClientProvider client={qc}>
       <InboxLayout initialSelectedId={CONVERSA} />
     </QueryClientProvider>,
   );
+  return { ...tela, qc };
 }
 
 describe("deep-link para conversa fora do filtro", () => {
@@ -144,13 +152,24 @@ describe("deep-link para conversa fora do filtro", () => {
     );
     // O controle: a lista continua no ar. Sem ele, este caso passaria também
     // num mundo em que a busca única espera — bastaria a lista ter respondido.
-    expect(
-      get.mock.calls.some((c) => (c[0] ?? "").startsWith("/api/v1/conversations?")),
-    ).toBe(true);
+    expect(get.mock.calls.some((c) => (c[0] ?? "").startsWith("/api/v1/conversations?"))).toBe(
+      true,
+    );
   });
 
-  it("entrega a conversa ao painel do contato com a lista ainda no ar", async () => {
-    montar();
-    await waitFor(() => expect(screen.getByTestId("painel")).toHaveTextContent(CONVERSA));
+  it("abre a Ficha com a conversa do deep-link e a lista ainda no ar", async () => {
+    const { qc } = montar();
+    const ficha = await screen.findByRole("button", { name: "Ficha", exact: true });
+    expect(screen.queryByTestId("painel")).not.toBeInTheDocument();
+
+    fireEvent.click(ficha);
+
+    const sheet = await screen.findByRole("dialog", { name: "Ficha do contato", exact: true });
+    expect(within(sheet).getByTestId("painel")).toHaveTextContent(CONVERSA);
+    // Controle de latência: a Ficha recebeu a conversa sem a lista terminar.
+    expect(qc.isFetching({ queryKey: ["conversations"] })).toBeGreaterThan(0);
+    expect(qc.getQueriesData({ queryKey: ["conversations"] }).every(([, data]) => !data)).toBe(
+      true,
+    );
   });
 });

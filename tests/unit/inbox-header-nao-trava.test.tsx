@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { ConversationHeader } from "@/components/inbox/ConversationHeader";
+
+const suporte = vi.hoisted(() => ({ somenteLeitura: false }));
 
 /**
  * CATRACA: o header do inbox não pode voltar a travar a largura da tela.
@@ -55,9 +57,18 @@ vi.mock("@/hooks/inbox/useReleaseConversation", () => ({
 vi.mock("@/hooks/inbox/useResumeAiAttendance", () => ({
   useResumeAiAttendance: () => ({ mutate: vi.fn(), isPending: false }),
 }));
+vi.mock("@/hooks/ai/useAutomaticoAtivo", () => ({
+  useAutomaticoAtivo: () => ({ data: false }),
+}));
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   usePermission: () => true,
-  useAuth: () => ({ user: { id: "u-1" }, activeOrg: { orgId: "org-1", role: "manager" } }),
+  useAuth: () => ({
+    user: {
+      id: "u-1",
+      support: suporte.somenteLeitura ? { access_mode: "support_readonly" } : undefined,
+    },
+    activeOrg: { orgId: "org-1", role: "manager" },
+  }),
 }));
 vi.mock("@/components/voice/AiDialButton", () => ({
   AiDialButton: () => <button type="button">Ligar com IA</button>,
@@ -75,16 +86,20 @@ const conversation = {
   contacts: { id: "ct-1", display_name: "Fulana", name: null, phone_number: "5511999" },
 } as unknown as React.ComponentProps<typeof ConversationHeader>["conversation"];
 
-function renderHeader() {
+function renderHeader(onOpenContact = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <ConversationHeader conversation={conversation} />
+      <ConversationHeader conversation={conversation} onOpenContact={onOpenContact} />
     </QueryClientProvider>,
   );
 }
 
 describe("header do inbox — não trava a largura da tela", () => {
+  beforeEach(() => {
+    suporte.somenteLeitura = false;
+  });
+
   it("a barra de ações NÃO é shrink-0 — era isso que impunha o piso de 707px", () => {
     const { container } = renderHeader();
     const header = container.firstElementChild as HTMLElement;
@@ -121,18 +136,29 @@ describe("header do inbox — não trava a largura da tela", () => {
     }
   });
 
-  it('"Ver contato" existe no DOM e só se cala onde há outra porta', () => {
-    renderHeader();
-    // Ele NÃO sai do markup: some por CSS a partir de `xl`, exatamente a largura
-    // em que o painel lateral entra na tela com um "Ver contato" próprio. A
-    // distinção importa — remover do DOM tiraria a ação de quem usa 1024px, que
-    // é onde o painel não existe e esta é a única porta para o contato.
-    const link = screen.getByText("Ver contato").closest("a, button") as HTMLElement;
-    expect(link, "o link para o contato sumiu do markup").toBeTruthy();
-    const classes = `${link.className} ${link.parentElement?.className ?? ""}`;
-    expect(
-      classes,
-      "sem `xl:hidden`, a duplicata volta e o header ganha uma segunda linha em 1280px",
-    ).toContain("xl:hidden");
+  it("Ficha continua disponível no desktop e abre o painel sob demanda", () => {
+    const abrirFicha = vi.fn();
+    renderHeader(abrirFicha);
+    const ficha = screen.getByRole("button", { name: "Ficha", exact: true });
+    expect(ficha).toBeVisible();
+    // O Sheet substituiu a coluna permanente: ocultar esta porta em `xl`
+    // deixaria o desktop sem ficha. O jsdom só pode guardar as classes.
+    const classes = `${ficha.className} ${ficha.parentElement?.className ?? ""}`;
+    expect(classes).not.toMatch(/(?:^|\s)(?:[\w-]+:)*hidden(?:\s|$)/);
+    fireEvent.click(ficha);
+    expect(abrirFicha).toHaveBeenCalledOnce();
+  });
+
+  it("Ficha permanece acessível no acompanhamento somente leitura", () => {
+    suporte.somenteLeitura = true;
+    const abrirFicha = vi.fn();
+    renderHeader(abrirFicha);
+    expect(screen.getByText(/Somente leitura/)).toBeVisible();
+    const ficha = screen.getByRole("button", { name: "Ficha", exact: true });
+    expect(ficha).toBeVisible();
+    const classes = `${ficha.className} ${ficha.parentElement?.className ?? ""}`;
+    expect(classes).not.toMatch(/(?:^|\s)(?:[\w-]+:)*hidden(?:\s|$)/);
+    fireEvent.click(ficha);
+    expect(abrirFicha).toHaveBeenCalledOnce();
   });
 });
