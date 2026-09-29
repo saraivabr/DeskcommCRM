@@ -57,6 +57,14 @@ export type AlvoDeFunil =
   | "sem_funil";
 
 export const ALVO_DE_FUNIL: Record<string, AlvoDeFunil> = {
+  // Personal Inbox preview persists a draft and never applies CRM proposals.
+  crm_generate_reply_draft: "sem_funil",
+  // These personal adapters change configuration/content, not CRM opportunities.
+  ai_create_agent_draft: "sem_funil",
+  ai_publish_agent_draft: "sem_funil",
+  content_generate_studio_post: "sem_funil",
+  knowledge_archive_page: "sem_funil",
+  knowledge_save_page: "sem_funil",
   // ---- escrevem em crm_leads: o coração do escopo ----
   crm_create_lead: "pipeline_no_argumento",
   crm_update_lead: "funil_vem_do_lead",

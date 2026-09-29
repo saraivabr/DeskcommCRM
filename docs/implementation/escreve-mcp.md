@@ -1,6 +1,10 @@
 # escreve.ai MCP — implementation checkpoint
 
-Status: **incomplete; not approved for production rollout**. This branch implements the knowledge and user-bound connection foundation. It does not yet meet the approved full-product coverage criterion.
+Status: **partial product coverage**. The foundation and agent/content operations have been released; this historical checkpoint does not describe full-product acceptance. Verify the running revision through `/api/v1/health` and the personal tool allowlist in `lib/mcp/permissions.ts`.
+
+## Atendimento, CRM e agenda
+
+The next scoped expansion is documented in [Atendimento, CRM e agenda](../features/mcp-atendimento-crm-agenda.md): personal connection adapters, explicit consent, exact-argument confirmation, Inbox draft review and existing CRM/calendar services. The sections below retain evidence and outstanding scope from the original foundation checkpoint; they are not a current release ledger.
 
 ## Implemented in this branch
 

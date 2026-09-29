@@ -13,6 +13,7 @@ import { audit } from "@/lib/audit";
 import { isFirstPartyConnectionRequest } from "@/lib/mcp/connection-origin";
 import { oauthOrigin } from "@/lib/mcp/oauth";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { operationalApprovalDetails } from "@/lib/mcp/approval-details";
 export async function GET() {
   const auth = await requireRole("viewer", { resource: "mcp_action_approvals" });
   if (!auth.ok) return auth.response;
@@ -34,7 +35,15 @@ export async function GET() {
       let resourceTitle = traduzir("Operação solicitada", auth.user.idioma);
       let summary = traduzir("Confira os detalhes antes de aprovar.", auth.user.idioma);
       let resourceUrl: string | null = null;
-      if (row.tool_name === "knowledge_archive_page") {
+      const operational = await operationalApprovalDetails(db, auth.org.orgId, auth.user.idioma, row, {
+        userId: auth.user.id,
+        role: auth.org.role,
+      });
+      if (operational) {
+        resourceTitle = operational.resource_title;
+        summary = operational.summary;
+        resourceUrl = operational.resource_url;
+      } else if (row.tool_name === "knowledge_archive_page") {
         const { data: page } = await db
           .from("knowledge_pages")
           .select("title")
@@ -87,7 +96,8 @@ export async function GET() {
         resource_url: resourceUrl,
       };
     }),
-  );
+  ).catch(() => null);
+  if (!approvals) return fail("internal_error", "Não foi possível preparar as confirmações.", 500);
   return ok({ approvals });
 }
 export async function POST(req: Request) {

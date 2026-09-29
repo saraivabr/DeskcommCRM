@@ -37,6 +37,7 @@ import {
 import { ApiError } from "@/lib/api/types";
 import { SITUACOES_DO_AGENDAMENTO } from "@/lib/agenda/tipos";
 import type { McpContext, McpToolDefinition } from "@/lib/mcp/types";
+import { personalOperationShape, requirePersonalOperation } from "@/lib/mcp/action-input";
 
 /** Teto do horizonte pedido — espelha o da rota, e o excesso é erro de chamada. */
 const DIAS_PADRAO = 14;
@@ -498,6 +499,7 @@ async function semDerrubarOTurno<T>(
 }
 
 const marcarShape = {
+  ...personalOperationShape,
   event_type_slug: z.string().min(1).describe("o identificador legível do tipo de atendimento"),
   starts_at: z.string().datetime({ offset: true }).describe("o instante exato do início, vindo de `crm_find_free_slots`"),
   contact_id: z.string().uuid().describe("quem vai ser atendido"),
@@ -538,6 +540,7 @@ export const crmBookAppointment: McpToolDefinition<typeof marcarShape> = {
   category: "write",
   requiresRole: "ai_operator",
   requiresScope: "mcp:write",
+  validateBeforeApproval: requirePersonalOperation,
   handler: async (input, ctx) =>
     semDerrubarOTurno("marcado", async () => {
       const tipo = await idDoTipoPorSlug(ctx.supabase, ctx.organizationId, input.event_type_slug);
@@ -643,6 +646,7 @@ async function marcarHorario(
 }
 
 const consultarEMarcarShape = {
+  ...personalOperationShape,
   event_type_slug: z.string().min(1).describe("o identificador legível do tipo de atendimento"),
   dia: z
     .string()
@@ -703,6 +707,7 @@ export const crmFindAndBookAppointment: McpToolDefinition<typeof consultarEMarca
   category: "write",
   requiresRole: "ai_operator",
   requiresScope: "mcp:write",
+  validateBeforeApproval: requirePersonalOperation,
   handler: async (input, ctx) => {
     const agora = new Date();
     const { de, ate } = faixaAmplaDoDia(input.dia);
@@ -829,6 +834,7 @@ export const crmFindAndBookAppointment: McpToolDefinition<typeof consultarEMarca
 };
 
 const remarcarShape = {
+  ...personalOperationShape,
   appointment_id: z.string().uuid(),
   new_starts_at: z.string().datetime({ offset: true }).describe("o novo início, vindo de `crm_find_free_slots`"),
   notes: z.string().max(2000).optional(),
@@ -848,6 +854,7 @@ export const crmRescheduleAppointment: McpToolDefinition<typeof remarcarShape> =
   category: "write",
   requiresRole: "ai_operator",
   requiresScope: "mcp:write",
+  validateBeforeApproval: requirePersonalOperation,
   handler: async (input, ctx) =>
     semDerrubarOTurno("remarcado", async () => {
       const r = await alterarAgendamentoHandler(
@@ -864,6 +871,7 @@ export const crmRescheduleAppointment: McpToolDefinition<typeof remarcarShape> =
 };
 
 const cancelarShape = {
+  ...personalOperationShape,
   appointment_id: z.string().uuid(),
   /**
    * OBRIGATÓRIO, e não é burocracia: é o que a equipe lê ao ver o horário vago.
@@ -887,6 +895,7 @@ export const crmCancelAppointment: McpToolDefinition<typeof cancelarShape> = {
   category: "write",
   requiresRole: "ai_operator",
   requiresScope: "mcp:write",
+  validateBeforeApproval: requirePersonalOperation,
   handler: async (input, ctx) =>
     semDerrubarOTurno("cancelado", async () => {
       const r = await cancelarAgendamentoHandler(
@@ -899,6 +908,7 @@ export const crmCancelAppointment: McpToolDefinition<typeof cancelarShape> = {
 };
 
 const confirmarShape = {
+  ...personalOperationShape,
   appointment_id: z.string().uuid().describe("o compromisso, vindo de `crm_list_appointments`"),
   notes: z.string().max(2000).optional(),
 };
@@ -917,6 +927,7 @@ export const crmConfirmAppointment: McpToolDefinition<typeof confirmarShape> = {
   category: "write",
   requiresRole: "ai_operator",
   requiresScope: "mcp:write",
+  validateBeforeApproval: requirePersonalOperation,
   handler: async (input, ctx) =>
     semDerrubarOTurno("confirmado", async () => {
       const r = await alterarAgendamentoHandler(
@@ -933,6 +944,7 @@ export const crmConfirmAppointment: McpToolDefinition<typeof confirmarShape> = {
 };
 
 const desfechoShape = {
+  ...personalOperationShape,
   appointment_id: z.string().uuid().describe("o compromisso, vindo de `crm_list_appointments`"),
   outcome: z
     .enum(["completed", "no_show"])
@@ -950,6 +962,7 @@ export const crmSetAppointmentOutcome: McpToolDefinition<typeof desfechoShape> =
   category: "write",
   requiresRole: "ai_operator",
   requiresScope: "mcp:write",
+  validateBeforeApproval: requirePersonalOperation,
   handler: async (input, ctx) =>
     semDerrubarOTurno("registrado", async () => {
       if (ctx.actor.type !== "user") return { registrado: false, requer_confirmacao_humana: true,

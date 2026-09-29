@@ -23,6 +23,9 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
   const [whatsapp, setWhatsapp] = useState(false);
   const [sendWhatsapp, setSendWhatsapp] = useState(false);
   const [crm, setCrm] = useState(false);
+  const [crmWrite, setCrmWrite] = useState(false);
+  const [agendaRead, setAgendaRead] = useState(false);
+  const [agendaWrite, setAgendaWrite] = useState(false);
   const [write, setWrite] = useState(false);
   const [agentsRead, setAgentsRead] = useState(false);
   const [agentsWrite, setAgentsWrite] = useState(false);
@@ -67,6 +70,9 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             ...(whatsapp ? ["whatsapp:read"] : []),
             ...(sendWhatsapp ? ["whatsapp:execute"] : []),
             ...(crm ? ["crm:read"] : []),
+            ...(crmWrite ? ["crm:write"] : []),
+            ...(agendaRead ? ["agenda:read"] : []),
+            ...(agendaWrite ? ["agenda:write"] : []),
             ...(agentsRead ? ["automations:read"] : []),
             ...(agentsWrite ? ["automations:write"] : []),
             ...(agentsPublish ? ["automations:execute"] : []),
@@ -155,7 +161,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
       </p>
       <p>
         {t(
-          "Consulte conhecimento, conversas, agentes e postagens. Com permissão específica, prepare agentes e gere postagens para revisão. Publicar agentes exige confirmação adicional.",
+          "Consulte conhecimento, conversas, CRM, agenda, agentes e postagens. Prepare respostas no Inbox e gerencie leads, retornos e agendamentos com confirmação. Gerações de IA usam créditos.",
         )}
       </p>
       <p>
@@ -213,7 +219,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
               checked={sendWhatsapp}
               onChange={(e) => setSendWhatsapp(e.target.checked)}
             />{" "}
-            {t("Enviar mensagens pelo WhatsApp nas conversas que posso acessar")}
+            {t("Enviar mensagens; gerar rascunhos com créditos após confirmação")}
           </label>
         )}
         {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("crm:read")) && (
@@ -222,6 +228,39 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             {t("Consultar contatos, leads e funis do CRM")}
           </label>
         )}
+        {(role === "manager" || role === "admin") &&
+          (!oauth || oauth.scope?.split(" ").includes("crm:write")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={crmWrite}
+                onChange={(e) => setCrmWrite(e.target.checked)}
+              />{" "}
+              {t("Criar e atualizar leads e etapas após minha confirmação")}
+            </label>
+          )}
+        {(role === "manager" || role === "admin") &&
+          (!oauth || oauth.scope?.split(" ").includes("agenda:read")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={agendaRead}
+                onChange={(e) => setAgendaRead(e.target.checked)}
+              />{" "}
+              {t("Consultar agenda, tipos de evento e horários disponíveis")}
+            </label>
+          )}
+        {(role === "manager" || role === "admin") &&
+          (!oauth || oauth.scope?.split(" ").includes("agenda:write")) && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={agendaWrite}
+                onChange={(e) => setAgendaWrite(e.target.checked)}
+              />{" "}
+              {t("Agendar, remarcar e registrar resultados após minha confirmação")}
+            </label>
+          )}
         {role !== "viewer" && (!oauth || oauth.scope?.split(" ").includes("knowledge:write")) && (
           <label className="block">
             <input type="checkbox" checked={write} onChange={(e) => setWrite(e.target.checked)} />{" "}
@@ -236,7 +275,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
                 checked={agentsRead}
                 onChange={(e) => setAgentsRead(e.target.checked)}
               />{" "}
-              {t("Consultar agentes e configurações")}
+              {t("Consultar agentes, retornos e leads em risco")}
             </label>
           )}
         {role === "admin" && (!oauth || oauth.scope?.split(" ").includes("automations:write")) && (
@@ -249,7 +288,7 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
             {t("Criar rascunhos de configuração dos agentes")}
           </label>
         )}
-        {role === "admin" &&
+        {(role === "manager" || role === "admin") &&
           (!oauth || oauth.scope?.split(" ").includes("automations:execute")) && (
             <label className="block">
               <input
@@ -257,7 +296,9 @@ export function ConnectionsClient({ endpoint }: { endpoint: string }) {
                 checked={agentsPublish}
                 onChange={(e) => setAgentsPublish(e.target.checked)}
               />{" "}
-              {t("Publicar agentes após minha confirmação")}
+              {role === "admin"
+                ? t("Publicar agentes e programar retornos após minha confirmação")
+                : t("Programar e cancelar retornos após minha confirmação")}
             </label>
           )}
         {(role === "manager" || role === "admin") &&
