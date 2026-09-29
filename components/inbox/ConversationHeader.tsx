@@ -159,11 +159,16 @@ export function ConversationHeader({ conversation, onAbrirConversa, onOpenContac
 
   if (user.support?.access_mode === "support_readonly")
     return (
-      <header className="flex items-center justify-between border-b p-4">
+      <header className="workspace-chat-header flex flex-wrap items-center justify-between gap-3 border-b p-4">
         <strong>{displayName}</strong>
         <span className="text-sm text-muted-foreground">
-          {STATUS_LABEL[status] ?? status} · Somente leitura
+          {t(STATUS_LABEL[status] ?? status)} · {t("Somente leitura")}
         </span>
+        {onOpenContact && (
+          <Button variant="outline" size="sm" onClick={onOpenContact}>
+            <ContactRound size={16} aria-hidden /> {t("Ficha")}
+          </Button>
+        )}
       </header>
     );
   return (

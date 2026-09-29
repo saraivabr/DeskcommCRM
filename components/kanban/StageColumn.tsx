@@ -92,7 +92,7 @@ export function StageColumn({
     : undefined;
 
   return (
-    <div className="workspace-stage flex w-80 shrink-0 flex-col rounded-lg border border-border bg-surface-muted/40">
+    <div className="workspace-stage bg-surface-muted/40 flex w-80 shrink-0 flex-col rounded-lg border border-border">
       <div className="group/etapa flex items-center gap-2 border-b border-border px-3 py-2.5">
         {/* "Selecionar a etapa inteira" é o gesto que faz a ação em lote valer a
             pena: sem ele, mover trinta cards deixa de ser trinta arrastes e vira
@@ -121,23 +121,18 @@ export function StageColumn({
           )}
         />
         <span
-          className={cn(
-            "h-2 w-2 rounded-full",
-            !stage.color && "bg-text-muted/40",
-          )}
+          className={cn("h-2 w-2 rounded-full", !stage.color && "bg-text-muted/40")}
           style={accentStyle}
           aria-hidden
         />
-        <h2 className="flex-1 truncate text-sm font-semibold text-text">
-          {stage.name}
-        </h2>
-        <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium tabular-nums text-text-muted">
+        <h2 className="flex-1 truncate text-sm font-semibold text-text">{stage.name}</h2>
+        <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-text-muted tabular-nums">
           {selecionadosAqui > 0 ? `${selecionadosAqui}/${leads.length}` : leads.length}
         </span>
       </div>
 
       {totalCents > 0 && (
-        <div className="border-b border-border px-3 py-1.5 text-[11px] tabular-nums text-text-muted">
+        <div className="workspace-stage-total border-b border-border px-3 py-1.5 text-[11px] text-text-muted tabular-nums">
           {formatCents(totalCents, moedaDoTotal)}
         </div>
       )}

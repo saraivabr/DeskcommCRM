@@ -122,17 +122,25 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
           </button>
         </div>
       </div>
-      {busy && (
-        <p role="status" className={styles.status}>
-          {t("Consultando sua operação…")}
-        </p>
+      <p role="status" className={styles.loadStatus}>
+        {busy ? t(data ? "Atualizando sua operação…" : "Consultando sua operação…") : "\u00a0"}
+      </p>
+      {busy && !data && (
+        <div className={styles.metrics} aria-hidden="true">
+          {[0, 1, 2, 3].map((key) => (
+            <div key={key} className={styles.metricSkeleton}>
+              <span />
+              <span />
+            </div>
+          ))}
+        </div>
       )}
       {error && (
         <p role="alert" className={styles.error}>
           {t(error)}
         </p>
       )}
-      {!busy && data && (
+      {data && (
         <section aria-labelledby="home-movement-title">
           <h2 id="home-movement-title" className="sr-only">
             {t("Movimento da operação")}
@@ -171,7 +179,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
             </div>
             <Clock size={20} aria-hidden />
           </div>
-          {!busy && data && (
+          {data && (
             <>
               {firstPending && (
                 <Link href={firstPending.href} className={styles.nextAction}>
@@ -212,7 +220,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
               </div>
               <p className={styles.note}>
                 {t(
-                  scope === "mine"
+                  (data?.scope ?? scope) === "mine"
                     ? "Registros atualmente atribuídos a você."
                     : "Registros visíveis da equipe.",
                 )}
@@ -224,18 +232,21 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
           <div className={styles.sectionHead}>
             <div>
               <span className={styles.eyebrow}>{t("CONVERSAS")}</span>
-              <h2 id="home-activity-title">{t("Acontecendo agora")}</h2>
+              <h2 id="home-activity-title">{t("Conversas recentes")}</h2>
             </div>
             <Link
-              href={scope === "mine" ? "/app/inbox?filter=mine" : "/app/inbox?filter=all"}
+              href={
+                (data?.scope ?? scope) === "mine"
+                  ? "/app/inbox?filter=mine"
+                  : "/app/inbox?filter=all"
+              }
               className={styles.quietLink}
             >
               {t("Ver tudo")}
               <ArrowRight size={14} aria-hidden />
             </Link>
           </div>
-          {!busy &&
-            data &&
+          {data &&
             (data.activities === null ? (
               <p role="alert" className={styles.status}>
                 {t("Não foi possível consultar as atividades. Tente atualizar.")}
@@ -263,7 +274,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
         </section>
         {assistant && <div className={styles.assistantPanel}>{assistant}</div>}
       </div>
-      {!busy && data && (
+      {data && (
         <p className={styles.note}>
           {t("Consultado em")}{" "}
           <time dateTime={data.updatedAt}>{new Date(data.updatedAt).toLocaleString()}</time> ·{" "}

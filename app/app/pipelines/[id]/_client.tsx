@@ -113,7 +113,7 @@ export function PipelinePageClient({
             {data?.pipeline.name ?? initialName}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t("Da primeira conversa ao negócio fechado.")}
+            {t("Acompanhe etapas, valores e responsáveis.")}
           </p>
         </div>
         <Button onClick={() => setNewOpen(true)} disabled={!data} className="shrink-0">
@@ -122,7 +122,7 @@ export function PipelinePageClient({
       </header>
       <section className="workspace-pipeline-summary" aria-label={t("Resumo do funil")}>
         <div>
-          <span>{t("Em negociação")}</span>
+          <span>{t("Oportunidades abertas")}</span>
           <strong>{data ? openLeads.length : "—"}</strong>
         </div>
         <div>
