@@ -159,12 +159,12 @@ describe("deep-link para conversa fora do filtro", () => {
 
   it("abre a Ficha com a conversa do deep-link e a lista ainda no ar", async () => {
     const { qc } = montar();
-    const ficha = await screen.findByRole("button", { name: "Ficha", exact: true });
+    const ficha = await screen.findByRole("button", { name: "Ficha" });
     expect(screen.queryByTestId("painel")).not.toBeInTheDocument();
 
     fireEvent.click(ficha);
 
-    const sheet = await screen.findByRole("dialog", { name: "Ficha do contato", exact: true });
+    const sheet = await screen.findByRole("dialog", { name: "Ficha do contato" });
     expect(within(sheet).getByTestId("painel")).toHaveTextContent(CONVERSA);
     // Controle de latência: a Ficha recebeu a conversa sem a lista terminar.
     expect(qc.isFetching({ queryKey: ["conversations"] })).toBeGreaterThan(0);

@@ -139,7 +139,7 @@ describe("header do inbox — não trava a largura da tela", () => {
   it("Ficha continua disponível no desktop e abre o painel sob demanda", () => {
     const abrirFicha = vi.fn();
     renderHeader(abrirFicha);
-    const ficha = screen.getByRole("button", { name: "Ficha", exact: true });
+    const ficha = screen.getByRole("button", { name: "Ficha" });
     expect(ficha).toBeVisible();
     // O Sheet substituiu a coluna permanente: ocultar esta porta em `xl`
     // deixaria o desktop sem ficha. O jsdom só pode guardar as classes.
@@ -154,7 +154,7 @@ describe("header do inbox — não trava a largura da tela", () => {
     const abrirFicha = vi.fn();
     renderHeader(abrirFicha);
     expect(screen.getByText(/Somente leitura/)).toBeVisible();
-    const ficha = screen.getByRole("button", { name: "Ficha", exact: true });
+    const ficha = screen.getByRole("button", { name: "Ficha" });
     expect(ficha).toBeVisible();
     const classes = `${ficha.className} ${ficha.parentElement?.className ?? ""}`;
     expect(classes).not.toMatch(/(?:^|\s)(?:[\w-]+:)*hidden(?:\s|$)/);
