@@ -4,7 +4,13 @@ import { z } from "zod";
 import { loadConversationAgentConfig, type PublishedAgentConfig } from "./agent-config";
 import { getLeadContext } from "../edge/crm/get-lead-context";
 import { fusoDaOrganizacao } from "./fuso-da-org";
-import { latestCheckpoint, runAgentPreview, type InboundTurnDeps } from "./inbound-turn";
+import {
+  checkpointContentSchema,
+  latestCheckpoint,
+  runAgentPreview,
+  type CheckpointContent,
+  type InboundTurnDeps,
+} from "./inbound-turn";
 import { newPreviewResult } from "./preview";
 import type { ServiceBoundary } from "@/lib/atendimento/fronteira";
 import { parseServiceBoundary, assertCurrentServiceBoundary } from "@/lib/atendimento/fronteira";
@@ -25,6 +31,8 @@ export const replyDraftSchema = z
   })
   .passthrough();
 export type ReplyDraft = z.infer<typeof replyDraftSchema>;
+/** A análise da prévia não vira checkpoint operacional nem acompanha um cache anterior. */
+export type ReplyDraftWithPreview = ReplyDraft & { preview_checkpoint?: CheckpointContent };
 export async function generateReplyDraft(
   pool: pg.Pool,
   deps: InboundTurnDeps,
@@ -33,10 +41,11 @@ export async function generateReplyDraft(
     conversationId: string;
     contactId: string;
     channelId: string;
+    expectedContextRevision?: string;
     boundary?: ServiceBoundary;
     agent?: PublishedAgentConfig;
   },
-) {
+): Promise<ReplyDraftWithPreview> {
   const agent =
     input.agent ??
     (await loadConversationAgentConfig(
@@ -64,6 +73,19 @@ export async function generateReplyDraft(
     ]);
     const draft = replyDraftSchema.parse(rows[0]);
     assertCurrentServiceBoundary(parseServiceBoundary(draft.service_boundary), observed);
+    if (
+      input.expectedContextRevision !== undefined &&
+      String(draft.context_revision) !== input.expectedContextRevision
+    ) {
+      // fn_reply_begin captura sob lock a revisão real. A conversa pode mudar
+      // depois da aprovação MCP e antes daqui; nesse caso nenhum modelo roda.
+      if (draft.generation_token === token && draft.status === "generating")
+        await pool.query(
+          "update ai_reply_drafts set status='stale',updated_at=now() where organization_id=$1 and id=$2 and generation_token=$3 and status='generating'",
+          [input.organizationId, draft.id, token],
+        );
+      throw new Error("reply_context_stale");
+    }
     if (draft.generation_token !== token || draft.status !== "generating") return draft;
     try {
       const context = await getLeadContext(
@@ -116,7 +138,14 @@ export async function generateReplyDraft(
           result.impediments[0]?.code ?? null,
         ],
       );
-      return replyDraftSchema.parse(finished[0] ?? draft);
+      const saved = replyDraftSchema.parse(finished[0] ?? draft);
+      const checkpoint = checkpointContentSchema.safeParse(result.checkpoint);
+      return {
+        ...saved,
+        ...(saved.status === "pending" && checkpoint.success
+          ? { preview_checkpoint: checkpoint.data }
+          : {}),
+      };
     } catch (error) {
       await pool.query(
         "update ai_reply_drafts set status='failed',error_code='generation_failed',updated_at=now() where organization_id=$1 and id=$2 and generation_token=$3 and status='generating'",

@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "MCP pessoal — atendimento, CRM e agenda",
+    "subtitle": "Contexto, confirmação humana e serviços existentes",
+    "output": "mcp-atendimento.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "app", "label": "Aplicativo" },
+    { "id": "db", "label": "Dados e serviços" }
+  ],
+  "mainPath": ["client", "gate", "approval", "operations", "screens"],
+  "nodes": [
+    {
+      "id": "client",
+      "lane": "app",
+      "col": 0,
+      "type": "service",
+      "label": "ChatGPT e outros clientes pessoais"
+    },
+    {
+      "id": "gate",
+      "lane": "app",
+      "col": 1,
+      "type": "service",
+      "label": "OAuth, membership, scopes, papel e visibilidade"
+    },
+    {
+      "id": "context",
+      "lane": "db",
+      "col": 2,
+      "type": "service",
+      "label": "Contexto do atendimento e próximo passo por revisão"
+    },
+    {
+      "id": "approval",
+      "lane": "app",
+      "col": 2,
+      "type": "service",
+      "label": "Conectar minha IA: detalhes e aprovação de argumentos exatos"
+    },
+    {
+      "id": "draft",
+      "lane": "db",
+      "col": 3,
+      "type": "service",
+      "label": "Preview assistido → ai_reply_drafts, sem efeito externo"
+    },
+    {
+      "id": "operations",
+      "lane": "db",
+      "col": 3,
+      "type": "service",
+      "label": "Handlers CRM, agenda e retornos com organização explícita"
+    },
+    {
+      "id": "screens",
+      "lane": "app",
+      "col": 4,
+      "type": "service",
+      "label": "Inbox, Funis, Agenda e Radar de Risco"
+    },
+    {
+      "id": "feedback",
+      "lane": "db",
+      "col": 5,
+      "type": "database",
+      "label": "Revisão humana, desfechos, contexto e auditoria"
+    }
+  ],
+  "edges": [
+    { "from": "client", "to": "gate", "label": "pedido autenticado" },
+    { "from": "gate", "to": "context", "label": "consulta permitida" },
+    { "from": "context", "to": "client", "label": "resumo, evidências e próximo passo" },
+    { "from": "gate", "to": "approval", "label": "ação ou consumo de IA" },
+    { "from": "approval", "to": "draft", "label": "gerar após aprovação" },
+    { "from": "approval", "to": "operations", "label": "claim único após aprovação" },
+    { "from": "draft", "to": "screens", "label": "editar, recusar ou aprovar no Inbox" },
+    { "from": "operations", "to": "screens", "label": "resultado nas telas e timeline" },
+    { "from": "screens", "to": "feedback", "label": "decisão humana e desfecho" },
+    { "from": "feedback", "to": "context", "label": "contexto do próximo pedido" },
+    { "from": "feedback", "to": "draft", "label": "decisões anteriores e freshness" }
+  ]
+}

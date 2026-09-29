@@ -115,6 +115,28 @@ export const TOOLS_ATENDIMENTO = declararTools([
     pacotes: ["atender"],
   },
   {
+    name: "crm_get_attendance_context",
+    category: "read",
+    rotulo: "Preparar contexto do atendimento",
+    explicacao:
+      "Reúne a conversa, os compromissos e o próximo passo para você continuar o atendimento com contexto.",
+    oQueToca: "Atendimento",
+    risco: "seguro",
+    pacotes: ["organizar"],
+    apenasHumano: true,
+  },
+  {
+    name: "crm_generate_reply_draft",
+    category: "write",
+    rotulo: "Preparar resposta para revisar",
+    explicacao:
+      "Usa créditos de IA para preparar uma resposta no Inbox. Você pode editar e aprovar antes de enviar ao cliente.",
+    oQueToca: "Atendimento",
+    risco: "atencao",
+    pacotes: ["organizar"],
+    apenasHumano: true,
+  },
+  {
     name: "crm_start_conversation_and_send",
     category: "write",
     rotulo: "Iniciar conversa com cliente novo e enviar mensagem",

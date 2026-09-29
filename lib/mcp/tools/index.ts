@@ -1,6 +1,7 @@
 import { knowledgePageTools } from "./knowledge-pages";
 import { aiOperationTools } from "./ai-operations";
 import { contentOperationTools } from "./content-operations";
+import { crmGetAttendanceContext, crmGenerateReplyDraft } from "./atendimento";
 /**
  * Catalogo agregado de tools MCP.
  *
@@ -91,6 +92,8 @@ export const allTools: ReadonlyArray<McpToolDefinition> = [
   ...knowledgePageTools,
   ...aiOperationTools,
   ...contentOperationTools,
+  crmGetAttendanceContext,
+  crmGenerateReplyDraft,
   // read
   crmListEventTypes,
   crmFindFreeSlots,

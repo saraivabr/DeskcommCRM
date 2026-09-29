@@ -23,12 +23,15 @@ export const TOOL_AREAS: Record<string, McpArea> = {
   crm_create_lead: "crm",
   crm_update_lead: "crm",
   crm_move_lead_stage: "crm",
+  crm_list_stages: "crm",
   crm_list_pipelines: "crm",
   crm_list_contact_orders: "crm",
   crm_search_products: "crm",
   crm_list_conversations: "whatsapp",
   crm_get_conversation: "whatsapp",
   crm_get_conversation_history: "whatsapp",
+  crm_get_attendance_context: "whatsapp",
+  crm_generate_reply_draft: "whatsapp",
   crm_send_whatsapp_message: "whatsapp",
   crm_start_conversation_and_send: "whatsapp",
   crm_assign_conversation: "whatsapp",
@@ -57,7 +60,6 @@ export const TOOL_AREAS: Record<string, McpArea> = {
   crm_close_demand: "automations",
   crm_propose_reactivation: "automations",
   crm_enroll_followup_flow: "automations",
-  crm_list_stages: "automations",
   crm_create_stage: "automations",
   crm_update_stage: "automations",
   crm_archive_stage: "automations",
@@ -85,6 +87,8 @@ const EXTERNAL = new Set([
   "crm_send_whatsapp_message",
   "crm_start_conversation_and_send",
   "crm_schedule_followup",
+  "crm_cancel_followup",
+  "crm_generate_reply_draft",
   "crm_enroll_followup_flow",
   "crm_set_automation_rule_active",
   "crm_set_webhook_source_active",
@@ -97,7 +101,41 @@ const DESTRUCTIVE = new Set([
   "crm_close_human_case",
   "crm_close_demand",
 ]);
-export function permissionFor(tool: McpToolDefinition) {
+/** These adapters act on the whole team. Personal callers must manage that team. */
+const PERSONAL_MANAGEMENT_TOOLS = new Set([
+  "crm_create_lead",
+  "crm_update_lead",
+  "crm_move_lead_stage",
+  "crm_list_stages",
+  "crm_list_followups",
+  "crm_list_at_risk_leads",
+  "crm_schedule_followup",
+  "crm_cancel_followup",
+  "crm_list_event_types",
+  "crm_find_free_slots",
+  "crm_list_appointments",
+  "crm_book_appointment",
+  "crm_find_and_book_appointment",
+  "crm_reschedule_appointment",
+  "crm_cancel_appointment",
+  "crm_confirm_appointment",
+  "crm_set_appointment_outcome",
+]);
+const PERSONAL_CONFIRMED_TOOLS = new Set([
+  "crm_create_lead",
+  "crm_update_lead",
+  "crm_move_lead_stage",
+  "crm_schedule_followup",
+  "crm_cancel_followup",
+  "crm_generate_reply_draft",
+  "crm_book_appointment",
+  "crm_find_and_book_appointment",
+  "crm_reschedule_appointment",
+  "crm_cancel_appointment",
+  "crm_confirm_appointment",
+  "crm_set_appointment_outcome",
+]);
+export function permissionFor(tool: Pick<McpToolDefinition, "name" | "category" | "permission">) {
   const area = tool.permission?.area ?? TOOL_AREAS[tool.name];
   if (!area) return null;
   const operation: McpOperation =
@@ -107,7 +145,9 @@ export function permissionFor(tool: McpToolDefinition) {
     area,
     operation,
     scope: `${area}:${operation}`,
-    confirmation: tool.permission?.confirmation ?? DESTRUCTIVE.has(tool.name),
+    confirmation:
+      tool.permission?.confirmation ??
+      (DESTRUCTIVE.has(tool.name) || PERSONAL_CONFIRMED_TOOLS.has(tool.name)),
   };
 }
 export const MCP_SCOPES = Object.keys(MCP_AREAS).flatMap((area) =>
@@ -140,6 +180,9 @@ const VERIFIED_CONNECTION_TOOLS = new Set([
   "crm_search_contacts",
   "crm_get_contact",
   "crm_list_pipelines",
+  "crm_get_attendance_context",
+  "crm_generate_reply_draft",
+  ...PERSONAL_MANAGEMENT_TOOLS,
 ]);
 const PERSONAL_CONNECTION_ONLY = new Set([
   "ai_list_agents",
@@ -148,6 +191,8 @@ const PERSONAL_CONNECTION_ONLY = new Set([
   "ai_publish_agent_draft",
   "content_list_studio_posts",
   "content_generate_studio_post",
+  "crm_get_attendance_context",
+  "crm_generate_reply_draft",
 ]);
 
 export function canCallTool(
@@ -163,6 +208,7 @@ export function canCallTool(
     );
   const p = permissionFor(tool);
   return (
+    (!PERSONAL_MANAGEMENT_TOOLS.has(tool.name) || ROLE_RANK[auth.role] >= ROLE_RANK.manager) &&
     p !== null &&
     auth.scopes.includes(p.scope) &&
     (tool.name.startsWith("knowledge_") || VERIFIED_CONNECTION_TOOLS.has(tool.name))
@@ -176,6 +222,9 @@ export const ACTIVE_CONNECTION_SCOPES = [
   "whatsapp:read",
   "whatsapp:execute",
   "crm:read",
+  "crm:write",
+  "agenda:read",
+  "agenda:write",
   "automations:read",
   "automations:write",
   "automations:execute",

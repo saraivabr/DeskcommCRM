@@ -117,6 +117,8 @@ export function createMcpServer(
             ensureRole(auth.role, tool.requiresRole);
           }
 
+          if (ctx.connectionId && tool.validateBeforeApproval)
+            await tool.validateBeforeApproval(args as never, ctx);
           const result = await withActionApproval(tool, args, ctx, () =>
             tool.handler(args as never, ctx),
           );

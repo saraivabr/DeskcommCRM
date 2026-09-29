@@ -130,7 +130,9 @@ o contrato de governança para agentes de IA externos.
 
 ### Próximo no roadmap (não iniciado — CONFIRMADO no README)
 
-MCP público · flywheel de auto-aprimoramento · templates por nicho (clínica,
+MCP público tem cobertura parcial: consulte `lib/mcp/permissions.ts` para a allowlist pessoal atual e [o contrato de atendimento/CRM/agenda](features/mcp-atendimento-crm-agenda.md). A revisão realmente publicada é verificada em `/api/v1/health`.
+
+Flywheel de auto-aprimoramento · templates por nicho (clínica,
 imobiliária, infoproduto, serviços) · VTEX e Shopify via adapter · identity probabilística.
 
 ### Dois achados de produto registrados e não endereçados

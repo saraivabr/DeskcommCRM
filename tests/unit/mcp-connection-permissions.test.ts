@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { canCallTool, permissionFor, validConnectionScopes } from "@/lib/mcp/permissions";
 import type { McpToolDefinition } from "@/lib/mcp/types";
+import { getToolByName } from "@/lib/mcp/tools";
 const save = {
   name: "knowledge_save_page",
   category: "write",
@@ -17,6 +18,59 @@ const read = {
   permission: { area: "knowledge", operation: "read" },
 } as McpToolDefinition;
 describe("connection permissions", () => {
+  it.each([
+    ["crm_create_lead", "crm:write"],
+    ["crm_update_lead", "crm:write"],
+    ["crm_move_lead_stage", "crm:write"],
+    ["crm_schedule_followup", "automations:execute"],
+    ["crm_cancel_followup", "automations:execute"],
+    ["crm_book_appointment", "agenda:write"],
+    ["crm_find_and_book_appointment", "agenda:write"],
+    ["crm_reschedule_appointment", "agenda:write"],
+    ["crm_cancel_appointment", "agenda:write"],
+    ["crm_confirm_appointment", "agenda:write"],
+    ["crm_set_appointment_outcome", "agenda:write"],
+  ])("%s requires personal management access, its scope and confirmation", (name, scope) => {
+    const tool = getToolByName(name)!;
+    expect(tool).toBeDefined();
+    const personal = { connectionId: "test", role: "manager" as const };
+    expect(canCallTool(tool, { ...personal, scopes: [scope] })).toBe(true);
+    expect(canCallTool(tool, { ...personal, scopes: [] })).toBe(false);
+    expect(canCallTool(tool, { ...personal, role: "agent", scopes: [scope] })).toBe(false);
+    expect(permissionFor(tool)).toMatchObject({ scope, confirmation: true });
+    // Existing published-agent roles/scopes remain valid.
+    expect(canCallTool(tool, { role: "ai_operator", scopes: [tool.requiresScope] })).toBe(true);
+  });
+  it.each([
+    ["crm_list_stages", "crm:read"],
+    ["crm_list_followups", "automations:read"],
+    ["crm_list_at_risk_leads", "automations:read"],
+    ["crm_list_event_types", "agenda:read"],
+    ["crm_find_free_slots", "agenda:read"],
+    ["crm_list_appointments", "agenda:read"],
+  ])("%s does not expose team-wide reads to an agent connection", (name, scope) => {
+    const tool = getToolByName(name)!;
+    expect(tool).toBeDefined();
+    expect(canCallTool(tool, { connectionId: "test", role: "manager", scopes: [scope] })).toBe(
+      true,
+    );
+    expect(canCallTool(tool, { connectionId: "test", role: "agent", scopes: [scope] })).toBe(false);
+    expect(canCallTool(tool, { role: "ai_operator", scopes: ["mcp:read"] })).toBe(true);
+  });
+  it.each([
+    ["crm_get_attendance_context", "whatsapp:read"],
+    ["crm_generate_reply_draft", "whatsapp:execute"],
+  ])("%s belongs to a personal connection, never a legacy agent token", (name, scope) => {
+    const tool = getToolByName(name)!;
+    expect(tool).toBeDefined();
+    expect(canCallTool(tool, { connectionId: "test", role: "agent", scopes: [scope] })).toBe(true);
+    expect(canCallTool(tool, { role: "ai_operator", scopes: ["mcp:read", "mcp:write"] })).toBe(
+      false,
+    );
+    expect(canCallTool(tool, { connectionId: "test", role: "viewer", scopes: [scope] })).toBe(
+      false,
+    );
+  });
   it("read grants cannot write and membership downgrade removes write", () => {
     expect(
       canCallTool(read, { connectionId: "test", role: "agent", scopes: ["knowledge:read"] }),

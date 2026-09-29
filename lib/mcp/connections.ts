@@ -80,6 +80,7 @@ export async function resolveConnection(
     .select("role")
     .eq("organization_id", organizationId)
     .eq("user_id", connection.user_id)
+    .is("revoked_at", null)
     .maybeSingle();
   if (membershipError || !member || !(member.role in ROLE_RANK))
     throw new Error("O usuário não tem mais acesso à organização.");
