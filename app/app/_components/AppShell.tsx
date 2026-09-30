@@ -1,7 +1,6 @@
 "use client";
-import { useEffect, useRef, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { gsap } from "gsap";
 import { JourneyGuide } from "@/components/shell/JourneyGuide";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { TopBar } from "@/components/shell/TopBar";
@@ -31,20 +30,6 @@ interface AppShellProps {
 
 export function AppShell({ sidebarCollapsed, podeAtender = false, children }: AppShellProps) {
   const pathname = usePathname();
-  const content = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const media = gsap.matchMedia();
-    media.add("(prefers-reduced-motion: no-preference)", () => {
-      // A entrada mantém o contraste do texto desde o primeiro frame.
-      gsap.from(content.current, {
-        y: 6,
-        duration: 0.24,
-        ease: "power2.out",
-        clearProps: "transform",
-      });
-    });
-    return () => media.revert();
-  }, [pathname]);
   useInboundMessageAlerts();
   useInboundCallAlerts();
   useCrmAlerts();
@@ -61,9 +46,9 @@ export function AppShell({ sidebarCollapsed, podeAtender = false, children }: Ap
   const ocupacaoDoRodape = useOcupacaoDoRodape();
   return (
     <WorkspaceAssistantProvider>
-      <div className="workspace-shell flex min-h-screen w-full bg-background">
+      <div className="workspace-shell workspace-app flex min-h-screen w-full bg-background">
         <BarraDeProgressoNavegacao />
-        <div className="hidden lg:block">
+        <div className="workspace-sidebar-container hidden lg:block">
           <Sidebar collapsed={sidebarCollapsed} />
         </div>
         {/*
@@ -98,7 +83,6 @@ export function AppShell({ sidebarCollapsed, podeAtender = false, children }: Ap
           aparece no inspetor quando alguém pergunta quanto o rodapé perdeu.
         */}
           <main
-            ref={content}
             id="workspace-content"
             data-workspace={workspaceLayout(pathname)}
             className="min-w-0 flex-1 overflow-auto p-3 sm:p-5 lg:p-7"

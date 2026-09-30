@@ -56,10 +56,7 @@ export function VersionFooter({
         collapsed && "justify-center px-2",
       )}
     >
-      <span className="relative flex h-2 w-2 shrink-0">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-      </span>
+      <span aria-hidden className="inline-flex h-2 w-2 shrink-0 rounded-full bg-primary" />
       {!collapsed && (
         <span className="truncate">
           {t("Nova versão")}

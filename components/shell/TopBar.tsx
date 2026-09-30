@@ -18,7 +18,7 @@ export function TopBar() {
   const title = destination?.workspace?.label ?? destination?.label;
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-background/95 px-3 backdrop-blur-xl md:gap-4 md:px-6">
+    <header className="workspace-topbar sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-background/95 px-3 backdrop-blur-xl md:gap-4 md:px-6">
       <div className="flex min-w-0 items-center gap-2">
         <MobileSidebar />
         {title && <span className="truncate text-xs text-muted-foreground">{t(title)}</span>}

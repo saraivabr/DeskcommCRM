@@ -14,6 +14,7 @@ interface Props {
   conversationId: string;
   snoozeUntil: string | null;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 const DURATIONS: Array<{ hours: 1 | 3 | 24; label: string }> = [
@@ -26,7 +27,7 @@ function isSnoozeActive(snoozeUntil: string | null): boolean {
   return snoozeUntil != null && new Date(snoozeUntil).getTime() > Date.now();
 }
 
-export function SnoozeButton({ conversationId, snoozeUntil, disabled }: Props) {
+export function SnoozeButton({ conversationId, snoozeUntil, disabled, compact = false }: Props) {
   const t = useT();
   const { snooze, cancel } = useSnoozeConversation();
   const isActive = isSnoozeActive(snoozeUntil);
@@ -37,19 +38,20 @@ export function SnoozeButton({ conversationId, snoozeUntil, disabled }: Props) {
       <DropdownMenuTrigger asChild>
         <Button
           size="sm"
-          variant="outline"
+          variant={compact ? "ghost" : "outline"}
           disabled={disabled || isPending}
           className="flex items-center gap-1"
+          title={isActive ? t("Lembrete ativo") : t("Lembrar")}
         >
           <Clock size={12} weight="regular" aria-hidden />
-          {isActive ? t("Lembrete ativo") : t("Lembrar")}
+          <span className={compact ? "sr-only" : undefined}>
+            {isActive ? t("Lembrete ativo") : t("Lembrar")}
+          </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {isActive ? (
-          <DropdownMenuItem
-            onClick={() => cancel.mutate({ conversation_id: conversationId })}
-          >
+          <DropdownMenuItem onClick={() => cancel.mutate({ conversation_id: conversationId })}>
             {t("Cancelar lembrete")}
           </DropdownMenuItem>
         ) : (

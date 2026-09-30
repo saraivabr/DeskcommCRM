@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { LogotipoDoProduto, SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
-import { gsap } from "gsap";
 import { usePathname } from "next/navigation";
-import { useTransition, useEffect, useRef } from "react";
+import { useTransition } from "react";
 import { PanelLeftClose, PanelLeftOpen, House } from "lucide-react";
 import { useT } from "@/hooks/i18n/useT";
 import { cn } from "@/lib/utils";
@@ -183,24 +182,8 @@ export function SidebarContent({
 }
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
-  const element = useRef<HTMLElement>(null);
-  const previous = useRef(collapsed);
-  useEffect(() => {
-    if (previous.current === collapsed) return;
-    previous.current = collapsed;
-    const media = gsap.matchMedia();
-    media.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.fromTo(
-        element.current,
-        { width: collapsed ? 208 : 76 },
-        { width: collapsed ? 76 : 208, duration: 0.22, ease: "power2.out", clearProps: "width" },
-      );
-    });
-    return () => media.revert();
-  }, [collapsed]);
   return (
     <aside
-      ref={element}
       data-workspace-sidebar
       className={cn(
         "workspace-sidebar sticky top-0 z-30 flex h-dvh shrink-0 flex-col",

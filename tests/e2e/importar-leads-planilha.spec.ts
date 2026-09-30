@@ -84,7 +84,7 @@ test("importa uma planilha sem escolher etapa (não há esse seletor) e o negóc
   page,
 }) => {
   await login(page, creds.users.agent!.email);
-  await page.goto("/app/kanban");
+  await page.goto("/app/kanban?view=manage");
 
   await page.getByTestId("abrir-importar-leads").click();
 

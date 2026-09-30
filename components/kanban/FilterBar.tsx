@@ -18,11 +18,7 @@ import { useAssignableAgents } from "@/hooks/kanban/useAssignableAgents";
 import type { Lead, OwnerKind } from "@/lib/types/leads";
 import { marcadoresDoCard } from "@/lib/kanban/marcadores-do-card";
 import { OwnerBadge } from "./OwnerBadge";
-import {
-  agentOwnerFilter,
-  parseAgentOwnerFilter,
-  type LeadFilters,
-} from "@/lib/kanban/filters";
+import { agentOwnerFilter, parseAgentOwnerFilter, type LeadFilters } from "@/lib/kanban/filters";
 import { cn } from "@/lib/utils";
 
 interface FilterBarProps {
@@ -114,8 +110,7 @@ export function FilterBar({ filters, onChange, leads }: FilterBarProps) {
           ? (agents?.find((a) => a.agent_id === filteredAgentId)?.name ?? t("Agente"))
           : filters.owner === user.id
             ? t("Eu")
-            : (members?.find((m) => m.user_id === filters.owner)?.full_name ??
-              t("Responsável"));
+            : (members?.find((m) => m.user_id === filters.owner)?.full_name ?? t("Responsável"));
 
   const statusLabel = t(
     STATUS_OPTIONS.find((o) => o.value === (filters.status ?? "all"))?.label ?? "Todos",
@@ -124,9 +119,14 @@ export function FilterBar({ filters, onChange, leads }: FilterBarProps) {
   const tagLabel = filters.tag ?? t("Tag: todas");
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2">
+    <div
+      role="search"
+      aria-label={t("Filtrar oportunidades")}
+      className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2"
+    >
       <Input
         type="search"
+        aria-label={t("Buscar oportunidades")}
         placeholder={t("Buscar por título…")}
         value={searchInput}
         onChange={(e) => setSearchInput(e.target.value)}
@@ -165,12 +165,11 @@ export function FilterBar({ filters, onChange, leads }: FilterBarProps) {
             <>
               <DropdownMenuSeparator />
               {assignees.map((a) => (
-                <DropdownMenuItem key={a.key} onClick={() => onChange({ ...filters, owner: a.owner })}>
-                  <OwnerBadge
-                    ownerKind={a.kind}
-                    ownerName={a.name}
-                    agentVersion={a.version}
-                  />
+                <DropdownMenuItem
+                  key={a.key}
+                  onClick={() => onChange({ ...filters, owner: a.owner })}
+                >
+                  <OwnerBadge ownerKind={a.kind} ownerName={a.name} agentVersion={a.version} />
                 </DropdownMenuItem>
               ))}
             </>
@@ -219,7 +218,7 @@ export function FilterBar({ filters, onChange, leads }: FilterBarProps) {
 
       <label
         className={cn(
-          "flex cursor-pointer select-none items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm",
+          "flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm select-none",
           filters.overdueOnly && "border-accent bg-accent/10",
         )}
       >

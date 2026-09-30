@@ -85,7 +85,7 @@ describe("Home produtiva", () => {
 
   it("usa título aprovado, composer único e padrão pessoal sem opção equipe não autorizada", async () => {
     render(<WorkspaceHome />);
-    expect(screen.getByRole("heading", { name: "O que vamos resolver hoje?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Visão geral" })).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", { name: "O que você quer saber sobre seu CRM?" }),
     ).toBeInTheDocument();
@@ -143,4 +143,24 @@ describe("Home produtiva", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     expect(mocks.send).toHaveBeenCalledWith("all");
   });
+});
+
+it("mantém o último snapshot enquanto atualiza a operação", async () => {
+  mocks.overview.mockResolvedValueOnce(response());
+  let finish!: (value: ReturnType<typeof response>) => void;
+  mocks.overview.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  render(<WorkspaceHome />);
+  await screen.findByText("Tarefas atrasadas");
+  fireEvent.click(screen.getByRole("button", { name: "Atualizar operação" }));
+  expect(await screen.findByText("Atualizando sua operação…")).toBeInTheDocument();
+  expect(screen.getByText("Tarefas atrasadas")).toBeInTheDocument();
+  finish(response());
+  await waitFor(() =>
+    expect(screen.queryByText("Atualizando sua operação…")).not.toBeInTheDocument(),
+  );
 });

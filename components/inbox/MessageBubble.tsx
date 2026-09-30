@@ -158,6 +158,8 @@ export function MessageBubble({
         // classe utilitária entrava na conta — foi assim que o painel flutuante
         // fez a spec achar que havia mensagem onde não havia (issue #1318).
         data-testid="message-bubble"
+        data-direction={message.direction}
+        data-bare-sticker={isBareSticker || undefined}
         className={cn(
           "max-w-[75%] min-w-0 text-sm",
           isBareSticker

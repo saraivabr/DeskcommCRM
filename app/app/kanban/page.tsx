@@ -7,6 +7,7 @@ import { ROLE_RANK } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { FunisClient, type FunilDaLista } from "./_client";
+import { PipelinePageClient } from "../pipelines/[id]/_client";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Funis" };
@@ -30,7 +31,11 @@ export const metadata: Metadata = { title: "Funis" };
  * atalho de platform admin, que as rotas não concedem por padrão): mostrar um
  * botão que o servidor recusaria seria prometer o que não se cumpre.
  */
-export default async function KanbanPickerPage() {
+export default async function KanbanPickerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/app");
@@ -64,6 +69,12 @@ export default async function KanbanPickerPage() {
   const idioma = user.idioma;
   const t = (texto: string) => traduzir(texto, idioma);
 
+  const params = await searchParams;
+  const principal = funis.find((funil) => funil.is_default) ?? funis[0];
+  if (principal && params.view !== "manage") {
+    return <PipelinePageClient pipelineId={principal.id} initialName={principal.name} />;
+  }
+
   return (
     <div className="flex h-full flex-col gap-4 p-6">
       <header className="flex items-center gap-3">
@@ -78,7 +89,9 @@ export default async function KanbanPickerPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{t("Funis")}</h1>
       </header>
 
-      <p className="max-w-xl text-sm leading-7 text-muted-foreground">{t("Organize as oportunidades no funil e registre o que precisa acontecer depois.")}</p>
+      <p className="max-w-xl text-sm leading-7 text-muted-foreground">
+        {t("Organize as oportunidades no funil e registre o que precisa acontecer depois.")}
+      </p>
       <FunisClient
         funis={funis}
         arquivados={arquivados}

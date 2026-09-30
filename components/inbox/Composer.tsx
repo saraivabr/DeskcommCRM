@@ -212,7 +212,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
     <>
       <div
         className={cn(
-          "relative border-t border-border bg-background px-3 py-2",
+          "workspace-composer relative border-t border-border bg-background px-3 py-2",
           mode === "note" && "border-warning/40 bg-warning-bg",
         )}
       >
@@ -226,9 +226,10 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           onPick={applyTemplate}
           onClose={() => setMenuDismissed(true)}
         />
-        <div className="mb-1.5 flex gap-1">
+        <div className="workspace-composer-modes mb-1.5 flex gap-2">
           <button
             type="button"
+            aria-pressed={mode === "reply"}
             onClick={() => setMode("reply")}
             className={cn(
               "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
@@ -241,6 +242,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           </button>
           <button
             type="button"
+            aria-pressed={mode === "note"}
             onClick={() => setMode("note")}
             className={cn(
               "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",

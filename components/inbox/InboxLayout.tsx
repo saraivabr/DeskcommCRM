@@ -30,9 +30,9 @@ import { ShortcutsHelpDialog } from "./ShortcutsHelpDialog";
 import { OpenConversationProvider } from "@/hooks/notifications/OpenConversationContext";
 // ADR-05: ícone de feature sai do mapa canônico, nunca do pacote direto.
 import { ArtisanIcon } from "@/components/brand/ArtisanIcon";
-import { CaretLeft, IdentificationCard } from "@/lib/ui/icons";
+import { CaretLeft } from "@/lib/ui/icons";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { comandosDaFila } from "@/lib/inbox/comando-da-conversa";
 import { buscaValeConsulta } from "@/lib/inbox/termo-de-busca";
@@ -165,7 +165,7 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [visibleIds, setVisibleIds] = useState<string[]>([]);
   const [helpOpen, setHelpOpen] = useState(false);
-  /** A ficha do contato como painel deslizante — só existe abaixo do `xl`. */
+  /** A ficha do contato abre sob demanda em todas as larguras. */
   const [fichaAberta, setFichaAberta] = useState(false);
   /**
    * A mensagem escolhida para responder "em cima".
@@ -195,9 +195,7 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
       // `showApiError`, então digitar a primeira letra de qualquer busca faria
       // piscar um erro na cara de quem digita. A regra é a MESMA que o schema
       // usa (`lib/inbox/termo-de-busca.ts`) — nunca repetida aqui.
-      search: buscaValeConsulta(filterValue.search)
-        ? filterValue.search
-        : undefined,
+      search: buscaValeConsulta(filterValue.search) ? filterValue.search : undefined,
       channel_session_id: filterValue.channel_session_id,
       tag: filterValue.tag,
       unread: filterValue.onlyUnread || undefined,
@@ -211,7 +209,6 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
       filterValue.onlyUnread,
     ],
   );
-
 
   // We need the selected conversation object for header / composer / side panel.
   // Source it from the same query the list uses to avoid an extra request.
@@ -326,8 +323,10 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
       ? fonteDeTemplates(selectedConversation?.channel_sessions?.provider) === null
         ? t("Aguarde uma nova mensagem do cliente para reabrir o atendimento nesta rede.")
         : janela.fechadaHaMs === null
-        ? t("O cliente ainda não escreveu — a janela de 24h nunca abriu. Só um modelo aprovado sai daqui.")
-        : `${t("A janela de 24h fechou há")} ${formatarDecorrido(janela.fechadaHaMs)}. ${t("Só um modelo aprovado sai daqui — texto livre é recusado pela plataforma.")}`
+          ? t(
+              "O cliente ainda não escreveu — a janela de 24h nunca abriu. Só um modelo aprovado sai daqui.",
+            )
+          : `${t("A janela de 24h fechou há")} ${formatarDecorrido(janela.fechadaHaMs)}. ${t("Só um modelo aprovado sai daqui — texto livre é recusado pela plataforma.")}`
       : null;
 
   const blockedReason = selectedConversation?.contacts?.is_blocked
@@ -378,32 +377,32 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
   // deixava. Margem de 2px não é margem, é sorte.
   return (
     <OpenConversationProvider conversationId={selectedId}>
-    <div
-      className="grid h-[calc(100dvh-3.5rem-var(--space-6)-max(var(--space-6),var(--rodape-ocupado,0px)))] min-h-[28rem] overflow-hidden rounded-2xl border bg-surface w-full grid-cols-1 md:grid-cols-[300px_1fr] xl:grid-cols-[272px_1fr_296px] 2xl:grid-cols-[300px_1fr_320px]"
-      /*
-       * O ESTADO DO TEMPO REAL, LEGÍVEL DE FORA — mesmo par que o dossiê do lead
-       * já publica (`LeadDossier`), e pela mesma razão: quando a entrega morre,
-       * nenhuma tela avisa. Foi o único achado que atravessou o dia intacto
-       * quando o realtime quebrou pela primeira vez, e voltou a morder agora.
-       *
-       * `divergencias` é o que a rede de segurança contou: refetch trouxe estado
-       * novo que o canal NÃO tinha entregue. Zero com o canal vivo; subindo é a
-       * assinatura de canal que assina e não entrega — o defeito que não grita.
-       *
-       * ⚠️ `data-realtime-status` vem do STATUS do canal, não de um objeto que
-       * existe sempre. A primeira versão desta linha derivava o valor de
-       * `listQ.seguranca`, que nunca é nulo — ela diria `ativo` inclusive com o
-       * canal morto. Controle decorativo é pior que controle nenhum: mente com
-       * cara de instrumento.
-       *
-       * Atributo de dado e não texto na tela de propósito: quem lê isto é o
-       * teste e quem depura, não o atendente. Pôr um aviso permanente na cara de
-       * quem atende seria ruído; esconder o sinal do todo é o que custou o dia.
-       */
-      data-realtime-status={listQ.realtimeStatus}
-      data-refetch-divergencias={listQ.seguranca?.divergencias ?? 0}
-    >
-      {/*
+      <div
+        className="workspace-inbox grid h-[calc(100dvh-3.5rem-var(--space-6)-max(var(--space-6),var(--rodape-ocupado,0px)))] min-h-[28rem] w-full grid-cols-1 overflow-hidden rounded-2xl border bg-surface md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]"
+        /*
+         * O ESTADO DO TEMPO REAL, LEGÍVEL DE FORA — mesmo par que o dossiê do lead
+         * já publica (`LeadDossier`), e pela mesma razão: quando a entrega morre,
+         * nenhuma tela avisa. Foi o único achado que atravessou o dia intacto
+         * quando o realtime quebrou pela primeira vez, e voltou a morder agora.
+         *
+         * `divergencias` é o que a rede de segurança contou: refetch trouxe estado
+         * novo que o canal NÃO tinha entregue. Zero com o canal vivo; subindo é a
+         * assinatura de canal que assina e não entrega — o defeito que não grita.
+         *
+         * ⚠️ `data-realtime-status` vem do STATUS do canal, não de um objeto que
+         * existe sempre. A primeira versão desta linha derivava o valor de
+         * `listQ.seguranca`, que nunca é nulo — ela diria `ativo` inclusive com o
+         * canal morto. Controle decorativo é pior que controle nenhum: mente com
+         * cara de instrumento.
+         *
+         * Atributo de dado e não texto na tela de propósito: quem lê isto é o
+         * teste e quem depura, não o atendente. Pôr um aviso permanente na cara de
+         * quem atende seria ruído; esconder o sinal do todo é o que custou o dia.
+         */
+        data-realtime-status={listQ.realtimeStatus}
+        data-refetch-divergencias={listQ.seguranca?.divergencias ?? 0}
+      >
+        {/*
         NO CELULAR, UMA COISA POR VEZ.
 
         Antes as duas colunas caíam empilhadas em `grid-cols-1`: a lista inteira
@@ -416,32 +415,32 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
         classe condicional é resolvida pelo CSS, na primeira pintura, e some no
         `md` — onde as duas colunas cabem juntas e a regra não se aplica.
       */}
-      <div
-        className={cn(
-          "h-full min-h-0 flex-col border-r border-border md:flex",
-          colunas.lista,
-        )}
-      >
-        <InboxFilters value={filterValue} onChange={setFilterValue} />
         <div
-          id="inbox-conversation-list"
-          role="tabpanel"
-          aria-labelledby={`inbox-filter-${filterValue.tab}`}
-          tabIndex={0}
-          className="min-h-0 flex-1 overflow-hidden"
+          className={cn(
+            "workspace-inbox-list h-full min-h-0 flex-col border-r border-border md:flex",
+            colunas.lista,
+          )}
         >
-          <ConversationList
-            listQuery={listQ}
-            filters={filters}
-            selectedId={selectedId}
-            onSelect={handleSelect}
-            onVisibleChange={handleVisibleChange}
-            onLimparFiltros={limparFiltrosAuxiliares}
-          />
+          <InboxFilters value={filterValue} onChange={setFilterValue} />
+          <div
+            id="inbox-conversation-list"
+            role="tabpanel"
+            aria-labelledby={`inbox-filter-${filterValue.tab}`}
+            tabIndex={0}
+            className="min-h-0 flex-1 overflow-hidden"
+          >
+            <ConversationList
+              listQuery={listQ}
+              filters={filters}
+              selectedId={selectedId}
+              onSelect={handleSelect}
+              onVisibleChange={handleVisibleChange}
+              onLimparFiltros={limparFiltrosAuxiliares}
+            />
+          </div>
         </div>
-      </div>
 
-      {/*
+        {/*
         AS DUAS COLUNAS DECIDEM PELO MESMO DADO — `selectedId`, não o objeto.
 
         A da lista some quando há `selectedId`; se esta aparecesse só quando a
@@ -453,128 +452,126 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
         escondido — deixando o dono numa tela vazia, sem sequer o botão de
         voltar, porque ele morava dentro do ramo da conversa carregada.
       */}
-      <div
-        className={cn(
-          "h-full min-h-0 min-w-0 flex-col md:flex",
-          colunas.conversa,
-        )}
-      >
-        {/*
+        <div
+          className={cn(
+            "workspace-inbox-conversation h-full min-h-0 min-w-0 flex-col md:flex",
+            colunas.conversa,
+          )}
+        >
+          {/*
           A barra do celular vive FORA do ramo da conversa carregada: o caminho
           de volta tem de existir inclusive quando não há o que mostrar — é aí
           que ele é a única saída. A porta da ficha, essa sim, depende da
           conversa, e só aparece quando há uma.
         */}
-        {selectedId && (
-          <div className="flex items-center gap-1 border-b border-border px-1 py-1 md:hidden">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-9 gap-1 px-2"
-              onClick={() => handleSelect(null)}
-            >
-              <CaretLeft size={16} />
-              {t("Conversas")}
-            </Button>
-            <div className="flex-1" />
-            {selectedConversation && (
-              <Sheet open={fichaAberta} onOpenChange={setFichaAberta}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 xl:hidden">
-                    <IdentificationCard size={16} />
-                    {t("Ficha")}
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-[min(22rem,90vw)] overflow-y-auto p-0">
-                  <SheetTitle className="sr-only">{t("Ficha do contato")}</SheetTitle>
-                  <CRMSidePanel conversation={selectedConversation} />
-                </SheetContent>
-              </Sheet>
-            )}
-          </div>
-        )}
-        {selectedConversation ? (
-          <>
-            {/* `key`: trocar de conversa desmonta a confirmação de Fechar/Arquivar
-                aberta — senão o clique de dentro agiria sobre a conversa nova. */}
-            <ConversationHeader
-              key={selectedConversation.id}
-              conversation={selectedConversation}
-              onAbrirConversa={handleSelect}
-            />
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <ChatThread
-                conversationId={selectedConversation.id}
-                onResponder={setRespondendo}
-                // O cartão da passagem escolhe o gesto a partir de quem é o dono
-                // da conversa: sem dono convida a assumir, com outro dono diz
-                // quem atende. Sem estes dois campos ele cairia no estado mais
-                // conservador e ficaria mudo justamente para quem mais precisa.
-                dono={{
-                  userId: selectedConversation.assigned_to_user_id ?? null,
-                  nome: selectedConversation.assigned_to_user_name ?? null,
-                }}
-                contatoId={selectedConversation.contacts?.id ?? null}
-              />
+          {selectedId && (
+            <div className="flex items-center gap-1 border-b border-border px-1 py-1 md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 gap-1 px-2"
+                onClick={() => handleSelect(null)}
+              >
+                <CaretLeft size={16} />
+                {t("Conversas")}
+              </Button>
+              <div className="flex-1" />
             </div>
-            <RetentionNotice conversationId={selectedConversation.id} />
-            {selectedConversation.contacts?.id && (
-              <NumeroForaDoAr
-                key={`numero:${selectedConversation.id}`}
-                conversationId={selectedConversation.id}
-                channelSessionId={selectedConversation.channel_session_id}
-                contactId={selectedConversation.contacts.id}
-                contactPhone={selectedConversation.contacts.phone_number ?? null}
+          )}
+          {selectedConversation ? (
+            <>
+              {/* `key`: trocar de conversa desmonta a confirmação de Fechar/Arquivar
+                aberta — senão o clique de dentro agiria sobre a conversa nova. */}
+              <ConversationHeader
+                key={selectedConversation.id}
+                conversation={selectedConversation}
                 onAbrirConversa={handleSelect}
+                onOpenContact={() => setFichaAberta(true)}
               />
-            )}
-            {motivoDaJanela && (
-              <JanelaFechadaAviso
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <ChatThread
+                  conversationId={selectedConversation.id}
+                  onResponder={setRespondendo}
+                  // O cartão da passagem escolhe o gesto a partir de quem é o dono
+                  // da conversa: sem dono convida a assumir, com outro dono diz
+                  // quem atende. Sem estes dois campos ele cairia no estado mais
+                  // conservador e ficaria mudo justamente para quem mais precisa.
+                  dono={{
+                    userId: selectedConversation.assigned_to_user_id ?? null,
+                    nome: selectedConversation.assigned_to_user_name ?? null,
+                  }}
+                  contatoId={selectedConversation.contacts?.id ?? null}
+                />
+              </div>
+              <RetentionNotice conversationId={selectedConversation.id} />
+              {selectedConversation.contacts?.id && (
+                <NumeroForaDoAr
+                  key={`numero:${selectedConversation.id}`}
+                  conversationId={selectedConversation.id}
+                  channelSessionId={selectedConversation.channel_session_id}
+                  contactId={selectedConversation.contacts.id}
+                  contactPhone={selectedConversation.contacts.phone_number ?? null}
+                  onAbrirConversa={handleSelect}
+                />
+              )}
+              {motivoDaJanela && (
+                <JanelaFechadaAviso
+                  conversationId={selectedConversation.id}
+                  provider={selectedConversation.channel_sessions?.provider ?? null}
+                  motivo={motivoDaJanela}
+                />
+              )}
+              <Composer
+                ref={composerRef}
                 conversationId={selectedConversation.id}
-                provider={selectedConversation.channel_sessions?.provider ?? null}
-                motivo={motivoDaJanela}
+                blockedReason={supportReadonly ? "Acompanhamento somente leitura" : blockedReason}
+                janelaFechada={motivoDaJanela}
+                disabled={selectedConversation.status === "closed"}
+                contactName={selectedConversation.contacts?.name ?? null}
+                respondendo={respondendo}
+                onCancelarResposta={() => setRespondendo(null)}
+                currentContactId={selectedConversation.contact_id}
               />
-            )}
-            <Composer
-              ref={composerRef}
-              conversationId={selectedConversation.id}
-              blockedReason={supportReadonly ? "Acompanhamento somente leitura" : blockedReason}
-              janelaFechada={motivoDaJanela}
-              disabled={selectedConversation.status === "closed"}
-              contactName={selectedConversation.contacts?.name ?? null}
-              respondendo={respondendo}
-              onCancelarResposta={() => setRespondendo(null)}
-              currentContactId={selectedConversation.contact_id}
-            />
-          </>
-        ) : selectionNotFound ? (
-          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            {t("Conversa não encontrada ou fora do seu acesso.")}
-          </div>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-            <span className="channel-emblem channel-green mb-4"><ArtisanIcon symbol="conversation" className="h-8 w-8" /></span>
-            <p className="text-xl font-medium tracking-tight text-text">{t("Selecione uma conversa")}</p>
-            <p className="text-xs text-text-muted">{t("Abra uma conversa da lista para ver o histórico e responder. Você também pode navegar com J e K.")}</p>
-          </div>
-        )}
-      </div>
+            </>
+          ) : selectionNotFound ? (
+            <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+              {t("Conversa não encontrada ou fora do seu acesso.")}
+            </div>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+              <span className="channel-emblem channel-green mb-4">
+                <ArtisanIcon symbol="conversation" className="h-8 w-8" />
+              </span>
+              <p className="text-xl font-medium tracking-tight text-text">
+                {t("Selecione uma conversa")}
+              </p>
+              <p className="text-xs text-text-muted">
+                {t(
+                  "Abra uma conversa da lista para ver o histórico e responder. Você também pode navegar com J e K.",
+                )}
+              </p>
+            </div>
+          )}
+        </div>
 
-      <div className="hidden h-full min-h-0 xl:block">
-        <CRMSidePanel conversation={selectedConversation} />
-      </div>
+        <Sheet open={fichaAberta} onOpenChange={setFichaAberta}>
+          <SheetContent side="right" className="w-[min(26rem,94vw)] overflow-y-auto p-0">
+            <SheetTitle className="sr-only">{t("Ficha do contato")}</SheetTitle>
+            <CRMSidePanel conversation={selectedConversation} />
+          </SheetContent>
+        </Sheet>
 
-      <InboxKeyboardShortcuts
-        visibleIds={visibleIds}
-        selectedId={selectedId}
-        onSelect={handleSelect}
-        onFocusReply={handleFocusReply}
-        onClaim={supportReadonly ? () => {} : handleClaim}
-        onClose={supportReadonly ? () => {} : handleClose}
-        onToggleHelp={() => setHelpOpen((v) => !v)}
-      />
-      <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
-    </div>
+        <InboxKeyboardShortcuts
+          visibleIds={visibleIds}
+          selectedId={selectedId}
+          onSelect={handleSelect}
+          onFocusReply={handleFocusReply}
+          onClaim={supportReadonly ? () => {} : handleClaim}
+          onClose={supportReadonly ? () => {} : handleClose}
+          onToggleHelp={() => setHelpOpen((v) => !v)}
+        />
+        <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
+      </div>
     </OpenConversationProvider>
   );
 }

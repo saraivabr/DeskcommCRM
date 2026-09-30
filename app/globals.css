@@ -1,4 +1,5 @@
 @import "tailwindcss" source(none);
+@import "./workspace-appearance.css";
 
 /* Alcance do scanner. O v4 acha os arquivos sozinho a partir da raiz do git,
    mas isso varreria `docs/` (149 markdowns cheios de exemplo de classe) e

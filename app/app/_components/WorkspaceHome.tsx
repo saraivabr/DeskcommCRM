@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BarChart3, Sparkles, Filter } from "lucide-react";
+import { BarChart3, Sparkles, Filter, ArrowUpRight } from "lucide-react";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useT } from "@/hooks/i18n/useT";
 import { useWorkspaceAssistant } from "@/components/workspace/WorkspaceAssistant";
@@ -62,17 +62,25 @@ function WorkspaceSession({
           })}
         </span>
       </div>
-      <header>
-        <h1 className={styles.heading}>
-          {t(needsPlan ? "Seu espaço está pronto." : "O que vamos resolver hoje?")}
-        </h1>
-        <p className={styles.subtitle}>
-          {t(
-            needsPlan
-              ? "A IA está incluída em todos os planos. Ative o acesso para começar."
-              : "Abra uma pendência para agir ou consulte sua operação abaixo.",
-          )}
-        </p>
+      <header className={styles.homeHeader}>
+        <div>
+          <h1 className={styles.heading}>
+            {t(needsPlan ? "Seu espaço está pronto." : "Visão geral")}
+          </h1>
+          <p className={styles.subtitle}>
+            {t(
+              needsPlan
+                ? "A IA está incluída em todos os planos. Ative o acesso para começar."
+                : "Prioridades, conversas e oportunidades em um só lugar.",
+            )}
+          </p>
+        </div>
+        {!needsPlan && (
+          <Link href="/app/inbox" className={styles.headerAction}>
+            {t("Abrir conversas")}
+            <ArrowUpRight size={16} aria-hidden />
+          </Link>
+        )}
       </header>
       {needsPlan ? (
         <section className="mt-8 rounded-2xl border bg-card p-6" aria-label={t("Ativar acesso")}>
@@ -94,24 +102,34 @@ function WorkspaceSession({
         </section>
       ) : (
         <>
-          <WorkspaceOverview />
-          <section aria-label={t("Consultar sua operação")}>
-            <HomeComposer />
-            <div className={styles.suggestions}>
-              {suggestions.map(({ icon: Icon, text, scope }) => (
-                <button
-                  key={text}
-                  disabled={busy}
-                  type="button"
-                  onClick={() => openAssistant(text, scope)}
-                  className={styles.suggestion}
-                >
-                  <Icon aria-hidden />
-                  {t(text)}
-                </button>
-              ))}
-            </div>
-          </section>
+          <WorkspaceOverview
+            assistant={
+              <section aria-label={t("Consultar sua operação")}>
+                <div className={styles.sectionHead}>
+                  <div>
+                    <span className={styles.eyebrow}>{t("ESCREVE AÍ")}</span>
+                    <h2>{t("Uma pergunta. Um próximo passo.")}</h2>
+                  </div>
+                  <Sparkles size={20} aria-hidden />
+                </div>
+                <HomeComposer />
+                <div className={styles.suggestions}>
+                  {suggestions.map(({ icon: Icon, text, scope }) => (
+                    <button
+                      key={text}
+                      disabled={busy}
+                      type="button"
+                      onClick={() => openAssistant(text, scope)}
+                      className={styles.suggestion}
+                    >
+                      <Icon aria-hidden />
+                      {t(text)}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            }
+          />
         </>
       )}
     </div>

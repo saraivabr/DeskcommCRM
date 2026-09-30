@@ -269,7 +269,7 @@ test("ligar 'Clientes pela agenda' transforma quem tem horário marcado em clien
   await expect(fichaDeCliente).not.toContainText(diaDoHorario!);
   await evidencia(page, info, "6-ficha-cliente-desde");
 
-  await page.goto("/app/kanban");
+  await page.goto("/app/kanban?view=manage");
   // ⚠️ `toBeVisible` ANTES do texto, e não é redundância — medido nesta spec. A
   // página de Funis tem `loading.tsx`: o conteúdo chega por streaming dentro de
   // um `<div hidden>` e só depois substitui o esqueleto. `toContainText` não

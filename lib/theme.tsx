@@ -22,14 +22,14 @@ type ThemeContextValue = {
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
 function readStoredTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "dark";
   try {
     const v = window.localStorage.getItem(STORAGE_KEY);
     if (v === "light" || v === "dark" || v === "system") return v;
   } catch {
     // localStorage indisponível (modo privado, sandbox) — segue com default.
   }
-  return "system";
+  return "dark";
 }
 
 function getSystemTheme(): ResolvedTheme {
@@ -43,31 +43,9 @@ function applyTheme(resolved: ResolvedTheme) {
 }
 
 /**
- * ═══ POR QUE ISTO É UM EXTERNAL STORE, E NÃO `useState` + `useEffect` ═══
- *
- * A primeira renderização do CLIENTE é a renderização de hidratação — a
- * mesma que o React compara contra o HTML que o servidor mandou. O servidor
- * roda com `window === undefined`, então `readStoredTheme()`/`getSystemTheme()`
- * sempre devolvem "system"/"light" lá. Um `useState(() => readStoredTheme())`
- * reexecuta esse inicializador na hidratação — agora com `window` de verdade
- * — e um usuário com tema salvo "dark" produzia, nesse instante, uma
- * primeira renderização do cliente dizendo "dark" contra o "system" que o
- * servidor mandou. Como `ThemeToggle` deriva o ícone e o `aria-label` de
- * `theme`, a divergência aparecia literalmente no atributo: o hydration
- * mismatch relatado (aria-label "Tema: dark" batendo contra "Tema: system",
- * ícone Moon contra MonitorPlay).
- *
- * A saída não é "ler depois, num `useEffect`": `setState` dentro de um
- * `useEffect` sem dependência externa real é exatamente o padrão que
- * `react-hooks/set-state-in-effect` está certo em recusar (cascata de
- * renders por engano). A saída certa — e já em uso neste repo para a mesma
- * classe de defeito, ver `components/branding/CampoDeLogo.tsx` — é
- * `useSyncExternalStore`: `getServerSnapshot` devolve o valor determinístico
- * que o servidor viu (idêntico ao que a primeira renderização do cliente
- * também usa, ANTES de qualquer inscrição rodar), e só depois do commit o
- * React troca para `getSnapshot` (o valor real) — sem cascata, sem aviso, e
- * sem hydration mismatch, porque a COMPARAÇÃO de hidratação nunca vê o valor
- * real: ela vê `getServerSnapshot` dos dois lados.
+ * O snapshot do servidor e da hidratação usa o padrão escuro. Depois do commit,
+ * useSyncExternalStore aplica a preferência salva sem divergência de hidratação.
+ * A opção system continua acompanhando a preferência do sistema operacional.
  */
 type Ouvinte = () => void;
 const ouvintesDeTema = new Set<Ouvinte>();
@@ -78,7 +56,7 @@ function getTemaSnapshot(): Theme {
   return temaEmCache;
 }
 function getTemaSnapshotDoServidor(): Theme {
-  return "system";
+  return "dark";
 }
 function inscreverEmTema(ouvinte: Ouvinte): () => void {
   ouvintesDeTema.add(ouvinte);
@@ -120,7 +98,11 @@ function inscreverEmSistema(ouvinte: Ouvinte): () => void {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const theme = React.useSyncExternalStore(inscreverEmTema, getTemaSnapshot, getTemaSnapshotDoServidor);
+  const theme = React.useSyncExternalStore(
+    inscreverEmTema,
+    getTemaSnapshot,
+    getTemaSnapshotDoServidor,
+  );
   const systemTheme = React.useSyncExternalStore(
     inscreverEmSistema,
     getSistemaSnapshot,

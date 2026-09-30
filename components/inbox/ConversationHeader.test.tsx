@@ -13,11 +13,14 @@ import type { ConversationWithContact } from "@/hooks/inbox/useConversationsReal
  * a mutação só dispara no clique de DENTRO dele.
  */
 
+const access = vi.hoisted(() => ({ readonly: false }));
 const closeMutate = vi.hoisted(() => vi.fn());
 const arquivarMutate = vi.hoisted(() => vi.fn());
 
 vi.mock("@/hooks/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: { id: "u1", support: null } }),
+  useAuth: () => ({
+    user: { id: "u1", support: access.readonly ? { access_mode: "support_readonly" } : null },
+  }),
 }));
 vi.mock("@/hooks/inbox/useClaimConversation", () => ({
   useClaimConversation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -75,6 +78,7 @@ function conversa(status: string): ConversationWithContact {
 }
 
 beforeEach(() => {
+  access.readonly = false;
   closeMutate.mockReset();
   arquivarMutate.mockReset();
 });
@@ -142,4 +146,24 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
       ),
     ).toBeNull();
   });
+});
+
+it("abre a ficha sob demanda sem alterar a conversa", async () => {
+  const openContact = vi.fn();
+  render(<ConversationHeader conversation={conversa("open")} onOpenContact={openContact} />);
+  await userEvent.setup().click(screen.getByRole("button", { name: "Ficha" }));
+  expect(openContact).toHaveBeenCalledOnce();
+  expect(closeMutate).not.toHaveBeenCalled();
+  expect(arquivarMutate).not.toHaveBeenCalled();
+});
+
+it("mantém a ficha acessível para acompanhamento somente leitura", async () => {
+  access.readonly = true;
+  const openContact = vi.fn();
+  render(<ConversationHeader conversation={conversa("open")} onOpenContact={openContact} />);
+  expect(screen.getByText(/Somente leitura/)).toBeInTheDocument();
+  await userEvent.setup().click(screen.getByRole("button", { name: "Ficha" }));
+  expect(openContact).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button", { name: "Fechar" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Transferir" })).not.toBeInTheDocument();
 });
