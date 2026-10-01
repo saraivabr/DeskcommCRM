@@ -127,6 +127,18 @@ describe("gradual outreach", () => {
     expect(mocks.guard).toHaveBeenCalledTimes(2);
     expect(db.query.mock.calls.some(([q]) => q.includes("attempted_at=now()"))).toBe(true);
   });
+  it("keeps qualification criteria out of the first outreach instruction", async () => {
+    await sendNextCandidate({} as never, database() as never, {} as never, campaign);
+    const opening = mocks.generate.mock.calls[0]?.[2];
+    expect(opening).toMatchObject({
+      instrucao: (campaign.config as { instruction: string }).instruction,
+      origemDaAbordagem: "prospeccao_fria",
+      agentId: id,
+    });
+    expect(opening.instrucao).not.toContain(
+      (campaign.config as { qualification: string }).qualification,
+    );
+  });
   /*
    * A TRILHA DA ABORDAGEM FRIA (LGPD adjacente).
    *

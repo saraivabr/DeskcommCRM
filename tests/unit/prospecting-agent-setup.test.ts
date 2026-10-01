@@ -29,6 +29,10 @@ import {
 } from "@/lib/prospecting/agent-setup";
 import { prospectingAgentSetupSchema } from "@/lib/prospecting/agent-setup-schema";
 import { writeRouterMembers } from "@/lib/ai/agents/router-members";
+import {
+  PROSPECTING_OPENING_GUIDANCE,
+  PROSPECTING_REPLY_GUIDANCE,
+} from "@/lib/prospecting/conversation-guidance";
 
 const org = "10000000-0000-4000-8000-000000000001";
 const channel = "10000000-0000-4000-8000-000000000002";
@@ -328,6 +332,10 @@ describe("inline prospecting agent setup", () => {
     expect(prompt).toContain(input.qualification);
     expect(prompt).toContain("não significam qualificação");
     expect(prompt).toContain("nunca alegue cadastro");
+    expect(prompt).toContain("assistente virtual");
+    expect(prompt).toContain(PROSPECTING_OPENING_GUIDANCE);
+    expect(prompt).toContain(PROSPECTING_REPLY_GUIDANCE);
+    expect(prompt).not.toContain("Descubra a necessidade antes de propor a solução");
   });
 });
 

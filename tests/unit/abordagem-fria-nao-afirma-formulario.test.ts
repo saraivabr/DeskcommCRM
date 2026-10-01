@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { blocoDeModo, type OrigemDaAbordagem } from "@/lib/agent-engine/agent/abordagem-de-formulario";
+import { PROSPECTING_OPENING_GUIDANCE } from "@/lib/prospecting/conversation-guidance";
 
 /**
  * O PROMPT NÃO PODE AFIRMAR QUE A PESSOA PREENCHEU UM FORMULÁRIO QUANDO ELA NÃO
@@ -54,6 +55,23 @@ const AFIRMACOES_DO_DEFEITO = [
 ];
 
 describe("o ramo frio não afirma nada que a pessoa não fez", () => {
+  it("explica a oferta antes de qualificar e permite um convite fácil de responder", () => {
+    const frio = prompt("prospeccao_fria");
+    expect(frio).toContain(PROSPECTING_OPENING_GUIDANCE);
+    expect(frio).toContain("pedir permissão para explicar ou mostrar um exemplo");
+    expect(frio).toContain("não force uma pergunta aberta");
+    expect(frio).toContain("Não peça detalhes do processo interno");
+    expect(frio).not.toContain("Termine com UMA pergunta aberta");
+    expect(frio.indexOf(PROSPECTING_OPENING_GUIDANCE)).toBeGreaterThan(
+      frio.indexOf("Ofereça uma conversa rápida."),
+    );
+  });
+
+  it("não aplica o roteiro frio a quem preencheu formulário ou entrou por automação", () => {
+    expect(prompt("formulario")).not.toContain(PROSPECTING_OPENING_GUIDANCE);
+    expect(prompt("automacao")).not.toContain(PROSPECTING_OPENING_GUIDANCE);
+  });
+
   it("nenhuma das frases que pressupõem preenchimento sobrou", () => {
     const frio = prompt("prospeccao_fria");
     const sobraram = AFIRMACOES_DO_DEFEITO.filter((f) =>

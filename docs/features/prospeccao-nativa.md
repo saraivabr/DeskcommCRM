@@ -63,6 +63,25 @@ no prompt de texto precisam ser revisadas e salvas também na configuração de 
 
 A ativação cria contatos e negócios usando os handlers existentes. Telefones e identificadores de empresa são únicos por organização; contatos anteriores são preservados. Uma preparação interrompida deve ser retomada com a mesma configuração. A fila começa após um minuto e envia somente a primeira abordagem. Respostas passam pelo atendimento normal; a qualificação exige os critérios definidos pelo operador e só é contada quando a etapa do negócio muda. Encontrar uma empresa não significa qualificá-la.
 
+### Abordagem e continuidade da conversa
+
+A primeira mensagem apresenta o motivo comercial e o valor da oferta configurada,
+com um próximo passo fácil de responder. Pode pedir permissão para explicar ou
+verificar se chegou ao responsável. Os critérios de qualificação entram nas
+respostas, sem virar perguntas sobre processos internos na abertura.
+
+Nas campanhas existentes, o contexto do atendimento orienta a responder dúvidas
+antes de investigar a necessidade, explicar com exemplos da oferta e convidar para
+demonstração quando houver interesse. Saudação automática, menu e aviso de ausência
+não comprovam interesse. A orientação é esclarecer o assunto uma única vez quando
+necessário e aguardar, sem questionário ou repetição. Essas regras orientam o modelo;
+não constituem um classificador determinístico de respostas automáticas.
+
+Preços e condições dependem dos materiais disponíveis; exemplos não comprovam
+resultados do prospect. Uma resposta ou contato do responsável não basta para
+qualificar. Versões publicadas e instruções específicas da campanha continuam
+exigindo revisão no simulador quando contradizem essa abordagem.
+
 Há uma campanha ativa por organização, até 50 tentativas em 24 horas no conjunto das campanhas, e intervalo mínimo de cinco minutos. Falhas e envios incertos consomem o limite. A janela do número, modo de teste, versão do agente, fechamento do atendimento, recusa, pausa e intervenção humana continuam ativos. Pausar interrompe novas abordagens; uma transmissão já iniciada pode concluir.
 
 ## Operação e recuperação
