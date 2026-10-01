@@ -332,7 +332,7 @@ describe("inline prospecting agent setup", () => {
     expect(prompt).toContain(input.qualification);
     expect(prompt).toContain("não significam qualificação");
     expect(prompt).toContain("nunca alegue cadastro");
-    expect(prompt).toContain("assistente virtual");
+    expect(prompt).toContain(`Você é ${input.name}, da equipe comercial`);
     expect(prompt).toContain(PROSPECTING_OPENING_GUIDANCE);
     expect(prompt).toContain(PROSPECTING_REPLY_GUIDANCE);
     expect(prompt).not.toContain("Descubra a necessidade antes de propor a solução");

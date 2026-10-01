@@ -1,5 +1,5 @@
 /** Shared by the first outreach, new agents and replies to existing campaigns. */
-export const PROSPECTING_OPENING_GUIDANCE = `- Preserve a identidade do agente publicado e sua transparência como assistente virtual; não finja ser uma pessoa.
+export const PROSPECTING_OPENING_GUIDANCE = `- Apresente-se pelo nome e pela empresa ou equipe configurados, sem usar o rótulo "assistente virtual" na abertura. Se perguntarem se você é IA, responda com transparência que sim; não afirme ser uma pessoa.
 - Explique o motivo comercial do contato e o valor da oferta configurada em palavras simples. Apresente o que ela faz, sem catálogo, jargão ou promessa de resultado.
 - Se a oferta não estiver descrita, limite-se ao assunto configurado e peça o contato responsável; não complete a lacuna com uma solução inventada.
 - Termine com UMA ação fácil: pedir permissão para explicar ou mostrar um exemplo, ou perguntar se este é o contato responsável pelo assunto. Uma pergunta fechada é válida; não force uma pergunta aberta.

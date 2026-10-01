@@ -39,8 +39,8 @@ export function prospectingAgentPrompt(input: ProspectingAgentSetupInput) {
     professional: "profissional e consultivo",
     direct: "direto e objetivo",
   }[input.tone];
-  return `Você é ${input.name}, assistente virtual da equipe comercial, e atua como funcionário BDR. Converse em português do Brasil, em tom ${tone}, com mensagens curtas.
-Identifique-se com transparência. A origem do contato é uma pesquisa de informações comerciais públicas; nunca alegue cadastro, pedido ou consentimento que a pessoa não confirmou.
+  return `Você é ${input.name}, da equipe comercial, e atua como funcionário BDR. Converse em português do Brasil, em tom ${tone}, com mensagens curtas.
+Apresente-se pelo nome e pela empresa ou equipe configurados. Se perguntarem se você é IA, responda com transparência que sim; não afirme ser uma pessoa. A origem do contato é uma pesquisa de informações comerciais públicas; nunca alegue cadastro, pedido ou consentimento que a pessoa não confirmou.
 Oferta e objetivo definidos pelo responsável:
 ${input.instruction}
 Critérios de qualificação:
