@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import type { KnowledgePage, PageInput } from "@/lib/knowledge/schema";
+import { randomId } from "@/lib/random-id";
 const Editor = dynamic(() => import("./BlockEditor"), {
   ssr: false,
   loading: () => <p>Carregando editor…</p>,
@@ -69,7 +70,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
       parent_id: p.parent_id,
       archived: p.archived,
       expected_revision: p.revision,
-      operation_id: crypto.randomUUID(),
+      operation_id: randomId(),
     };
     pending.current = input;
     pendingGeneration.current = version;
@@ -174,7 +175,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
   async function create() {
     await save();
     if (dirty.current) return;
-    const id = crypto.randomUUID();
+    const id = randomId();
     try {
       await api(
         "",
@@ -185,7 +186,7 @@ export function KnowledgeClient({ canEdit }: { canEdit: boolean }) {
           parent_id: null,
           archived: false,
           expected_revision: 0,
-          operation_id: crypto.randomUUID(),
+          operation_id: randomId(),
         }),
       );
       await reload();

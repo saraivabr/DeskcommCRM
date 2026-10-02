@@ -61,6 +61,15 @@ it("keeps candidate publication separate from gated deployment and latest", () =
   );
   const deploy = workflow.slice(workflow.indexOf("  deploy:"));
   expect(candidate).toContain("candidate-${{ github.sha }}");
+  expect(candidate).toContain("file: ./Dockerfile.worker");
+  expect(candidate).toContain("worker_digest: ${{ steps.build-worker.outputs.digest }}");
+  expect(candidate).toContain("--network none");
+  expect(candidate).toContain("scripts/sonda-do-laco-de-event-log.ts");
+  expect(candidate).toContain("resolve-turn-agent.ts");
+  expect(candidate).toContain("agente-da-prospeccao.ts");
+  expect(candidate).toContain("boot falhou:.*ECONNREFUSED.*127.0.0.1:1");
+  expect(candidate).toContain('"org.opencontainers.image.revision"] == $sha');
+  expect(candidate).toContain('index("APP_VERSION=" + $sha)');
   expect(candidate).not.toContain(":latest");
   expect(deploy).toContain("needs: build-candidate");
   expect(deploy).toContain("${{ needs.build-candidate.outputs.digest }}");
@@ -68,6 +77,10 @@ it("keeps candidate publication separate from gated deployment and latest", () =
     deploy.indexOf("imagetools create"),
   );
   expect(deploy).toContain('[ "$ACTUAL" = "$IMAGE_DIGEST" ]');
+  expect(deploy).toContain('[ "$ACTUAL_WORKER" = "$WORKER_DIGEST" ]');
+  expect(deploy).toContain('"$IMAGE_TAG $IMAGE_DIGEST $WORKER_DIGEST"');
   expect(deploy.indexOf('[ "$CURRENT" = "$GITHUB_SHA" ]')).toBeLessThan(deploy.indexOf("ssh -i"));
   expect(deploy.indexOf("Validar Saude em Producao")).toBeLessThan(deploy.indexOf("$IMAGE:latest"));
+  expect(deploy.indexOf("Validar Saude em Producao")).toBeLessThan(deploy.indexOf("$WORKER_IMAGE:production-latest"));
+  expect(deploy).not.toContain('--tag "$WORKER_IMAGE:latest"');
 });

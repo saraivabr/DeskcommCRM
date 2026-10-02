@@ -24,6 +24,7 @@ import {
   excedeuTeto,
   ligarPacote,
   vagasRestantes,
+  vagasExigidasPeloPacote,
   type CapacidadeSelecionavel,
   textoDaContagem,
 } from "@/lib/mcp/tools/selecao-por-pacote";
@@ -58,6 +59,18 @@ describe("o que um pacote liga", () => {
     expect(depois).toContain("ler_a");
     expect(depois).toContain("escrever_a");
     expect(depois).not.toContain("enviar");
+  });
+
+  it("capacidade operada por pessoa não entra no pacote nem reserva vaga para o agente", () => {
+    const catalogo: CapacidadeSelecionavel[] = [
+      { name: "ler", risco: "seguro", pacotes: ["organizar"] },
+      { name: "publicar", risco: "critico", pacotes: ["organizar"], apenasHumano: true },
+      { name: "rascunhar", risco: "atencao", pacotes: ["organizar"], apenasHumano: true },
+    ];
+    expect(ligarPacote([], catalogo, "organizar")).toEqual(["ler"]);
+    expect(capacidadesAutomaticasDoPacote(catalogo, "organizar")).toEqual(["ler"]);
+    expect(capacidadesCriticasDoPacote(catalogo, "organizar")).toEqual([]);
+    expect(vagasExigidasPeloPacote([], catalogo, "organizar")).toBe(1);
   });
 
   it("ligar preserva o que já estava marcado, inclusive de outro pacote", () => {

@@ -50,7 +50,9 @@ vi.mock("@/lib/ai/embeddings/chave", async () => {
 import { embedText, SemChaveDeEmbeddingError } from "@/lib/ai/embed";
 
 beforeEach(() => {
-  billingQuery.mockReset().mockResolvedValue({ rows: [] });
+  billingQuery.mockReset().mockImplementation(async (sql: string) => ({
+    rows: sql.includes("fn_reserve_subscription_ai") ? [{ reservation_id: null }] : [],
+  }));
   embedSpy.mockReset();
   embedSpy.mockResolvedValue({
     // 1536 dimensões: `embedText` assere a dimensão a cada chamada, porque
@@ -153,7 +155,6 @@ describe("embedText", () => {
 });
 
 it("recusa embedding antes do provedor quando a franquia está indisponível", async () => {
-  billingQuery.mockResolvedValueOnce({ rows: [{ provider_subscription_id: "sub_paid" }] });
   billingQuery.mockRejectedValueOnce(Object.assign(new Error("limite"), { code: "P4021" }));
   await expect(embedText("oi", { organizationId: "org-paid" })).rejects.toMatchObject({
     name: "subscription_ai_allowance",
@@ -162,8 +163,6 @@ it("recusa embedding antes do provedor quando a franquia está indisponível", a
 });
 it("concilia os tokens medidos de embedding sem cobrar tokens de saída", async () => {
   billingQuery.mockImplementation(async (sql: string, values: unknown[]) => {
-    if (sql.includes("select provider_subscription_id"))
-      return { rows: [{ provider_subscription_id: "sub_paid" }] };
     if (sql.includes("fn_reserve_subscription_ai"))
       return { rows: [{ reservation_id: values[1] }] };
     if (sql.includes("from ai_models"))

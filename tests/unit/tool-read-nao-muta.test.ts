@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 import { describe, expect, it } from "vitest";
 
@@ -54,13 +55,41 @@ const NAO_SAO_DOMINIO = new Set([
   "selecao-por-pacote.ts", "types.ts", "audit.ts", "recusa-para-o-modelo.ts", "tipos.ts",
 ]);
 
-const MUTA = /\.(insert|update|delete|upsert)\s*\(/;
+const METODOS_MUTANTES = new Set(["insert", "update", "delete", "upsert"]);
 
 interface Definicao {
   name: string;
   category: string;
-  corpo: string;
+  muta: boolean;
   arquivo: string;
+}
+
+function analisarDefinicoes(txt: string, arquivo: string): Definicao[] {
+  const fonte = ts.createSourceFile(arquivo, txt, ts.ScriptTarget.Latest, true);
+  const achadas: Definicao[] = [];
+  const visita = (node: ts.Node) => {
+    if (ts.isObjectLiteralExpression(node)) {
+      const propriedade = (nome: string) => node.properties.find((p) =>
+        ts.isPropertyAssignment(p) && (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name)) && p.name.text === nome,
+      ) as ts.PropertyAssignment | undefined;
+      const nome = propriedade("name")?.initializer;
+      const categoria = propriedade("category")?.initializer;
+      const handler = propriedade("handler")?.initializer;
+      if (nome && ts.isStringLiteral(nome) && categoria && ts.isStringLiteral(categoria) && handler) {
+        let muta = false;
+        const procuraMutacao = (parte: ts.Node) => {
+          if (ts.isCallExpression(parte) && ts.isPropertyAccessExpression(parte.expression)
+            && METODOS_MUTANTES.has(parte.expression.name.text)) muta = true;
+          ts.forEachChild(parte, procuraMutacao);
+        };
+        procuraMutacao(handler);
+        achadas.push({ name: nome.text, category: categoria.text, muta, arquivo });
+      }
+    }
+    ts.forEachChild(node, visita);
+  };
+  visita(fonte);
+  return achadas;
 }
 
 function definicoesDeTool(): Definicao[] {
@@ -69,13 +98,7 @@ function definicoesDeTool(): Definicao[] {
     if (!arquivo.endsWith(".ts") || arquivo.endsWith(".test.ts")) continue;
     if (NAO_SAO_DOMINIO.has(arquivo)) continue;
     const txt = readFileSync(path.join(DIR, arquivo), "utf8");
-    // Cada `export const x: McpToolDefinition` abre um bloco que vai até o próximo.
-    for (const bloco of txt.split(/(?=export const \w+: McpToolDefinition)/)) {
-      const nome = /name:\s*"([^"]+)"/.exec(bloco);
-      const cat = /category:\s*"(\w+)"/.exec(bloco);
-      if (!nome || !cat) continue;
-      achadas.push({ name: nome[1]!, category: cat[1]!, corpo: bloco, arquivo });
-    }
+    achadas.push(...analisarDefinicoes(txt, arquivo));
   }
   return achadas;
 }
@@ -89,20 +112,36 @@ describe("tool declarada read não grava no banco", () => {
     // de verde por estar tudo certo. Este número já me pegou uma vez: uma janela de
     // regex truncou uma entrada em silêncio e a contagem saiu menor que a real.
     expect(definicoes.length).toBe(TOOL_CATALOG.length);
+    expect(definicoes.map((d) => d.name).sort()).toEqual(TOOL_CATALOG.map((t) => t.name).sort());
   });
 
   it("CONTROLE: o detector reconhece mutação quando ela existe", () => {
     // Exercita o predicado, não só a varredura — os dois instrumentos deste arquivo
     // precisam de controle próprio, senão um deles pode morrer sozinho.
-    expect(MUTA.test('await ctx.supabase.from("x").insert({ a: 1 })')).toBe(true);
-    expect(MUTA.test('await ctx.supabase.from("x").update({ a: 1 })')).toBe(true);
-    expect(MUTA.test('await ctx.supabase.from("x").delete()')).toBe(true);
-    expect(MUTA.test('await ctx.supabase.from("x").select("a")')).toBe(false);
+    for (const metodo of ["insert", "update", "delete", "upsert", "select"]) {
+      const [definicao] = analisarDefinicoes(`const tool = {
+        name: "controle", category: "read", handler: async () => {
+          await ctx.supabase.from("x").${metodo}({ a: 1 });
+        }
+      };`, "controle.ts");
+      expect(definicao?.muta).toBe(metodo !== "select");
+    }
+  });
+
+  it("CONTROLE: ferramentas em array mantêm seus handlers separados", () => {
+    const definicoes = analisarDefinicoes(`export const tools = [
+      { name: "ler", category: "read", handler: async () => db.select("id") },
+      { name: "gravar", category: "write", handler: async () => db.insert({ id: 1 }) },
+    ];`, "array.ts");
+    expect(definicoes.map(({ name, category, muta }) => ({ name, category, muta }))).toEqual([
+      { name: "ler", category: "read", muta: false },
+      { name: "gravar", category: "write", muta: true },
+    ]);
   });
 
   it("nenhuma tool `read` tem insert/update/delete no corpo do handler", () => {
     const suspeitas = definicoes
-      .filter((d) => d.category === "read" && MUTA.test(d.corpo))
+      .filter((d) => d.category === "read" && d.muta)
       .map((d) => `${d.arquivo} → ${d.name}`);
 
     expect(

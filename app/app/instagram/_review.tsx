@@ -166,7 +166,7 @@ export function Review({ id }: { id: string }) {
                               alt={`${entry.input.carousel?.slide}º slide`}
                               width={160}
                               height={200}
-                              className="aspect-[4/5] w-full rounded object-cover"
+                              className="aspect-[4/5] w-full rounded-md object-cover"
                             />
                           )}
                           <span className="block text-xs">

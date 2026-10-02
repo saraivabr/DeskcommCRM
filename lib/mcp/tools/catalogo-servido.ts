@@ -39,8 +39,8 @@ export interface CapacidadeServida {
   risco: ToolRisk;
   pacotes: ReadonlyArray<ToolBundle>;
   /**
-   * `false` = a capacidade é do harness: a tela MOSTRA (o humano precisa saber
-   * que aquilo existe e já acontece sozinho) e não deixa marcar.
+   * `false` = capacidade do harness ou operada por pessoa: a tela mostra o
+   * motivo e não deixa ligar ao agente.
    *
    * A tela marcava, o dono salvava, o engine descartava — e o único sinal era
    * um `log.warn` no log do worker. O campo existe para que o descarte nunca
@@ -76,8 +76,10 @@ export function juntarCatalogoComHandlers(
       o_que_toca: entrada.oQueToca,
       risco: entrada.risco,
       pacotes: entrada.pacotes,
-      marcavel: !IDS_DO_HARNESS.has(handler.name),
-      motivo_nao_marcavel: motivoDoHarness(handler.name),
+      marcavel: !IDS_DO_HARNESS.has(handler.name) && !entrada.apenasHumano,
+      motivo_nao_marcavel: entrada.apenasHumano
+        ? "Esta capacidade é operada por uma pessoa e não pode ser ligada ao agente."
+        : motivoDoHarness(handler.name),
     };
   });
 }

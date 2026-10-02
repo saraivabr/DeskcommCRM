@@ -61,6 +61,7 @@ function poolFalso(opts: {
   const consultas: Consulta[] = [];
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
     consultas.push({ sql, params });
+    if (sql.includes("fn_reserve_subscription_ai")) return { rows: [{ reservation_id: null }] };
     if (sql.includes("settings->'llm'")) {
       return {
         rows: [
