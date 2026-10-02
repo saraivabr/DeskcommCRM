@@ -30,13 +30,13 @@ import { ligarPacote } from "@/lib/mcp/tools/selecao-por-pacote";
 export const PACOTE_PADRAO_DO_ONBOARDING = "vender" as const;
 
 /**
- * O catálogo restrito ao que TEM handler. Uma entrada declarada sem
+ * O catálogo restrito ao que tem handler e pode ser operado pelo agente. Uma entrada declarada sem
  * implementação viraria um id gravado em `tool_ids` que nunca monta ferramenta:
  * a tela mostraria a capacidade ligada e o turno não teria a mão.
  */
 export function catalogoComHandler() {
   const comHandler = new Set(allTools.map((t) => t.name));
-  return TOOL_CATALOG.filter((c) => comHandler.has(c.name));
+  return TOOL_CATALOG.filter((c) => comHandler.has(c.name) && !c.apenasHumano);
 }
 
 export function capacidadesPadraoDoOnboarding(): string[] {

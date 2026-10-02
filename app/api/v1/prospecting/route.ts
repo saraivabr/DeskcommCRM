@@ -8,6 +8,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { capabilitiesOf } from "@/lib/channels/capabilities";
 import type { ChannelProvider } from "@/lib/channels/types";
 import { ProspectingError } from "@/lib/prospecting/provider";
+import {
+  loadStandardSellerProfile,
+  saveStandardSellerProfile,
+} from "@/lib/prospecting/default-seller";
 import { prospectingInputSchema } from "@/lib/prospecting/schema";
 import { enableSchedule, saveSchedule, stopSchedule } from "@/lib/prospecting/schedule";
 import {
@@ -39,7 +43,7 @@ export async function GET() {
   try {
     const db = getRequestPool();
     const org = auth.org.orgId;
-    const [settings, campaigns, candidates, agents, channels, stages] = await Promise.all([
+    const [settings, campaigns, candidates, agents, channels, stages, seller] = await Promise.all([
       db.query(
         "select organization_id,schedule_config,schedule_enabled,schedule_runs,schedule_reserved_usd,schedule_next_at,schedule_request_id,schedule_campaign_id,schedule_error from prospecting_settings where organization_id=$1",
         [org],
@@ -64,6 +68,7 @@ export async function GET() {
         "select s.id,s.name,s.pipeline_id,p.name as pipeline_name from crm_stages s join crm_pipelines p on p.id=s.pipeline_id and p.organization_id=s.organization_id where s.organization_id=$1 and not s.is_archived and not s.is_won and not s.is_lost order by p.name,s.position",
         [org],
       ),
+      loadStandardSellerProfile(db, org),
     ]);
     return ok(
       {
@@ -72,6 +77,7 @@ export async function GET() {
         campaigns: campaigns.rows,
         candidates: candidates.rows,
         agents: agents.rows,
+        seller,
         channels: channels.rows.filter((c) => {
           try {
             return capabilitiesOf(c.provider as ChannelProvider).freeformOutsideWindow;
@@ -107,7 +113,9 @@ export async function POST(req: Request) {
     const pool = getRequestPool();
     const admin = createAdminClient();
     let result: unknown;
-    if (body.action === "save_schedule") result = await saveSchedule(pool, org, body.config);
+    if (body.action === "save_seller")
+      result = { seller: await saveStandardSellerProfile(pool, org, body.profile) };
+    else if (body.action === "save_schedule") result = await saveSchedule(pool, org, body.config);
     else if (body.action === "enable_schedule") result = await enableSchedule(pool, admin, org);
     else if (body.action === "stop_schedule") result = await stopSchedule(pool, org);
     else if (body.action === "configure") {

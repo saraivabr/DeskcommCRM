@@ -11,7 +11,7 @@ jobs:
     name: Construir candidata da revisão
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     concurrency:
       group: deploy-candidate-${{ github.ref }}
       cancel-in-progress: true
@@ -20,6 +20,7 @@ jobs:
       packages: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
+      worker_digest: ${{ steps.build-worker.outputs.digest }}
       version: ${{ steps.version.outputs.value }}
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +40,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          platforms: linux/amd64
           push: true
           tags: ghcr.io/saraivabr/deskcomm-app:candidate-${{ github.sha }}
           labels: org.opencontainers.image.revision=${{ github.sha }}
@@ -46,6 +48,75 @@ jobs:
             APP_VERSION=${{ steps.version.outputs.value }}
           cache-from: type=gha,scope=deskcomm-app
           cache-to: type=gha,mode=max,scope=deskcomm-app
+      - name: Build e push da candidata do worker pela mesma revisão
+        id: build-worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.worker
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/saraivabr/deskcomm-worker:candidate-${{ github.sha }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.value }}
+          cache-from: type=gha,scope=deskcomm-worker-production
+          cache-to: type=gha,mode=max,scope=deskcomm-worker-production
+      - name: Conferir as imagens e carregar a cadeia da prospecção sem credenciais
+        env:
+          APP_DIGEST: ${{ steps.build.outputs.digest }}
+          WORKER_DIGEST: ${{ steps.build-worker.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$APP_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          [[ "$WORKER_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          APP_REF="ghcr.io/saraivabr/deskcomm-app@$APP_DIGEST"
+          WORKER_REF="ghcr.io/saraivabr/deskcomm-worker@$WORKER_DIGEST"
+          for IMAGE_REF in "$APP_REF" "$WORKER_REF"; do
+            docker pull "$IMAGE_REF"
+            docker image inspect "$IMAGE_REF" | jq -e --arg sha "$GITHUB_SHA" --arg ref "$IMAGE_REF" '
+              .[0] | .Config.Labels["org.opencontainers.image.revision"] == $sha
+              and (.Config.Env | index("APP_VERSION=" + $sha) != null)
+              and (.RepoDigests | index($ref) != null)' >/dev/null
+          done
+          # Network none + synthetic credentials cannot reach a client, provider or DB.
+          PROBE=$(docker run --rm --network none --entrypoint pnpm \
+            -e NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:1 \
+            -e NEXT_PUBLIC_SUPABASE_ANON_KEY=probe-only \
+            -e SUPABASE_SERVICE_ROLE_KEY=probe-only \
+            -e SENTRY_DSN=off \
+            "$WORKER_REF" exec tsx scripts/sonda-do-laco-de-event-log.ts)
+          printf '%s\n' "$PROBE" | tail -1 | jq -e '.ok == true and .carregado == true' >/dev/null
+          docker run --rm --network none --entrypoint pnpm \
+            -e NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:1 \
+            -e NEXT_PUBLIC_SUPABASE_ANON_KEY=probe-only \
+            -e SUPABASE_SERVICE_ROLE_KEY=probe-only \
+            -e SENTRY_DSN=off \
+            "$WORKER_REF" exec tsx -e 'Promise.all([import("./lib/agent-engine/agent/resolve-turn-agent.ts"), import("./lib/agent-engine/edge/crm/drain.ts"), import("./lib/agent-engine/agent/agente-da-prospeccao.ts")]).then(() => console.info("Prospecting worker imports loaded"))'
+      - name: Provar o boot do CMD do worker até a barreira do banco isolado
+        env:
+          WORKER_DIGEST: ${{ steps.build-worker.outputs.digest }}
+        run: |
+          set -euo pipefail
+          NAME="worker-production-probe"
+          trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$NAME" --network none \
+            -e NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:1 \
+            -e NEXT_PUBLIC_SUPABASE_ANON_KEY=probe-only \
+            -e SUPABASE_SERVICE_ROLE_KEY=probe-only \
+            -e SUPABASE_DB_URL=postgres://probe:probe@127.0.0.1:1/probe \
+            -e SENTRY_DSN=off \
+            "ghcr.io/saraivabr/deskcomm-worker@$WORKER_DIGEST"
+          for ATTEMPT in {1..30}; do
+            [ "$(docker inspect "$NAME" --format '{{.State.Running}}')" = false ] && break
+            sleep 1
+          done
+          [ "$(docker inspect "$NAME" --format '{{.State.Running}}')" = false ]
+          [ "$(docker inspect "$NAME" --format '{{.State.ExitCode}}')" = 1 ]
+          docker logs "$NAME" > worker-boot.log 2>&1
+          ! grep -qE 'event-log drain OFF|Cannot find module|ERR_MODULE_NOT_FOUND|Cannot use import statement|SyntaxError|is not a function|Failed to resolve' worker-boot.log
+          grep -qE 'boot falhou:.*ECONNREFUSED.*127.0.0.1:1' worker-boot.log
+          echo 'Worker carregou o CMD e recusou apenas o banco isolado esperado.'
 
   deploy:
     name: Validar revisão e publicar no IRB
@@ -63,6 +134,8 @@ jobs:
       IMAGE: ghcr.io/saraivabr/deskcomm-app
       IMAGE_TAG: ${{ needs.build-candidate.outputs.version }}
       IMAGE_DIGEST: ${{ needs.build-candidate.outputs.digest }}
+      WORKER_IMAGE: ghcr.io/saraivabr/deskcomm-worker
+      WORKER_DIGEST: ${{ needs.build-candidate.outputs.worker_digest }}
     steps:
       - name: Checkout do repositorio
         uses: actions/checkout@v4
@@ -84,6 +157,10 @@ jobs:
           docker buildx imagetools create --prefer-index=false --tag "$IMAGE:$IMAGE_TAG" "$IMAGE@$IMAGE_DIGEST"
           ACTUAL=$(docker buildx imagetools inspect "$IMAGE:$IMAGE_TAG" --format '{{json .Manifest.Digest}}' | tr -d '"')
           [ "$ACTUAL" = "$IMAGE_DIGEST" ] || { echo 'Digest promovido diverge da candidata'; exit 1; }
+          [[ "$WORKER_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          docker buildx imagetools create --prefer-index=false --tag "$WORKER_IMAGE:$IMAGE_TAG" "$WORKER_IMAGE@$WORKER_DIGEST"
+          ACTUAL_WORKER=$(docker buildx imagetools inspect "$WORKER_IMAGE:$IMAGE_TAG" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          [ "$ACTUAL_WORKER" = "$WORKER_DIGEST" ] || { echo 'Digest do worker promovido diverge da candidata'; exit 1; }
       - name: Executar Deploy no IRB via SSH
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,7 +177,7 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "$IMAGE_TAG"
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "$IMAGE_TAG $IMAGE_DIGEST $WORKER_DIGEST"
       - name: Validar Saude em Producao (Smoke Test)
         run: |
           echo "Consultando health check publico..."
@@ -116,4 +193,8 @@ jobs:
           echo "Nao foi possivel confirmar a saude da revisao publicada."
           exit 1
       - name: Atualizar latest somente após saúde confirmada
-        run: docker buildx imagetools create --prefer-index=false --tag "$IMAGE:latest" "$IMAGE@$IMAGE_DIGEST"
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:latest" "$IMAGE@$IMAGE_DIGEST"
+          # The generic publisher owns worker:latest; IRB owns this separate pointer.
+          docker buildx imagetools create --prefer-index=false --tag "$WORKER_IMAGE:production-latest" "$WORKER_IMAGE@$WORKER_DIGEST"

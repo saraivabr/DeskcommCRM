@@ -181,7 +181,7 @@ export function ConversationListItem({
     bot_silenced_until: conversation.bot_silenced_until ?? null,
     force_human: c?.force_human ?? null,
     is_blocked: c?.is_blocked ?? null,
-    automaticoDaOrg,
+    automaticoDaOrg: conversation.automatico_da_prospeccao === true ? true : automaticoDaOrg,
   });
   const isAi = comando.quem === "automatico";
   const dot = COR_DO_COMANDO[comando.quem] ?? COR_DO_COMANDO.ninguem;

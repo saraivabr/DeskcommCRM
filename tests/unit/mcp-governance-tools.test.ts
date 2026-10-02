@@ -24,6 +24,7 @@ interface Query {
   table: string;
   select: string | null;
   count: boolean;
+  or: string | null;
   terminal: "maybeSingle" | "then";
 }
 type Resolver = (q: Query) => { data?: unknown; count?: number; error?: unknown };
@@ -39,7 +40,7 @@ interface Captures {
 
 function makeSupabase(resolve: Resolver, cap: Captures) {
   const from = (table: string) => {
-    const q: Query = { table, select: null, count: false, terminal: "then" };
+    const q: Query = { table, select: null, count: false, or: null, terminal: "then" };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chain: any = {
       select: (cols: string, opts?: { head?: boolean }) => {
@@ -50,6 +51,10 @@ function makeSupabase(resolve: Resolver, cap: Captures) {
       eq: () => chain,
       is: () => chain,
       in: () => chain,
+      or: (filters: string) => {
+        q.or = filters;
+        return chain;
+      },
       lte: () => chain,
       order: () => chain,
       limit: () => chain,
@@ -302,12 +307,22 @@ describe("crm_get_queue_status", () => {
   // Fila: 3 conversas esperando 10/20/30s ⇒ avg 20s. 2 atendentes elegíveis.
   const resolve: Resolver = (q) => {
     if (q.table === "conversations" && q.select === "awaiting_since") {
+      // Conversas gerais: nenhuma é atendida pela vendedora de prospecção.
+      const queue = [10_000, 20_000, 30_000].map((wait) => ({
+        awaiting_since: new Date(now.getTime() - wait).toISOString(),
+        comando_da_conversa: "automatico",
+        automatico_da_prospeccao: false,
+      }));
+      const matches = (row: (typeof queue)[number]) => q.or === null || q.or.split(",").some((clause) => {
+        const [column, op, raw] = clause.split(".");
+        if (column !== "comando_da_conversa" && column !== "automatico_da_prospeccao") throw new Error(clause);
+        const value = raw === "false" ? false : raw === "true" ? true : raw;
+        if (op === "eq") return row[column] === value;
+        if (op === "neq") return row[column] !== value;
+        throw new Error(clause);
+      });
       return {
-        data: [
-          { awaiting_since: new Date(now.getTime() - 10_000).toISOString() },
-          { awaiting_since: new Date(now.getTime() - 20_000).toISOString() },
-          { awaiting_since: new Date(now.getTime() - 30_000).toISOString() },
-        ],
+        data: queue.filter(matches),
         error: null,
       };
     }

@@ -67,6 +67,7 @@ function poolFalso(estado: Estado) {
 
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
     sqls.push(sql);
+    if (sql.includes("fn_reserve_subscription_ai")) return { rows: [{ reservation_id: null }] };
     // ⚠️ A ORDEM DESTES RAMOS É LOAD-BEARING: o statement do gate TAMBÉM contém
     // `insert into agent_inbox_items` (a CTE `avisa`), e a query joinada também
     // contém `settings->'llm'`. Casar pelo pedaço mais específico primeiro.

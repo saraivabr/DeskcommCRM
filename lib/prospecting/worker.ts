@@ -12,10 +12,7 @@ import { gerarAbordagemDeFormulario } from "@/lib/agent-engine/agent/abordagem-d
 import { llmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/llm/credentials";
 import { assertServiceBoundarySupabase } from "@/lib/atendimento/origem";
 import { comSaida } from "./rodape-de-saida";
-import {
-  proximoEnvioDaEsteiraFria,
-  tetoDiarioDaEsteiraFria,
-} from "./ritmo-da-esteira-fria";
+import { proximoEnvioDaEsteiraFria, tetoDiarioDaEsteiraFria } from "./ritmo-da-esteira-fria";
 import { parseServiceBoundary } from "@/lib/atendimento/fronteira";
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 import { decidirPreGoLiveDoCanalViaSupabase } from "@/lib/ai/elegibilidade/consulta-pre-go-live";
@@ -23,6 +20,7 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { assertProspectingDelivery } from "./guard";
 import { campaignConfigSchema } from "./schema";
+import { prospectingSalesContext } from "./context";
 import { ProspectingError } from "./provider";
 import {
   withProspectingLock,
@@ -143,10 +141,9 @@ export async function sendNextCandidate(
   // ritmo anti-banimento, então não há volume aqui para otimizar.
   const locale =
     (
-      await db.query<{ locale: string | null }>(
-        "select locale from organizations where id=$1",
-        [c.organization_id],
-      )
+      await db.query<{ locale: string | null }>("select locale from organizations where id=$1", [
+        c.organization_id,
+      ])
     ).rows[0]?.locale ?? null;
   const preflight = await decidirPreGoLiveDoCanalViaSupabase(admin, {
     organizationId: c.organization_id,
@@ -176,11 +173,7 @@ export async function sendNextCandidate(
     // furar o intervalo mínimo que o operador configurou.
     await db.query(
       "update prospecting_campaigns set next_send_at=$3 where organization_id=$1 and id=$2",
-      [
-        c.organization_id,
-        c.id,
-        proximoEnvioDaEsteiraFria(new Date(), cfg.interval_minutes, knobs),
-      ],
+      [c.organization_id, c.id, proximoEnvioDaEsteiraFria(new Date(), cfg.interval_minutes, knobs)],
     );
     // Reserve the shared channel budget before the external effect, including uncertain attempts.
     await recordSend(db, c.organization_id, cfg.channel_session_id, now);
@@ -209,7 +202,11 @@ export async function sendNextCandidate(
       tenantId: c.organization_id,
       agentId: cfg.agent_id,
       leadId: p.contact_id,
-      instrucao: `${cfg.instruction}\nFaça uma primeira abordagem curta e transparente. Os dados vieram de pesquisa pública, não de um formulário preenchido pela pessoa. Não invente familiaridade, resultados ou interesse. Uma pergunta por vez. Critérios a confirmar durante a conversa: ${cfg.qualification}`,
+      // Keep qualification in the reply context so the opener focuses on
+      // explaining the offer before asking about the recipient's needs.
+      instrucao: [cfg.instruction, prospectingSalesContext(cfg, c.search)]
+        .filter(Boolean)
+        .join("\n"),
       origem: "Pesquisa de empresas",
       // NÃO é `automacao`: a pessoa não entrou em funil nenhum. O prompt do
       // ramo frio é o único que proíbe afirmar preenchimento — ver blocoDeModo.
@@ -392,8 +389,7 @@ export async function tickProspecting(pool: pg.Pool, admin: SupabaseClient) {
             // busca e o envio, uma instabilidade de um segundo no provedor — e a
             // lista só voltava se alguém abrisse a tela e retomasse à mão. É o
             // oposto do que a casa faz em todo lugar: item ruim marca o ITEM.
-            const doCandidato =
-              error instanceof ProspectingError && error.escopo === "candidato";
+            const doCandidato = error instanceof ProspectingError && error.escopo === "candidato";
             const motivo =
               error instanceof ProspectingError
                 ? error.message

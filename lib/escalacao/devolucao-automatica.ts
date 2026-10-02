@@ -61,6 +61,8 @@ export interface ConversaEmHandoff {
   last_handoff_at: string | null;
   last_outbound_at: string | null;
   status_changed_at: string | null;
+  /** Availability restricted to this exact campaign conversation, not its whole channel. */
+  automatico_da_prospeccao?: boolean;
 }
 
 /**
@@ -135,7 +137,7 @@ export function avaliarDevolucao(
     return { devolver: false, motivo: "status_nao_devolvivel" };
   }
   const sessoes = sel.sessoesComAgente.get(c.organization_id);
-  if (!c.channel_session_id || !sessoes?.has(c.channel_session_id)) {
+  if (!c.channel_session_id || (!sessoes?.has(c.channel_session_id) && c.automatico_da_prospeccao !== true)) {
     return { devolver: false, motivo: "sessao_sem_agente" };
   }
   const sinal = ultimoSinalHumanoMs(c);

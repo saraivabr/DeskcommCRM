@@ -39,6 +39,7 @@ function poolFalso(opts: {
 }) {
   const inserts: Array<{ sql: string; params: unknown[] }> = [];
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
+    if (sql.includes("fn_reserve_subscription_ai")) return { rows: [{ reservation_id: null }] };
     if (sql.includes("settings->'llm'")) {
       return {
         rows: [

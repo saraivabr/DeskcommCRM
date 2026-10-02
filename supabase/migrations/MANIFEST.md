@@ -449,3 +449,4 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 | `20260925170000` | `0409_sales_waitlist` | Lista de espera comercial pré-tenant, email normalizado único, RLS sem acesso público direto. Registro não cria usuário nem convite; administração registra convite separado. |
 | `20260925212000` | `0413_mcp_operation_receipts` | Recibos exclusivos do servidor para efeitos MCP de conexões pessoais: reserva única antes do envio, hash dos parâmetros e estado incerto sem repetição automática. Nenhum conteúdo de mensagem é copiado. |
 | `20260928190000` | `0414_free_sem_credito_de_ia` | Free ativo pode ter crédito de IA zero; a reserva recusa antes de criar período ou chamar o provedor. |
+| `20261001220000` | `0415_prospecting_inbox_scope` | Disponibilidade calculada da vendedora padrão somente na conversa prospectada, protegida pelo acesso à conversa; fila, selo e devolução preservam o atendimento geral. |

@@ -52,9 +52,17 @@ import { agenteAtende, precisaRecuperarLegado, type FatosDoAgente } from "@/lib/
  */
 export interface CandidatoDeAgente extends FatosDoAgente {
   id: string;
+  config?: unknown;
   priority?: number | null;
   created_at?: string | null;
   published_version_id?: string | null;
+}
+
+/** Managed prospecting sellers never become a channel's general attendant. */
+export function ehVendedorPadraoDaProspeccao(config: unknown): boolean {
+  if (config === null || typeof config !== "object" || Array.isArray(config)) return false;
+  const marker = config as Record<string, unknown>;
+  return marker.managed_by === "prospecting" && marker.standard_seller === true;
 }
 
 export interface FatosDaConversa {
@@ -110,9 +118,11 @@ export function resolverAgenteDaConversa<T extends CandidatoDeAgente>(
     if (dono !== undefined) return { agente: dono, motivo: "stickiness_da_conversa" };
   }
 
+  const gerais = atendem.filter((c) => !ehVendedorPadraoDaProspeccao(c.config));
+
   const versoes = conversa?.versoesPublicadasNaSessao ?? null;
   if (versoes !== null && versoes.length > 0) {
-    const naSessao = atendem
+    const naSessao = gerais
       .filter((c) => c.published_version_id != null && versoes.includes(c.published_version_id))
       .sort(ordemDoMotor);
     const primeiro = naSessao[0];
@@ -121,8 +131,8 @@ export function resolverAgenteDaConversa<T extends CandidatoDeAgente>(
     }
   }
 
-  const unico = atendem[0];
-  if (atendem.length === 1 && unico !== undefined) {
+  const unico = gerais[0];
+  if (gerais.length === 1 && unico !== undefined) {
     return { agente: unico, motivo: "unico_da_organizacao" };
   }
 

@@ -60,6 +60,8 @@ export interface CapacidadeSelecionavel {
   name: string;
   risco: ToolRisk;
   pacotes: ReadonlyArray<ToolBundle>;
+  /** Operada por pessoa; o runtime não monta esta capacidade para o agente. */
+  apenasHumano?: boolean;
   /**
    * `false` = o MOTOR descarta (capacidade do harness, ver
    * `lib/mcp/tools/ferramentas-do-harness.ts`).
@@ -79,7 +81,9 @@ function doPacote(
   catalogo: ReadonlyArray<CapacidadeSelecionavel>,
   pacote: ToolBundle,
 ): CapacidadeSelecionavel[] {
-  return catalogo.filter((c) => c.pacotes.includes(pacote) && c.marcavel !== false);
+  return catalogo.filter(
+    (c) => c.pacotes.includes(pacote) && c.marcavel !== false && !c.apenasHumano,
+  );
 }
 
 /** As que o toggle do pacote liga sozinho — tudo que não é `critico`. */

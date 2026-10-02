@@ -21,15 +21,7 @@
       "label": "Banco"
     }
   ],
-  "mainPath": [
-    "operator",
-    "discovery",
-    "candidates",
-    "crm",
-    "queue",
-    "inbox",
-    "qualification"
-  ],
+  "mainPath": ["operator", "discovery", "candidates", "crm", "queue", "inbox", "qualification"],
   "nodes": [
     {
       "id": "operator",
@@ -85,21 +77,21 @@
       "lane": "app",
       "col": 2,
       "type": "component",
-      "label": "Conversa persistente, resumo e publicação explícita"
+      "label": "Vendedora padrão: identidade e oferta únicas"
     },
     {
       "id": "setup-session",
       "lane": "db",
       "col": 1,
       "type": "component",
-      "label": "Sessão de configuração por campanha e revisão"
+      "label": "Perfil da organização e snapshot da campanha"
     },
     {
       "id": "agent-preview",
       "lane": "app",
       "col": 3,
       "type": "component",
-      "label": "Rascunho pausado e sandbox canônico"
+      "label": "Provisionamento canônico e publicação transacional"
     },
     {
       "id": "voice-settings",
@@ -160,17 +152,17 @@
     {
       "from": "operator",
       "to": "agent-setup",
-      "label": "configuração revisada pelo administrador"
+      "label": "nome, empresa e oferta revisados"
     },
     {
       "from": "agent-setup",
       "to": "queue",
-      "label": "agente selecionado; ativação da campanha separada"
+      "label": "início autorizado resolve a vendedora padrão"
     },
     {
       "from": "agent-setup",
       "to": "inbox",
-      "label": "publicação e continuidade no canal"
+      "label": "somente conversas da campanha e do canal de origem"
     },
     {
       "from": "agent-setup",
@@ -180,7 +172,7 @@
     {
       "from": "agent-setup",
       "to": "setup-session",
-      "label": "salvar sem sobrescrever outra revisão"
+      "label": "salvar o perfil; congelar a identidade ao iniciar"
     },
     {
       "from": "setup-session",
@@ -190,17 +182,17 @@
     {
       "from": "agent-setup",
       "to": "agent-preview",
-      "label": "testar antes de publicar"
+      "label": "publicar com guards e comparação sob locks"
     },
     {
       "from": "agent-preview",
       "to": "operator",
-      "label": "resposta simulada e propostas de ferramentas"
+      "label": "falha visível e rascunho recuperável"
     },
     {
       "from": "agent-setup",
       "to": "voice-settings",
-      "label": "configurar voz do agente salvo"
+      "label": "editor existente; configuração de voz independente"
     },
     {
       "from": "voice-settings",

@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const standardSellerProfileSchema = z
+  .object({
+    seller_name: z.string().trim().min(2).max(120),
+    company_name: z.string().trim().min(2).max(160),
+    offer: z.string().trim().min(10).max(2000),
+  })
+  .strict();
+export type StandardSellerProfile = z.infer<typeof standardSellerProfileSchema>;
+
 export const campaignConfigSchema = z
   .object({
     agent_id: z.string().uuid(),
@@ -12,8 +21,15 @@ export const campaignConfigSchema = z
     daily_limit: z.number().int().min(1).max(50).default(10),
     interval_minutes: z.number().int().min(5).max(1440).default(15),
     legal_basis_ref: z.string().trim().min(3).max(500),
+    standard_seller: standardSellerProfileSchema.optional(),
   })
   .strict();
+// Persisted campaigns always have an agent. New campaigns resolve the module's
+// seller on the server instead of making the operator create/select one.
+export const campaignInputConfigSchema = campaignConfigSchema
+  .omit({ agent_id: true, standard_seller: true })
+  .extend({ agent_id: z.string().uuid().optional() });
+export type CampaignInputConfig = z.infer<typeof campaignInputConfigSchema>;
 export const searchSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
@@ -31,7 +47,7 @@ export const scheduleConfigSchema = z
     interval_hours: z.number().int().min(24).max(720),
     max_runs: z.number().int().min(1).max(100),
     total_budget_usd: z.number().min(0.5).max(100).multipleOf(0.01),
-    campaign_config: campaignConfigSchema.nullable(),
+    campaign_config: campaignInputConfigSchema.nullable(),
   })
   .strict()
   .refine((v) => v.total_budget_usd >= v.search.budget_usd, {
@@ -40,6 +56,7 @@ export const scheduleConfigSchema = z
 export type ScheduleConfig = z.infer<typeof scheduleConfigSchema>;
 
 export const prospectingInputSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("save_seller"), profile: standardSellerProfileSchema }).strict(),
   z.object({ action: z.literal("save_schedule"), config: scheduleConfigSchema }).strict(),
   z.object({ action: z.literal("enable_schedule") }).strict(),
   z.object({ action: z.literal("stop_schedule") }).strict(),
@@ -50,7 +67,11 @@ export const prospectingInputSchema = z.discriminatedUnion("action", [
     .object({ action: z.literal("search"), search: searchSchema, request_id: z.string().uuid() })
     .strict(),
   z
-    .object({ action: z.literal("start"), id: z.string().uuid(), config: campaignConfigSchema })
+    .object({
+      action: z.literal("start"),
+      id: z.string().uuid(),
+      config: campaignInputConfigSchema,
+    })
     .strict(),
   z.object({ action: z.literal("pause"), id: z.string().uuid() }).strict(),
   z.object({ action: z.literal("resume"), id: z.string().uuid() }).strict(),

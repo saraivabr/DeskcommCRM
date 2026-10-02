@@ -254,6 +254,50 @@ describe("GET /api/v1/cron/handoff-devolucao", () => {
     expect(devolver).not.toHaveBeenCalled();
   });
 
+  it("vendedora padrão publicada não devolve conversas gerais ao automático", async () => {
+    banco.ai_agents[0] = {
+      ...banco.ai_agents[0],
+      config: { managed_by: "prospecting", standard_seller: true },
+    };
+    await chamar();
+    expect(devolver).not.toHaveBeenCalled();
+    expect(auditar).not.toHaveBeenCalled();
+  });
+
+  it("vendedora padrão não esconde outro agente de atendimento na mesma sessão", async () => {
+    banco.ai_agents.unshift({
+      ...banco.ai_agents[0],
+      config: { managed_by: "prospecting", standard_seller: true },
+    });
+    await chamar();
+    expect(devolver).toHaveBeenCalledTimes(1);
+  });
+
+  it("devolve prospect elegível vencido, preservando handoffs recentes e conversas gerais", async () => {
+    banco.ai_agents[0] = {
+      ...banco.ai_agents[0],
+      config: { managed_by: "prospecting", standard_seller: true },
+    };
+    banco.conversations = [
+      { ...conversa(VENCIDA, 61), automatico_da_prospeccao: true },
+      { ...conversa(RECENTE, 20), automatico_da_prospeccao: true },
+      { ...conversa("conversa-geral", 61), automatico_da_prospeccao: false },
+    ];
+    await chamar();
+    expect(devolver).toHaveBeenCalledTimes(1);
+    expect(devolver.mock.calls[0]?.[1]).toEqual({ conversationId: VENCIDA, origem: { automatica: { minutos: 60 } } });
+  });
+
+  it("roteador explicitamente ativo conserva sua regra de devolução", async () => {
+    banco.ai_agents[0] = {
+      ...banco.ai_agents[0],
+      config: { managed_by: "prospecting", standard_seller: true },
+    };
+    banco.ai_routers = [{ organization_id: ORG, channel_session_id: SESSAO }];
+    await chamar();
+    expect(devolver).toHaveBeenCalledTimes(1);
+  });
+
   /**
    * O PAR ABAIXO É UM SÓ ASSUNTO: `assignment_conflict` sai de quatro pontos de
    * `devolverAtendimentoAoAgente` e só um deles é corrida. Classificar pelo

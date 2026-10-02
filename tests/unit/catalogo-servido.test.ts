@@ -67,6 +67,14 @@ describe("juntar as duas metades do catálogo", () => {
     );
   });
 
+  it("capacidade apenasHumano fica indisponível para seleção sem alterar seu acesso humano", () => {
+    const [servida] = juntarCatalogoComHandlers([HANDLER_FAKE], [{ ...ENTRADA_FAKE, apenasHumano: true }]);
+    expect(servida?.marcavel).toBe(false);
+    expect(servida?.motivo_nao_marcavel).toContain("operada por uma pessoa");
+    expect(servida?.requires_role).toBe(HANDLER_FAKE.requiresRole);
+    expect(servida?.requires_scope).toBe(HANDLER_FAKE.requiresScope);
+  });
+
   it("não inventa capacidade que não tem handler", () => {
     const extra = { ...ENTRADA_FAKE, name: "crm_capacidade_fantasma" };
     const servidas = juntarCatalogoComHandlers([HANDLER_FAKE], [ENTRADA_FAKE, extra]);
@@ -100,6 +108,17 @@ describe("catálogo real ↔ handlers reais", () => {
     for (const s of servidas) {
       expect(s.rotulo.length, `${s.id} sem rotulo`).toBeGreaterThan(0);
       expect(s.pacotes.length, `${s.id} sem pacote`).toBeGreaterThan(0);
+    }
+  });
+
+  it("todas as capacidades reais apenasHumano têm motivo e não podem ser ligadas ao agente", () => {
+    const humanas = TOOL_CATALOG.filter((t) => t.apenasHumano);
+    expect(humanas.length).toBeGreaterThan(0);
+    const servidas = juntarCatalogoComHandlers(allTools, TOOL_CATALOG);
+    for (const humana of humanas) {
+      const servida = servidas.find((t) => t.id === humana.name);
+      expect(servida?.marcavel, humana.name).toBe(false);
+      expect(servida?.motivo_nao_marcavel, humana.name).toContain("operada por uma pessoa");
     }
   });
 

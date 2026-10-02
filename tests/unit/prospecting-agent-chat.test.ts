@@ -183,6 +183,8 @@ describe("criação conversacional apenas propõe", () => {
       maxOutputTokens: 2200,
     });
     expect(modelInput.tools).toBeUndefined();
+    expect(modelInput.system).toContain("apresente brevemente o valor da solução");
+    expect(modelInput.system).toContain("cumprimento e resposta automática não são interesse");
   });
   it("recusa campanha alheia antes de chamar IA", async () => {
     const release = vi.fn();

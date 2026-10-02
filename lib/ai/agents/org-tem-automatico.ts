@@ -19,20 +19,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { agenteAtende } from "@/lib/ai/agents/no-ar";
+import { ehVendedorPadraoDaProspeccao } from "@/lib/ai/agents/agente-da-conversa";
 
 export async function orgTemAutomatico(
   supabase: SupabaseClient,
   organizationId: string,
 ): Promise<boolean | undefined> {
-  // As mesmas quatro colunas de `/api/v1/ai/automatico-ativo` — a régua olha
-  // linha a linha, e uma contagem no banco não sabe respondê-la sem duplicar
-  // `agenteAtende` em SQL, que é como ela se desencontrou da primeira vez.
+  // Same operational facts as `/api/v1/ai/automatico-ativo`, plus the marker
+  // that excludes the campaign-only seller from general inbox availability.
   const { data, error } = await supabase
     .from("ai_agents")
-    .select("kind, is_active, paused_at, published_version_id, archived_at")
+    .select("kind, is_active, paused_at, published_version_id, archived_at, config")
     .eq("organization_id", organizationId)
     .is("archived_at", null);
 
   if (error) return undefined;
-  return (data ?? []).some(agenteAtende);
+  return (data ?? []).some((a) => !ehVendedorPadraoDaProspeccao(a.config) && agenteAtende(a));
 }

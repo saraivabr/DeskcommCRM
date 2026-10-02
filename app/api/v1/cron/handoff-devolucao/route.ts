@@ -46,6 +46,7 @@ import { devolverAtendimentoAoAgente } from "@/lib/escalacao/retomada";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { autorizaCron } from "@/lib/auth/cron-auth";
+import { ehVendedorPadraoDaProspeccao } from "@/lib/ai/agents/agente-da-conversa";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +102,7 @@ async function sessoesComAgente(
 
   const { data: agentes, error: erroAgentes } = await admin
     .from("ai_agents")
-    .select("organization_id, published_version_id, ai_agent_versions!ai_agents_published_version_id_fkey(channel_session_id, status)")
+    .select("organization_id, config, published_version_id, ai_agent_versions!ai_agents_published_version_id_fkey(channel_session_id, status)")
     .in("organization_id", orgIds)
     .is("archived_at", null)
     .not("published_version_id", "is", null);
@@ -111,8 +112,10 @@ async function sessoesComAgente(
   // gerados o declaram como lista — o dispatcher normaliza do mesmo jeito.
   for (const a of (agentes ?? []) as unknown as Array<{
     organization_id: string;
+    config: unknown;
     ai_agent_versions: Versao | Versao[] | null;
   }>) {
+    if (ehVendedorPadraoDaProspeccao(a.config)) continue;
     const v = Array.isArray(a.ai_agent_versions) ? (a.ai_agent_versions[0] ?? null) : a.ai_agent_versions;
     if (v && v.status === "published") add(a.organization_id, v.channel_session_id);
   }
@@ -141,7 +144,7 @@ export async function devolverHandoffsVencidos(
   const { data, error } = await admin
     .from("conversations")
     .select(
-      "id, organization_id, channel_session_id, status, assignee_kind, assigned_to_user_id, assigned_at, bot_silenced_until, last_handoff_at, last_outbound_at, status_changed_at",
+      "id, organization_id, channel_session_id, status, assignee_kind, assigned_to_user_id, assigned_at, bot_silenced_until, last_handoff_at, last_outbound_at, status_changed_at, automatico_da_prospeccao",
     )
     .in("organization_id", orgIds)
     .in("status", ["open", "pending", "claimed", "ai_handling"])
