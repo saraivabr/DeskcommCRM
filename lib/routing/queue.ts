@@ -17,7 +17,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { orgTemAutomatico } from "@/lib/ai/agents/org-tem-automatico";
-import { ORDEM_DA_ESPERA, comandosDaFila } from "@/lib/inbox/comando-da-conversa";
+import { ORDEM_DA_ESPERA, comandosDaFila, excluirProspeccaoAtendidaDaFila } from "@/lib/inbox/comando-da-conversa";
 
 import { loadEligibleAttendants } from "./eligibles";
 
@@ -41,12 +41,14 @@ export async function getQueueStatus(
   organizationId: string,
   now: Date,
 ): Promise<QueueStatus> {
-  const naFila = comandosDaFila(await orgTemAutomatico(supabase, organizationId));
-  const { data: queueRows } = await supabase
+  const automaticoDaOrg = await orgTemAutomatico(supabase, organizationId);
+  const naFila = comandosDaFila(automaticoDaOrg);
+  const query = supabase
     .from("conversations")
     .select("awaiting_since")
     .eq("organization_id", organizationId)
     .in("comando_da_conversa", naFila);
+  const { data: queueRows } = await excluirProspeccaoAtendidaDaFila(query, automaticoDaOrg);
 
   const rows = (queueRows ?? []) as Array<{ awaiting_since: string | null }>;
   const queueSize = rows.length;
@@ -81,14 +83,16 @@ export async function getQueuePositions(
   supabase: SupabaseClient,
   organizationId: string,
 ): Promise<Map<string, number>> {
-  const naFila = comandosDaFila(await orgTemAutomatico(supabase, organizationId));
-  const { data } = await supabase
+  const automaticoDaOrg = await orgTemAutomatico(supabase, organizationId);
+  const naFila = comandosDaFila(automaticoDaOrg);
+  const query = supabase
     .from("conversations")
     .select("id")
     .eq("organization_id", organizationId)
     .in("comando_da_conversa", naFila)
     .order(ORDEM_DA_ESPERA.coluna, ORDEM_DA_ESPERA.opcoes)
     .order("id", { ascending: true });
+  const { data } = await excluirProspeccaoAtendidaDaFila(query, automaticoDaOrg);
 
   const rows = (data ?? []) as Array<{ id: string }>;
   const map = new Map<string, number>();
@@ -113,13 +117,15 @@ export async function getQueuePosition(
   awaitingSince: string | null,
   now: Date,
 ): Promise<number> {
-  const naFila = comandosDaFila(await orgTemAutomatico(supabase, organizationId));
+  const automaticoDaOrg = await orgTemAutomatico(supabase, organizationId);
+  const naFila = comandosDaFila(automaticoDaOrg);
   const ref = awaitingSince ?? now.toISOString();
-  const { count } = await supabase
+  const query = supabase
     .from("conversations")
     .select("id", { count: "exact", head: true })
     .eq("organization_id", organizationId)
     .in("comando_da_conversa", naFila)
     .lte("awaiting_since", ref);
+  const { count } = await excluirProspeccaoAtendidaDaFila(query, automaticoDaOrg);
   return count ?? 1;
 }

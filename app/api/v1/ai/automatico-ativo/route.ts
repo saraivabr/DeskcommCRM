@@ -32,6 +32,7 @@ import type { NextRequest } from "next/server";
 import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { agenteAtende } from "@/lib/ai/agents/no-ar";
+import { ehVendedorPadraoDaProspeccao } from "@/lib/ai/agents/agente-da-conversa";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -42,16 +43,15 @@ export async function GET(_req: NextRequest): Promise<Response> {
   if (!authz.ok) return authz.response;
 
   const supabase = await createClient();
-  // `head: true` + `count` não serve mais: a régua olha quatro colunas por
-  // linha, e uma contagem no banco não sabe respondê-la sem duplicar a regra em
-  // SQL — que é como ela se desencontrou da primeira vez.
+  // Count general attendants, not the managed seller that only replies inside
+  // prospecting campaigns. Read the operational facts rather than a raw count.
   const { data, error } = await supabase
     .from("ai_agents")
-    .select("kind, is_active, paused_at, published_version_id, archived_at")
+    .select("kind, is_active, paused_at, published_version_id, archived_at, config")
     .eq("organization_id", authz.org.orgId)
     .is("archived_at", null);
 
   if (error) return fail("internal_error", error.message, 500, { requestId });
 
-  return ok({ ativo: (data ?? []).some(agenteAtende) }, { requestId });
+  return ok({ ativo: (data ?? []).some((a) => !ehVendedorPadraoDaProspeccao(a.config) && agenteAtende(a)) }, { requestId });
 }

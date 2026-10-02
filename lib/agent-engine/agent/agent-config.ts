@@ -13,12 +13,12 @@
  *   - sem agente publicado para a sessão ⇒ null (o turno cai no comportamento
  *     de fallback: playbook por ponteiro + settings.llm da org + knobs de env).
  */
-import type pg from 'pg';
+import type pg from "pg";
 
-import { lerJanelaDeAtendimento, type JanelaDeAtendimento } from './janela-de-atendimento';
+import { lerJanelaDeAtendimento, type JanelaDeAtendimento } from "./janela-de-atendimento";
 
 export interface PublishedAgentConfig {
-  operationMode?: 'automatic' | 'assisted';
+  operationMode?: "automatic" | "assisted";
   pausedAt?: string | null;
   operationRevision?: string;
   agentId: string;
@@ -91,7 +91,7 @@ export interface PublishedAgentConfig {
 }
 
 interface Row {
-  operation_mode: 'automatic' | 'assisted';
+  operation_mode: "automatic" | "assisted";
   paused_at: string | null;
   operation_revision: string;
   agent_id: string;
@@ -156,14 +156,14 @@ const SELECT_AGENT_CONFIG_COLUMNS = `a.operation_mode,a.paused_at,a.operation_re
 function mapAgentConfigRow(r: Row): PublishedAgentConfig {
   const cfg = (r.config ?? {}) as { rag_top_k?: unknown; rag_similarity_threshold?: unknown };
   const ragTopK =
-    typeof cfg.rag_top_k === 'number' &&
+    typeof cfg.rag_top_k === "number" &&
     Number.isInteger(cfg.rag_top_k) &&
     cfg.rag_top_k >= 1 &&
     cfg.rag_top_k <= 20
       ? cfg.rag_top_k
       : 5;
   const ragSimilarityThreshold =
-    typeof cfg.rag_similarity_threshold === 'number' &&
+    typeof cfg.rag_similarity_threshold === "number" &&
     cfg.rag_similarity_threshold >= 0 &&
     cfg.rag_similarity_threshold <= 1
       ? cfg.rag_similarity_threshold
@@ -188,7 +188,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     historyTokenWindow: r.history_token_window,
     handoffKeywords: (r.handoff_keywords ?? [])
       .map((k) => k.toLowerCase().trim())
-      .filter((k) => k !== ''),
+      .filter((k) => k !== ""),
     handoffToolEnabled: r.handoff_tool_enabled,
     splitMessages: r.split_messages,
     splitMaxChars: r.split_max_chars,
@@ -236,6 +236,7 @@ export async function loadPublishedAgentConfig(
        -- dispatcher nativo do CRM — pausar = despublicar).
        and v.status = 'published'
        and v.channel_session_id = $2
+       and not coalesce(a.config @> '{"managed_by":"prospecting","standard_seller":true}'::jsonb,false)
      order by a.priority desc, a.created_at asc
      limit 1`,
     [organizationId, channelSessionId],
@@ -306,7 +307,7 @@ export async function loadConversationAgentConfig(
   channelId: string,
 ) {
   const { rows } = await pool.query<{ active_ai_agent_id: string | null }>(
-    'select active_ai_agent_id from conversations where organization_id=$1 and id=$2 and channel_session_id=$3',
+    "select active_ai_agent_id from conversations where organization_id=$1 and id=$2 and channel_session_id=$3",
     [organizationId, conversationId, channelId],
   );
   return rows[0]?.active_ai_agent_id

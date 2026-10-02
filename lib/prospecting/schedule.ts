@@ -8,6 +8,7 @@ import {
   activateCampaignWithClient,
   createSearchWithClient,
   credential,
+  resolveCampaignConfig,
   validateConfig,
   withProspectingLock,
   type Campaign,
@@ -75,7 +76,12 @@ export async function enableSchedule(pool: pg.Pool, admin: SupabaseClient, org: 
         "O limite da recorrência foi atingido. Revise e salve novos limites.",
       );
     await credential(db, admin, org);
-    if (parsed.data.campaign_config) await validateConfig(db, org, parsed.data.campaign_config);
+    if (parsed.data.campaign_config)
+      await validateConfig(
+        db,
+        org,
+        await resolveCampaignConfig(db, admin, org, parsed.data.campaign_config),
+      );
     await db.query(
       "update prospecting_settings set schedule_enabled=true,schedule_next_at=now(),schedule_error=null,updated_at=now() where organization_id=$1",
       [org],
@@ -176,7 +182,12 @@ export async function tickSchedules(pool: pg.Pool, admin: SupabaseClient) {
             )
               return;
             await credential(db, admin, org);
-            if (cfg.campaign_config) await validateConfig(db, org, cfg.campaign_config);
+            if (cfg.campaign_config)
+              await validateConfig(
+                db,
+                org,
+                await resolveCampaignConfig(db, admin, org, cfg.campaign_config),
+              );
             s.schedule_request_id = randomUUID();
             // Reserve the full per-run ceiling BEFORE the external POST. Never release uncertain spend.
             const claimed = await db.query(

@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   activate: vi.fn(),
   credential: vi.fn(),
   validate: vi.fn(),
+  resolve: vi.fn(),
   audit: vi.fn(),
 }));
 vi.mock("@/lib/audit", () => ({ audit: mocks.audit }));
@@ -14,6 +15,7 @@ vi.mock("@/lib/prospecting/store", () => ({
   activateCampaignWithClient: mocks.activate,
   credential: mocks.credential,
   validateConfig: mocks.validate,
+  resolveCampaignConfig: mocks.resolve,
 }));
 import {
   hasSearchBudget,
@@ -72,6 +74,10 @@ beforeEach(() => {
   mocks.create.mockResolvedValue({ id: "campaign", search_status: "running" });
   mocks.credential.mockResolvedValue("dummy");
   mocks.audit.mockResolvedValue(undefined);
+  mocks.resolve.mockImplementation(async (_db, _admin, _org, input) => ({
+    ...input,
+    agent_id: "55555555-5555-4555-8555-555555555555",
+  }));
 });
 it("disabled recurrence makes no search or contact calls", async () => {
   row.schedule_enabled = false;
@@ -165,6 +171,47 @@ it("saving always persists disabled and does not call the provider", async () =>
   expect(query.mock.calls[1]?.[0]).toContain("schedule_enabled=false");
   expect(mocks.create).not.toHaveBeenCalled();
 });
+it.each([false, true])(
+  "validates the standard seller before reserving or paying for a new batch (reject=%s)",
+  async (reject) => {
+    const operation = {
+      channel_session_id: "22222222-2222-4222-8222-222222222222",
+      pipeline_id: "33333333-3333-4333-8333-333333333333",
+      stage_id: "44444444-4444-4444-8444-444444444444",
+      qualified_stage_id: "44444444-4444-4444-8444-444444444445",
+      instruction: "Oferta comercial registrada",
+      qualification: "Solicitou demonstração",
+      legal_basis_ref: "Registro avaliado",
+      daily_limit: 5,
+      interval_minutes: 15,
+    };
+    row.schedule_config = { ...config, campaign_config: operation };
+    if (reject) mocks.resolve.mockRejectedValueOnce(new Error("perfil incompleto"));
+    mocks.create.mockImplementation(async () => {
+      expect(mocks.validate).toHaveBeenCalledWith(
+        expect.anything(),
+        "org",
+        expect.objectContaining({ agent_id: "55555555-5555-4555-8555-555555555555" }),
+      );
+      return { id: "campaign", search_status: "running" };
+    });
+    await tickSchedules({ query } as never, {} as never);
+    expect(mocks.resolve).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "org",
+      operation,
+    );
+    if (reject) {
+      expect(mocks.create).not.toHaveBeenCalled();
+      expect(row.schedule_reserved_usd).toBe("0");
+      expect(row.schedule_enabled).toBe(false);
+    } else {
+      expect(mocks.create).toHaveBeenCalledTimes(1);
+      expect(row.schedule_reserved_usd).toBe("1");
+    }
+  },
+);
 it("stop disables recurrence and pauses the associated campaign together", async () => {
   await stopSchedule({ query } as never, "org");
   expect(query.mock.calls[0]?.[0]).toContain("status='paused'");

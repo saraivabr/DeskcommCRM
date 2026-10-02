@@ -13,8 +13,11 @@ import { phoneLookupVariants } from "@/lib/channels/phone-variants";
 import { decryptWebhookSecret, encryptWebhookSecret } from "@/lib/webhooks/secrets";
 import {
   campaignConfigSchema,
+  campaignInputConfigSchema,
+  standardSellerProfileSchema,
   normalizeProspect,
   type CampaignConfig,
+  type CampaignInputConfig,
   type SearchInput,
   type Prospect,
 } from "./schema";
@@ -25,6 +28,11 @@ import {
   readSearch,
   startSearch,
 } from "./provider";
+import {
+  ensureStandardProspectingSeller,
+  loadStandardSellerProfile,
+  standardProspectingSellerId,
+} from "./default-seller";
 
 export interface Campaign {
   id: string;
@@ -217,11 +225,34 @@ export async function synchronizeSearch(db: pg.PoolClient, admin: SupabaseClient
     throw error;
   }
 }
+/** Resolve the module seller once; published campaign snapshots stay immutable. */
+export async function resolveCampaignConfig(
+  db: pg.PoolClient,
+  admin: SupabaseClient,
+  org: string,
+  raw: CampaignInputConfig,
+): Promise<CampaignConfig> {
+  const input = campaignInputConfigSchema.parse(raw);
+  if (input.agent_id && input.agent_id !== standardProspectingSellerId(org))
+    return campaignConfigSchema.parse(input);
+  const profile = standardSellerProfileSchema.safeParse(await loadStandardSellerProfile(db, org));
+  if (!profile.success)
+    throw new ProspectingError(
+      "Configure o nome, a empresa e a oferta da vendedora antes de iniciar.",
+    );
+  const seller = await ensureStandardProspectingSeller(db, admin, org, input);
+  return campaignConfigSchema.parse({
+    ...input,
+    agent_id: seller.agent_id,
+    standard_seller: profile.data,
+  });
+}
+
 export async function validateConfig(db: pg.PoolClient, org: string, input: CampaignConfig) {
   const config = campaignConfigSchema.parse(input);
   const agent = (
     await db.query(
-      "select v.tool_ids,v.pipeline_ids from ai_agents a join ai_agent_versions v on v.id=a.published_version_id and v.organization_id=a.organization_id where a.organization_id=$1 and a.id=$2 and v.status='published' and a.archived_at is null and a.paused_at is null and a.operation_mode='automatic'",
+      "select v.tool_ids,v.pipeline_ids,a.config from ai_agents a join ai_agent_versions v on v.id=a.published_version_id and v.organization_id=a.organization_id where a.organization_id=$1 and a.id=$2 and v.status='published' and a.archived_at is null and a.paused_at is null and a.operation_mode='automatic'",
       [org, config.agent_id],
     )
   ).rows[0];
@@ -247,22 +278,26 @@ export async function validateConfig(db: pg.PoolClient, org: string, input: Camp
     throw new ProspectingError(
       "Escolha uma conexão ativa que permita iniciar conversas de texto. Canais que exigem modelo aprovado ainda não participam desta campanha.",
     );
-  const router = await loadActiveRouter(db as unknown as pg.Pool, org, config.channel_session_id);
-  if (router) {
-    if (!router.sticky || !router.members.some((m) => m.agentId === config.agent_id))
-      throw new ProspectingError(
-        "Inclua o agente no roteador deste canal e ative a continuidade do agente antes de iniciar.",
+  const standardSeller =
+    agent.config?.managed_by === "prospecting" && agent.config?.standard_seller === true;
+  if (!standardSeller) {
+    const router = await loadActiveRouter(db as unknown as pg.Pool, org, config.channel_session_id);
+    if (router) {
+      if (!router.sticky || !router.members.some((m) => m.agentId === config.agent_id))
+        throw new ProspectingError(
+          "Inclua o agente no roteador deste canal e ative a continuidade do agente antes de iniciar.",
+        );
+    } else {
+      const bound = await loadPublishedAgentConfig(
+        db as unknown as pg.Pool,
+        org,
+        config.channel_session_id,
       );
-  } else {
-    const bound = await loadPublishedAgentConfig(
-      db as unknown as pg.Pool,
-      org,
-      config.channel_session_id,
-    );
-    if (bound?.agentId !== config.agent_id)
-      throw new ProspectingError(
-        "Publique o agente no canal escolhido para que ele também atenda às respostas.",
-      );
+      if (bound?.agentId !== config.agent_id)
+        throw new ProspectingError(
+          "Publique o agente no canal escolhido para que ele também atenda às respostas.",
+        );
+    }
   }
   const stages = (
     await db.query<{ id: string }>(
@@ -281,7 +316,7 @@ export async function activateCampaign(
   admin: SupabaseClient,
   org: string,
   id: string,
-  input: CampaignConfig,
+  input: CampaignInputConfig,
 ) {
   return withProspectingLock(pool, org, (db) =>
     activateCampaignWithClient(db, admin, org, id, input),
@@ -294,10 +329,9 @@ export async function activateCampaignWithClient(
   admin: SupabaseClient,
   org: string,
   id: string,
-  input: CampaignConfig,
+  input: CampaignInputConfig,
   scheduled = false,
 ) {
-  const config = await validateConfig(db, org, input);
   const c = (
     await db.query<Campaign>(
       "select * from prospecting_campaigns where organization_id=$1 and id=$2",
@@ -319,6 +353,24 @@ export async function activateCampaignWithClient(
     ).rows.length
   )
     throw new ProspectingError("Pause a campanha atual antes de iniciar outra.", 409);
+  const campaignInput =
+    scheduled && !input.agent_id
+      ? {
+          ...input,
+          instruction: c.config?.instruction ?? (await loadStandardSellerProfile(db, org)).offer,
+        }
+      : input;
+  const config = await validateConfig(
+    db,
+    org,
+    c.config
+      ? campaignConfigSchema.parse({
+          ...campaignInput,
+          agent_id: campaignInput.agent_id ?? c.config.agent_id,
+          standard_seller: c.config.standard_seller,
+        })
+      : await resolveCampaignConfig(db, admin, org, campaignInput),
+  );
   if (c.config && JSON.stringify(campaignConfigSchema.parse(c.config)) !== JSON.stringify(config))
     throw new ProspectingError(
       "A preparação já começou. Retome com a mesma configuração da campanha.",

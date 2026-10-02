@@ -15,7 +15,7 @@ import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { CONVERSATION_TERMINAL_STATUSES } from "@/lib/schemas";
 import { orgTemAutomatico } from "@/lib/ai/agents/org-tem-automatico";
-import { comandosDaFila } from "@/lib/inbox/comando-da-conversa";
+import { comandosDaFila, excluirProspeccaoAtendidaDaFila } from "@/lib/inbox/comando-da-conversa";
 import { aplicarMarcador } from "@/lib/inbox/marcador-da-conversa";
 import { createClient } from "@/lib/supabase/server";
 
@@ -133,10 +133,15 @@ export async function GET(req: NextRequest): Promise<Response> {
     // `tests/unit/fila-tem-uma-definicao-so.test.ts` e
     // `tests/invariants/gov-5b-inbox-scope-counts.test.ts`, porque um badge que conta o
     // que a aba não mostra manda o atendente procurar trabalho que não existe.
-    countExact().in("comando_da_conversa", comandosDaFila(automaticoDaOrg)),
+    excluirProspeccaoAtendidaDaFila(
+      countExact().in("comando_da_conversa", comandosDaFila(automaticoDaOrg)),
+      automaticoDaOrg,
+    ),
     // A aba "Automático". Antes ela pedia `status='ai_handling'`, escrito por UM
     // caminho só em produção — por isso vivia quase vazia.
-    countExact().eq("comando_da_conversa", "automatico"),
+    automaticoDaOrg === false
+      ? countExact().eq("comando_da_conversa", "automatico").eq("automatico_da_prospeccao", true)
+      : countExact().eq("comando_da_conversa", "automatico"),
     countExact()
       .eq("assigned_to_user_id", user.id)
       .not("status", "in", `(${CONVERSATION_TERMINAL_STATUSES.join(",")})`),

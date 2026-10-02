@@ -122,7 +122,7 @@ export function ConversationHeader({ conversation, onAbrirConversa, onOpenContac
     bot_silenced_until: conversation.bot_silenced_until ?? null,
     force_human: c?.force_human ?? null,
     is_blocked: conversation.contacts?.is_blocked ?? null,
-    automaticoDaOrg: automaticoDaOrg.data,
+    automaticoDaOrg: conversation.automatico_da_prospeccao === true ? true : automaticoDaOrg.data,
   });
 
   const encerrada = status === "closed" || status === "archived" || status === "resolved";

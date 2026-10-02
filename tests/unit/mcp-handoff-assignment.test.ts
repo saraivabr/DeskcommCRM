@@ -31,6 +31,7 @@ interface Query {
   table: string;
   select: string | null;
   count: boolean;
+  or: string | null;
   terminal: "maybeSingle" | "then";
 }
 
@@ -47,7 +48,7 @@ interface StubState {
 
 function makeSupabaseStub(state: StubState) {
   const from = (table: string) => {
-    const q: Query = { table, select: null, count: false, terminal: "then" };
+    const q: Query = { table, select: null, count: false, or: null, terminal: "then" };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chain: any = {
       select: (cols: string, opts?: { head?: boolean }) => {
@@ -58,6 +59,10 @@ function makeSupabaseStub(state: StubState) {
       eq: () => chain,
       is: () => chain,
       in: () => chain,
+      or: (filters: string) => {
+        q.or = filters;
+        return chain;
+      },
       lte: () => chain,
       order: () => chain,
       limit: () => chain,
@@ -91,7 +96,22 @@ function makeSupabaseStub(state: StubState) {
         else if (table === "channel_routing_responsibles") result = { data: (state.allowed ?? []).map(user_id => ({ user_id })), error: null };
         else if (table === "conversations" && state.updates.length) result = { data: [{ id: CONV_ID }], error: null };
         if (table === "attendant_availability") result = { data: state.attendants, error: null };
-        else if (table === "conversations" && q.count) result = { count: state.queuePositionCount, error: null };
+        else if (table === "conversations" && q.count) {
+          // A posição é sobre conversas gerais aguardando humano, sem prospecção.
+          const queue = Array.from({ length: state.queuePositionCount }, () => ({
+            comando_da_conversa: "aguardando",
+            automatico_da_prospeccao: false,
+          }));
+          const matches = (row: (typeof queue)[number]) => q.or === null || q.or.split(",").some((clause) => {
+            const [column, op, raw] = clause.split(".");
+            if (column !== "comando_da_conversa" && column !== "automatico_da_prospeccao") throw new Error(clause);
+            const value = raw === "false" ? false : raw === "true" ? true : raw;
+            if (op === "eq") return row[column] === value;
+            if (op === "neq") return row[column] !== value;
+            throw new Error(clause);
+          });
+          result = { count: queue.filter(matches).length, error: null };
+        }
         return Promise.resolve(result).then(resolve);
       },
     };

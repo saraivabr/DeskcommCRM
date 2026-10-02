@@ -9234,6 +9234,11 @@ export type Database = {
       }
     }
     Functions: {
+      automatico_da_prospeccao: {
+        Args: { c: Database["public"]["Tables"]["conversations"]["Row"] }
+        Returns: boolean
+      }
+
       fn_provision_self_service_tenant: {
         Args: { p_slug: string; p_name: string; p_owner: string }
         Returns: { organization_id: string; organization_slug: string; provisioned: boolean }[]

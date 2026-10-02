@@ -42,7 +42,7 @@ vi.mock("@/hooks/inbox/usePauseAiAttendance", () => ({
 vi.mock("@/hooks/ai/useAutomaticoAtivo", () => ({
   useAutomaticoAtivo: () => ({ data: false }),
 }));
-vi.mock("@/components/kanban/OwnerBadge", () => ({ OwnerBadge: () => null }));
+vi.mock("@/components/kanban/OwnerBadge", () => ({ OwnerBadge: ({ ownerName }: { ownerName: string | null }) => <span>{ownerName}</span> }));
 vi.mock("@/components/inbox/ReassignDialog", () => ({ ReassignDialog: () => null }));
 vi.mock("@/components/inbox/SnoozeButton", () => ({ SnoozeButton: () => null }));
 vi.mock("@/components/inbox/JanelaSelo", () => ({ JanelaSelo: () => null }));
@@ -84,6 +84,21 @@ beforeEach(() => {
 });
 
 describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
+  it("prospect exato exibe automático mesmo sem atendente geral", () => {
+    render(<ConversationHeader conversation={{ ...conversa("open"), automatico_da_prospeccao: true }} />);
+    expect(screen.getByText("Automático")).toBeInTheDocument();
+  });
+
+  it("a vendedora não atribui automático a conversa geral", () => {
+    render(<ConversationHeader conversation={{ ...conversa("open"), automatico_da_prospeccao: false }} />);
+    expect(screen.queryByText("Automático")).not.toBeInTheDocument();
+  });
+
+  it("prospect em handoff continua aguardando humano", () => {
+    render(<ConversationHeader conversation={{ ...conversa("open"), automatico_da_prospeccao: true, bot_silenced_until: "infinity" }} />);
+    expect(screen.queryByText("Automático")).not.toBeInTheDocument();
+  });
+
   it("Fechar pede confirmação e só encerra no clique de dentro do diálogo", async () => {
     const user = userEvent.setup();
     render(<ConversationHeader conversation={conversa("open")} />);

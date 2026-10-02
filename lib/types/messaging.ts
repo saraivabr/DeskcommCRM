@@ -59,6 +59,8 @@ export interface Conversation {
    * resposta de uma versão anterior, ainda em cache do react-query, não o tem.
    */
   comando_da_conversa?: string | null;
+  /** Computed availability of the standard seller for this exact prospect conversation. */
+  automatico_da_prospeccao?: boolean;
   last_handoff_at: string | null;
   created_at: string;
   updated_at: string;

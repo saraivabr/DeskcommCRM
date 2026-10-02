@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,8 +8,10 @@ const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn() }));
 vi.mock("@/lib/api/client", () => ({ apiClient: api }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (text: string) => text }));
 
-import { ProspectingClient } from "@/app/app/prospecting/_client";
-import { ProspectingScheduleForm } from "@/app/app/prospecting/_schedule";
+import {
+  ProspectingAgentBuilder,
+  type CreatedProspectingAgent,
+} from "@/app/app/prospecting/_create-agent";
 import { ApiError } from "@/lib/api/types";
 import type { AgentSessionResponse } from "@/lib/prospecting/agent-session-schema";
 
@@ -101,11 +104,57 @@ let createReply: typeof api.post;
 let prepareReply: typeof api.post;
 let testReply: typeof api.post;
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+function BuilderHarness() {
+  const [selected, setSelected] = useState(CAMPAIGN);
+  const [createdAgents, setCreatedAgents] = useState<Record<string, CreatedProspectingAgent>>({});
+  const campaign = state.campaigns.find((item) => item.id === selected)!;
+  const createdAgent = createdAgents[selected];
+  return (
+    <>
+      {state.campaigns.map((item) => (
+        <button key={item.id} onClick={() => setSelected(item.id)}>
+          {item.name}
+        </button>
+      ))}
+      {createdAgent ? (
+        <section aria-label="Funcionário selecionado">
+          {createdAgent.agent.name}
+          <a href={`/app/ai/agents/${createdAgent.agent.id}`}>
+            Configurações avançadas do funcionário
+          </a>
+          <a href={`/app/ai/agents/${createdAgent.agent.id}#voice-assistant`}>
+            Configurar assistente de voz
+          </a>
+        </section>
+      ) : (
+        <ProspectingAgentBuilder
+          key={selected}
+          campaign={campaign}
+          config={{
+            ...CONFIG,
+            agent_id: "",
+            instruction: "",
+            qualification: "",
+            channel_session_id: "",
+            pipeline_id: "",
+            stage_id: "",
+            qualified_stage_id: "",
+          }}
+          channels={state.channels}
+          stages={state.stages}
+          onCreated={async (campaignId, result) =>
+            setCreatedAgents((current) => ({ ...current, [campaignId]: result }))
+          }
+        />
+      )}
+    </>
+  );
+}
 function openPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <ProspectingClient />
+      <BuilderHarness />
     </QueryClientProvider>,
   );
 }
@@ -248,89 +297,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-it("exige salvar alterações antes de ativar a recorrência", () => {
-  const perform = vi.fn();
-  render(
-    <ProspectingScheduleForm
-      busy={false}
-      campaigns={[]}
-      perform={perform}
-      schedule={{
-        schedule_config: {
-          search: {
-            source: "instagram",
-            name: "Teste",
-            niche: "Teste",
-            location: "SP",
-            limit: 20,
-            budget_usd: 1,
-            enrich: true,
-          },
-          interval_hours: 24,
-          max_runs: 5,
-          total_budget_usd: 5,
-          campaign_config: null,
-        },
-        schedule_enabled: false,
-        schedule_runs: 0,
-        schedule_reserved_usd: "0",
-        schedule_next_at: null,
-        schedule_request_id: null,
-        schedule_campaign_id: null,
-        schedule_error: null,
-      }}
-    />,
-  );
-  const activate = screen.getByRole("button", { name: "Ativar buscas automáticas", hidden: true });
-  expect(activate).toBeEnabled();
-  fireEvent.change(screen.getByLabelText("Região da recorrência"), { target: { value: "RJ" } });
-  expect(activate).toBeDisabled();
-  fireEvent.click(activate);
-  expect(perform).not.toHaveBeenCalled();
-});
-
-it("salva recorrência desligada sem iniciar busca nem campanha", async () => {
-  openPage();
-  await builder();
-  fireEvent.change(screen.getByLabelText("Público da recorrência"), { target: { value: "Teste" } });
-  fireEvent.change(screen.getByLabelText("Região da recorrência"), { target: { value: "SP" } });
-  fireEvent.click(
-    screen.getByRole("button", { name: "Salvar recorrência desligada", hidden: true }),
-  );
-  await waitFor(() =>
-    expect(api.post).toHaveBeenCalledWith(
-      "/api/v1/prospecting",
-      expect.objectContaining({ action: "save_schedule" }),
-    ),
-  );
-  expect(
-    api.post.mock.calls.some(([, body]) =>
-      ["search", "start", "enable_schedule"].includes(body.action),
-    ),
-  ).toBe(false);
-});
-
-it("seleciona Instagram e envia a fonte sem ativar campanha", async () => {
-  openPage();
-  await builder();
-  fireEvent.change(screen.getByLabelText("Onde buscar"), { target: { value: "instagram" } });
-  expect(screen.getByText(/não permite iniciar DM para perfis coletados/)).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Público ou segmento"), { target: { value: "Teste" } });
-  fireEvent.change(screen.getByLabelText("Cidade ou região"), { target: { value: "São Paulo" } });
-  fireEvent.click(screen.getByRole("button", { name: "Buscar empresas" }));
-  await waitFor(() =>
-    expect(api.post).toHaveBeenCalledWith(
-      "/api/v1/prospecting",
-      expect.objectContaining({
-        action: "search",
-        search: expect.objectContaining({ source: "instagram" }),
-      }),
-    ),
-  );
-  expect(api.post.mock.calls.some(([, body]) => body.action === "start")).toBe(false);
-});
-
-describe("conversa principal para configurar o agente", () => {
+describe("builder independente para configurar o agente", () => {
   it("começa na conversa com resumo incompleto e sugestões, sem criar ou iniciar nada", async () => {
     openPage();
     await builder();
@@ -364,8 +331,6 @@ describe("conversa principal para configurar o agente", () => {
       "href",
       `/app/ai/agents/${NEW_AGENT}#voice-assistant`,
     );
-    expect(screen.getByLabelText("Máximo em 24 horas")).toHaveValue(10);
-    expect(screen.getByLabelText("Referência da avaliação de legítimo interesse")).toHaveValue("");
     expect(api.post.mock.calls.some(([, body]) => body.action === "start")).toBe(false);
   });
 
@@ -690,36 +655,5 @@ describe("conversa principal para configurar o agente", () => {
       content: "Quero o canal Comercial",
     });
     expect(mutationCalls()).toHaveLength(0);
-  });
-});
-
-describe("alternativa manual e campanha existente", () => {
-  it("mantém controles manuais como alternativa e preserva dados por campanha", async () => {
-    openPage();
-    await builder();
-    fireEvent.click(screen.getByRole("button", { name: "Escolher BDR ou SDR existente" }));
-    const offer = () => screen.getByLabelText("O que a IA deve oferecer e como iniciar");
-    fireEvent.change(offer(), { target: { value: "Oferecer avaliação para clínicas" } });
-    fireEvent.click(screen.getByRole("button", { name: /Escritórios de contabilidade/ }));
-    await builder();
-    fireEvent.click(screen.getByRole("button", { name: "Escolher BDR ou SDR existente" }));
-    expect(offer()).toHaveValue("");
-    fireEvent.click(screen.getByRole("button", { name: /Clínicas de estética/ }));
-    expect(offer()).toHaveValue("Oferecer avaliação para clínicas");
-    fireEvent.click(screen.getByRole("button", { name: "Criar BDR conversando" }));
-    await say("Complete o agente com essa oferta.");
-    await ready();
-    expect(chatReply.mock.calls[0]![0].draft.instruction).toBe("Oferecer avaliação para clínicas");
-  });
-  it("preserva a configuração congelada de uma campanha que já preparou contatos", async () => {
-    state.campaigns[0]!.config = CONFIG;
-    openPage();
-    const select = await screen.findByLabelText("Funcionário responsável");
-    expect(select).toHaveValue(AGENT);
-    expect(select).toBeDisabled();
-    expect(
-      screen.queryByRole("region", { name: "Configuração por conversa" }),
-    ).not.toBeInTheDocument();
-    expect(api.post).not.toHaveBeenCalled();
   });
 });

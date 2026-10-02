@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { prospectingConversationContext } from "@/lib/prospecting/context";
+import { prospectingConversationContext, prospectingSalesContext } from "@/lib/prospecting/context";
 import { PROSPECTING_REPLY_GUIDANCE } from "@/lib/prospecting/conversation-guidance";
 import type { Queryable } from "@/lib/agent-engine/queue/queue";
 import { campaignConfigSchema } from "@/lib/prospecting/schema";
@@ -23,6 +23,23 @@ function database(configs: unknown[]) {
 }
 
 describe("prospecting reply context for existing campaigns", () => {
+  it("changes the audience while preserving seller, company and the real offer", () => {
+    const sellerConfig = { ...config, standard_seller: {
+      seller_name: "Sara", company_name: "Empresa Exemplo", offer: "Organizamos atendimento e acompanhamento no WhatsApp",
+    } };
+    const search = { name: "Busca", niche: "clínicas", location: "São Paulo" };
+    const clinic = prospectingSalesContext(sellerConfig, search);
+    const restaurant = prospectingSalesContext(sellerConfig, { ...search, niche: "restaurantes" });
+    for (const context of [clinic, restaurant]) {
+      expect(context).toContain('"Sara", da "Empresa Exemplo"');
+      expect(context).toContain(sellerConfig.standard_seller.offer);
+      expect(context).toContain("mantendo o nome, a empresa, a oferta real e o papel de vendedora");
+    }
+    expect(clinic).toContain('"clínicas"');
+    expect(restaurant).toContain('"restaurantes"');
+    expect(restaurant).not.toContain('"clínicas"');
+  });
+
   it("injects the current guidance without rewriting the published agent or campaign", async () => {
     const db = database([config]);
     const context = await prospectingConversationContext(db as Queryable, org, conversation);

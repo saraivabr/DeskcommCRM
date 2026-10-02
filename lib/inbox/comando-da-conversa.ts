@@ -330,6 +330,16 @@ export function comandosDaFila(automaticoDaOrg?: boolean): ComandoDoBanco[] {
   return automaticoDaOrg === false ? ["aguardando", "automatico"] : ["aguardando"];
 }
 
+/** Keep human handoffs visible; exclude only automatic conversations with their own seller. */
+export function excluirProspeccaoAtendidaDaFila<T extends { or(filters: string): T }>(
+  query: T,
+  automaticoDaOrg?: boolean,
+): T {
+  return automaticoDaOrg === false
+    ? query.or("comando_da_conversa.neq.automatico,automatico_da_prospeccao.eq.false")
+    : query;
+}
+
 /**
  * A ORDEM DA FILA, num lugar só — mais tempo esperando primeiro.
  *

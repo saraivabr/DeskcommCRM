@@ -6,16 +6,19 @@ import { Label } from "@/components/ui/label";
 import { useT } from "@/hooks/i18n/useT";
 import type { ScheduleConfig, CampaignConfig } from "@/lib/prospecting/schema";
 import type { ProspectingSchedule } from "@/lib/prospecting/schedule";
+import type { SellerProfile } from "./_seller-profile";
 
 const selectClass = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
 export function ProspectingScheduleForm({
   schedule,
   campaigns,
+  seller,
   busy,
   perform,
 }: {
   schedule: ProspectingSchedule | null;
   campaigns: { id: string; name: string; config: CampaignConfig | null }[];
+  seller: SellerProfile;
   busy: boolean;
   perform: (body: unknown, message: string) => Promise<boolean>;
 }) {
@@ -37,6 +40,23 @@ export function ProspectingScheduleForm({
       campaign_config: null,
     },
   );
+  const [sourceCampaign, setSourceCampaign] = useState("");
+  const standardSellerConfig = (config: ScheduleConfig["campaign_config"]) =>
+    config
+      ? {
+          channel_session_id: config.channel_session_id,
+          pipeline_id: config.pipeline_id,
+          stage_id: config.stage_id,
+          qualified_stage_id: config.qualified_stage_id,
+          instruction: seller.offer,
+          qualification: t(
+            "Demonstrou interesse na oferta e quer avançar para uma conversa comercial.",
+          ),
+          daily_limit: config.daily_limit,
+          interval_minutes: config.interval_minutes,
+          legal_basis_ref: config.legal_basis_ref,
+        }
+      : null;
   const setSearch = (patch: Partial<ScheduleConfig["search"]>) =>
     setDraft((d) => ({ ...d, search: { ...d.search, ...patch } }));
   const hasUnsavedChanges = JSON.stringify(draft) !== JSON.stringify(schedule?.schedule_config);
@@ -78,6 +98,7 @@ export function ProspectingScheduleForm({
               action: "save_schedule",
               config: {
                 ...draft,
+                campaign_config: standardSellerConfig(draft.campaign_config),
                 search: {
                   ...draft.search,
                   name: `${draft.search.niche} · ${draft.search.location}`.slice(0, 120),
@@ -190,19 +211,16 @@ export function ProspectingScheduleForm({
           <select
             id="schedule-outreach"
             className={selectClass}
-            value={
-              draft.campaign_config
-                ? (campaigns.find(
-                    (c) => JSON.stringify(c.config) === JSON.stringify(draft.campaign_config),
-                  )?.id ?? "saved")
-                : ""
-            }
-            onChange={(e) =>
+            value={draft.campaign_config ? sourceCampaign || "saved" : ""}
+            onChange={(e) => {
+              setSourceCampaign(e.target.value);
               setDraft((d) => ({
                 ...d,
-                campaign_config: campaigns.find((c) => c.id === e.target.value)?.config ?? null,
-              }))
-            }
+                campaign_config: standardSellerConfig(
+                  campaigns.find((c) => c.id === e.target.value)?.config ?? null,
+                ),
+              }));
+            }}
           >
             <option value="">{t("Apenas coletar empresas")}</option>
             {draft.campaign_config && <option value="saved">{t("Configuração salva")}</option>}
@@ -217,11 +235,17 @@ export function ProspectingScheduleForm({
         </div>
         <p className="text-sm text-muted-foreground sm:col-span-2">
           {t(
-            "Para abordar automaticamente, reutilize uma campanha configurada com agente, canal, funil e critérios. O modo de teste e as proteções do canal continuam valendo. Uma busca já solicitada pode concluir mesmo após parar.",
+            "Para abordar automaticamente, reutilize o canal, funil e ritmo de uma campanha. Ao salvar, os próximos lotes usam a apresentação e oferta atuais da vendedora padrão. O modo de teste e as proteções do canal continuam valendo. Uma busca já solicitada pode concluir mesmo após parar.",
           )}
         </p>
         <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
-          <Button type="submit" variant="outline" disabled={busy || schedule?.schedule_enabled}>
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={
+              busy || schedule?.schedule_enabled || (!!draft.campaign_config && !seller.offer)
+            }
+          >
             {t("Salvar recorrência desligada")}
           </Button>
           <Button

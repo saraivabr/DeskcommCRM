@@ -14,7 +14,8 @@ import { CONVERSATION_TERMINAL_STATUSES } from "@/lib/schemas";
 import type { ListConversationsQuery, PatchConversationInput } from "@/lib/schemas";
 import type { Conversation } from "@/lib/types/messaging";
 import { normalizarTermoDeBusca } from "@/lib/inbox/termo-de-busca";
-import { ORDEM_DA_ESPERA, ehAFila } from "@/lib/inbox/comando-da-conversa";
+import { ORDEM_DA_ESPERA, ehAFila, excluirProspeccaoAtendidaDaFila } from "@/lib/inbox/comando-da-conversa";
+import { orgTemAutomatico } from "@/lib/ai/agents/org-tem-automatico";
 import { aplicarMarcador } from "@/lib/inbox/marcador-da-conversa";
 
 /**
@@ -90,7 +91,7 @@ const SELECT_COLS = `
   snooze_until, created_at, updated_at,
   bot_silenced_until, last_handoff_at,
   active_ai_agent_id,
-  comando_da_conversa,
+  comando_da_conversa, automatico_da_prospeccao,
   contacts:contact_id (id, display_name, name, phone_number, is_anonymized, tags, is_blocked, avatar_storage_path, force_human),
   channel_sessions:channel_session_id (phone_number, display_name, provider, social_platform:metadata->>social_platform)
 `;
@@ -198,6 +199,12 @@ export async function listConversationsHandler(
   // páginas curtas e um "carregar mais" que às vezes não traz nada.
   if (q.comando && q.comando.length > 0) {
     query = query.in("comando_da_conversa", q.comando);
+    const automaticoDaOrg = await orgTemAutomatico(supabase, ctx.organization_id);
+    if (isQueue) {
+      query = excluirProspeccaoAtendidaDaFila(query, automaticoDaOrg);
+    } else if (automaticoDaOrg === false && q.comando.length === 1 && q.comando[0] === "automatico") {
+      query = query.eq("automatico_da_prospeccao", true);
+    }
   }
   // Depois do `status` de propósito: pedir um status terminal E `exclude_finished`
   // é contradição, e a resposta certa para uma contradição é lista vazia — não
