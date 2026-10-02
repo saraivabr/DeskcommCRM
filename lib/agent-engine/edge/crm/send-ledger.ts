@@ -18,6 +18,9 @@ interface LedgerStore {
   create(input: Intent, hash: string): Promise<string>;
   find(input: Intent): Promise<Row | null>;
   rotate(input: Intent, hash: string): Promise<string>;
+  /** Pela PK primeiro: o envio grava `messages.id = chave` (`internalMessageId`). O
+   * `metadata->>'idempotency_key'` não tem índice e só alcança linha gravada antes
+   * dessa convenção, então fica de reserva para quando a PK não acha. */
   message(org: string, key: string): Promise<{ id: string; status: string } | null>;
   update(
     org: string,
@@ -37,6 +40,10 @@ export async function sendWithLedger(
 ): Promise<SendOutcome> {
   const hash = createHash("sha256").update(input.body).digest("hex");
   let key: string;
+  // Chave saída de `create` ou `rotate` é um uuid que acabou de nascer: nenhuma
+  // mensagem pode carregá-la ainda. Procurar seria uma leitura sob o lock do
+  // número que só pode devolver vazio.
+  let replay = false;
   try {
     key = await store.create(input, hash);
   } catch (error) {
@@ -49,8 +56,9 @@ export async function sendWithLedger(
       return { kind: "already_sent", idempotencyKey: key, crmMessageId: prior.crm_message_id };
     if (prior.status === "vetoed") return { kind: "blocked", idempotencyKey: key };
     if (prior.status === "failed") key = await store.rotate(input, hash);
+    else replay = true;
   }
-  const existing = await store.message(input.tenantId, key);
+  const existing = replay ? await store.message(input.tenantId, key) : null;
   let message = existing;
   if (!message || message.status === "queued") {
     try {
@@ -120,10 +128,15 @@ export function pgSendLedger(db: Queryable): LedgerStore {
     },
     async message(org, key) {
       const { rows } = await db.query<{ id: string; status: string }>(
+        "select id,status from messages where organization_id=$1 and id=$2",
+        [org, key],
+      );
+      if (rows[0]) return rows[0];
+      const legado = await db.query<{ id: string; status: string }>(
         "select id,status from messages where organization_id=$1 and metadata->>'idempotency_key'=$2 limit 1",
         [org, key],
       );
-      return rows[0] ?? null;
+      return legado.rows[0] ?? null;
     },
     async update(org, key, status, id, error) {
       await db.query(
@@ -181,6 +194,14 @@ export function supabaseSendLedger(db: SupabaseClient): LedgerStore {
       return data.id;
     },
     async message(org, key) {
+      const porId = await db
+        .from("messages")
+        .select("id,status")
+        .eq("organization_id", org)
+        .eq("id", key)
+        .maybeSingle();
+      if (porId.error) throw porId.error;
+      if (porId.data) return porId.data;
       const { data, error } = await db
         .from("messages")
         .select("id,status")
