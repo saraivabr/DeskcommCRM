@@ -71,6 +71,7 @@ export async function definirExigenciaDeMfa(
   // leitura legada (`mfa_required` sem `min_role`) significa exatamente ele —
   // `true` vira "só dos administradores".
   const corpo = typeof alvo === "object" && alvo !== null ? alvo : null;
+  if (corpo === null && typeof alvo !== "boolean") return { ok: false, erro: "Papel mínimo inválido." };
   const minRole = corpo ? papelMinimoValido(corpo.minRole) : alvo === true ? "admin" : "none";
   if (minRole === null) return { ok: false, erro: "Papel mínimo inválido." };
   const graceDays = corpo ? corpo.graceDays : 0;
