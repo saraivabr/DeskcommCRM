@@ -5795,6 +5795,9 @@ export const DICIONARIO: Traducoes = {
   "Ela é obrigatória para administradores desta empresa, então não dá para desligar aqui. Um administrador pode mudar essa regra abaixo.": {
     es: "Es obligatoria para los administradores de esta empresa, así que no se puede desactivar aquí. Un administrador puede cambiar esta regla abajo.",
   },
+  "Ela é obrigatória para você nesta empresa, então não dá para desligar aqui. Um administrador pode mudar essa regra abaixo.": {
+    es: "Es obligatoria para ti en esta empresa, así que no se puede desactivar aquí. Un administrador puede cambiar esta regla abajo.",
+  },
   "Desligar a verificação em duas etapas?": {
     es: "¿Desactivar la verificación en dos pasos?",
   },
@@ -5815,12 +5818,34 @@ export const DICIONARIO: Traducoes = {
     {
       es: "La verificación en dos pasos es obligatoria para los administradores de esta empresa. Primero desactiva esa regla.",
     },
+  "A verificação em duas etapas é obrigatória para você nesta empresa. Desligue a regra antes.": {
+    es: "La verificación en dos pasos es obligatoria para ti en esta empresa. Primero desactiva esa regla.",
+  },
+  "Papel mínimo inválido.": { es: "Nivel mínimo no válido." },
+  "Período de carência inválido: use de 0 a 30 dias.": {
+    es: "Período de gracia no válido: usa de 0 a 30 días.",
+  },
   "Entre de novo e informe o código de 6 dígitos antes de desligar a verificação.": {
     es: "Entra de nuevo e ingresa el código de 6 dígitos antes de desactivar la verificación.",
   },
   "Não consegui remover a verificação agora.": { es: "No pude quitar la verificación ahora." },
   Ativar: { es: "Activar" },
   "Exigir de quem administra": { es: "Exigir a quien administra" },
+  // ─── #1533: o seletor de nível mínimo + carência no lugar da caixa única ───
+  "Exigir da equipe": { es: "Exigir al equipo" },
+  "Escolha quem precisa configurar a verificação em duas etapas. Ligue se a sua equipe mexe com dados de clientes — é a diferença entre uma senha vazada virar um susto ou virar um vazamento.": {
+    es: "Elige quién necesita configurar la verificación en dos pasos. Actívalo si tu equipo maneja datos de clientes: es la diferencia entre que una contraseña filtrada sea un susto o una filtración.",
+  },
+  "Nível mínimo": { es: "Nivel mínimo" },
+  "Não exigir de ninguém": { es: "No exigir a nadie" },
+  "Dias de carência": { es: "Días de gracia" },
+  "A política de verificação foi salva.": { es: "La política de verificación se guardó." },
+  "O nível escolhido alcança esse papel e todos os acima dele. Quem já tem segundo fator continua provando a cada entrada, qualquer que seja esta escolha.": {
+    es: "El nivel elegido alcanza ese papel y todos los superiores. Quien ya tiene segundo factor sigue probándolo cada vez que entra, sea cual sea esta elección.",
+  },
+  "A carência vai de 0 a 30 dias: durante o prazo ninguém é bloqueado, e depois dele a tela trava até o cadastro. O prazo começa na mudança da regra ou na entrada da pessoa na empresa, o que for mais tarde.": {
+    es: "La gracia va de 0 a 30 días: durante el plazo nadie es bloqueado, y después de él la pantalla se bloquea hasta el registro. El plazo empieza con el cambio de la regla o con la entrada de la persona en la empresa, lo que sea más tarde.",
+  },
   "Agora os administradores precisam da verificação.": {
     es: "Ahora los administradores necesitan la verificación.",
   },
