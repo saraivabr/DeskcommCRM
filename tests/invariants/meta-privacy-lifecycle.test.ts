@@ -179,6 +179,50 @@ describe("Meta privacy provider lifecycle", () => {
     ).toBe("t");
   });
 
+  it("denies owner and cross-org browser access to seeded cleanup records while allowing service access", () => {
+    const own = seed(false, false);
+    const neighbor = seed(false, false);
+    for (const value of [own, neighbor]) {
+      const subject = hash("privacy-acl:" + value.org);
+      sql(`set role service_role;
+        insert into public.meta_privacy_subjects(subject_hash,app_id,cutoff_at,status) values('${subject}','${APP}',now(),'completed');
+        insert into public.meta_privacy_targets(subject_hash,organization_id,connection_id) values('${subject}','${value.org}','${value.connection}');
+        insert into public.meta_privacy_storage_objects(subject_hash,organization_id,publication_id,object_index) values('${subject}','${value.org}','${value.publication}',0);
+        insert into public.meta_privacy_media_tombstones(organization_id,publication_id) values('${value.org}','${value.publication}');`);
+    }
+    const inserts = {
+      meta_privacy_targets: `(subject_hash,organization_id,connection_id) values('${hash("privacy-acl:" + neighbor.org)}','${neighbor.org}','${randomUUID()}')`,
+      meta_privacy_storage_objects: `(subject_hash,organization_id,publication_id,object_index) values('${hash("privacy-acl:" + neighbor.org)}','${neighbor.org}','${randomUUID()}',0)`,
+      meta_privacy_media_tombstones: `(organization_id,publication_id) values('${neighbor.org}','${randomUUID()}')`,
+    };
+    for (const [table, insert] of Object.entries(inserts)) {
+      expect(
+        result<number>(
+          `set role service_role;select count(*) from public.${table} where organization_id in ('${own.org}','${neighbor.org}')`,
+        ),
+      ).toBe(2);
+      for (const actor of [own.actor, neighbor.actor]) {
+        const jwt = `set role authenticated;select set_config('request.jwt.claims','{"sub":"${actor}"}',false);`;
+        for (const org of [own.org, neighbor.org])
+          denied(
+            `${jwt}select count(*) from public.${table} where organization_id='${org}'`,
+            "permission denied",
+          );
+        for (const mutation of [
+          `insert into public.${table}${insert}`,
+          `update public.${table} set organization_id='${neighbor.org}' where organization_id='${own.org}'`,
+          `delete from public.${table} where organization_id='${neighbor.org}'`,
+        ])
+          denied(jwt + mutation, "permission denied");
+      }
+      expect(
+        result<number>(
+          `set role service_role;select count(*) from public.${table} where organization_id in ('${own.org}','${neighbor.org}')`,
+        ),
+      ).toBe(2);
+    }
+  });
+
   it("revokes tokens immediately and fences an already dispatched worker", () => {
     const value = seed();
     const operation = reserve(value);

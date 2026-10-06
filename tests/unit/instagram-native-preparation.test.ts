@@ -8,12 +8,13 @@ const h = vi.hoisted(() => ({
   get: vi.fn(),
   resolve: vi.fn(),
   audit: vi.fn(),
+  release: vi.fn(),
 }));
 vi.mock("@/lib/agent-engine/db/request-pool", () => ({
-  getRequestPool: () => ({ query: h.query }),
+  getRequestPool: () => ({ connect: async () => ({ query: h.query, release: h.release }) }),
 }));
-vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({
+vi.mock("@/lib/channels/meta/social/bounded-admin", () => ({
+  createBoundedMetaAdminClient: () => ({
     storage: { from: () => ({ download: h.download, upload: h.upload }) },
   }),
 }));
@@ -50,18 +51,33 @@ const input = {
   caption: "Legenda",
 };
 let row: Record<string, unknown> | undefined;
+let stored: boolean;
 beforeEach(() => {
   vi.resetAllMocks();
   row = undefined;
+  stored = false;
   h.resolve.mockResolvedValue({
     asset: { id: input.meta_asset_id, external_id: "1784" },
     connectionId: input.connection_id,
     grantId: "grant",
     authorizationVersion: 1,
   });
-  h.download.mockResolvedValue({ data: new Blob(["source"]), error: null });
-  h.upload.mockResolvedValue({ error: null });
-  h.query.mockImplementation(async (sql: string) => {
+  h.download.mockImplementation(async (path: string) =>
+    path.includes("/publications/")
+      ? stored
+        ? { data: new Blob(["prepared-jpg"]), error: null }
+        : { data: null, error: { statusCode: "404" } }
+      : { data: new Blob(["source"]), error: null },
+  );
+  h.upload.mockImplementation(async () => {
+    stored = true;
+    return { error: null };
+  });
+  h.query.mockImplementation(async ({ text: sql }: { text: string }) => {
+    if (sql.includes("pg_try_advisory")) return { rows: [{ locked: true }] };
+    if (sql.includes("pg_advisory_unlock")) return { rows: [{ unlocked: true }] };
+    if (sql.includes("current_setting")) return { rows: [{ timeout: "0" }] };
+    if (sql.includes("set_config")) return { rows: [] };
     if (sql.startsWith("select") && sql.includes("from instagram_publications"))
       return { rows: row ? [row] : [] };
     if (sql.includes("from instagram_studio_items"))
@@ -78,15 +94,17 @@ beforeEach(() => {
       row = {
         ...input,
         account_id: "1784",
+        meta_connection_id: input.connection_id,
+        meta_media_cleanup_uncertain: false,
         requested_by: "actor",
         operation_id: null,
         status: "preparing",
       };
       return { rows: [row] };
     }
-    if (sql.startsWith("delete from instagram_publications")) {
-      if (row?.operation_id === null && row?.status === "preparing") row = undefined;
-      return { rows: [] };
+    if (sql.includes("set meta_media_cleanup_uncertain=")) {
+      row!.meta_media_cleanup_uncertain = sql.includes("=true");
+      return { rows: [{ id: input.id }], rowCount: 1 };
     }
     throw new Error("Unexpected SQL");
   });
@@ -102,30 +120,36 @@ beforeEach(() => {
     return { operation: { id: "operation", connection_id: input.connection_id } };
   });
 });
-it("falha de preparação não deixa registro bloqueando e permite repetir o mesmo id", async () => {
+it("falha antes do upload preserva a atribuição e permite repetir o mesmo id", async () => {
   h.download.mockResolvedValueOnce({ error: { message: "missing" }, data: null });
   await expect(queueNativeInstagramPublication("org", "actor", input)).rejects.toThrow(
     "preparar a imagem",
   );
-  expect(row).toBeUndefined();
+  expect(row).toMatchObject({
+    status: "preparing",
+    meta_connection_id: input.connection_id,
+    meta_media_cleanup_uncertain: false,
+  });
   expect(h.reserve).not.toHaveBeenCalled();
   await expect(queueNativeInstagramPublication("org", "actor", input)).resolves.toMatchObject({
     operation_id: "operation",
   });
 });
-it("erro de reserva remove somente preparação não vinculada e conserva a intenção para retry", async () => {
+it("erro de reserva preserva a preparação confirmada e reutiliza a mídia no retry", async () => {
   h.reserve.mockRejectedValueOnce(new Error("Store unavailable"));
   await expect(queueNativeInstagramPublication("org", "actor", input)).rejects.toThrow(
     "Store unavailable",
   );
-  expect(row).toBeUndefined();
-  const compensation = h.query.mock.calls.find(([sql]) => sql.startsWith("delete from"));
-  expect(compensation?.[0]).toContain("operation_id is null");
-  expect(compensation?.[0]).toContain("status='preparing'");
-  expect(compensation?.[1]).toEqual(["org", input.id, "actor"]);
+  expect(row).toMatchObject({
+    operation_id: null,
+    status: "preparing",
+    meta_media_cleanup_uncertain: false,
+  });
+  expect(h.query.mock.calls.some(([query]) => query.text.startsWith("delete from"))).toBe(false);
   await expect(queueNativeInstagramPublication("org", "actor", input)).resolves.toMatchObject({
     operation_id: "operation",
   });
+  expect(h.upload).toHaveBeenCalledTimes(1);
 });
 it("reserva commitada com resposta perdida nunca elimina o vínculo ou reenvia", async () => {
   h.reserve.mockImplementationOnce(async () => {
@@ -141,12 +165,15 @@ it("reserva commitada com resposta perdida nunca elimina o vínculo ou reenvia",
     status: "sending",
   });
   expect(h.reserve).toHaveBeenCalledTimes(1);
+  expect(h.upload).toHaveBeenCalledTimes(1);
 });
-it("uma preparação antiga não vinculada também é compensada quando a autorização cai", async () => {
+it("autorização revogada preserva atribuição da preparação para o worker de exclusão", async () => {
   row = {
     ...input,
     meta_asset_id: input.meta_asset_id,
     account_id: "1784",
+    meta_connection_id: input.connection_id,
+    meta_media_cleanup_uncertain: false,
     requested_by: "actor",
     operation_id: null,
     status: "preparing",
@@ -155,6 +182,7 @@ it("uma preparação antiga não vinculada também é compensada quando a autori
   await expect(queueNativeInstagramPublication("org", "actor", input)).rejects.toThrow(
     "Authorization revoked",
   );
-  expect(row).toBeUndefined();
+  expect(row).toMatchObject({ status: "preparing", meta_connection_id: input.connection_id });
   expect(h.reserve).not.toHaveBeenCalled();
+  expect(h.upload).not.toHaveBeenCalled();
 });
