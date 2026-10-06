@@ -42,7 +42,10 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: {
       getUser: async () => ({ data: { user: { id: USUARIO } }, error: null }),
       mfa: {
-        getAuthenticatorAssuranceLevel: async () => ({ data: { currentLevel: "aal2" }, error: null }),
+        getAuthenticatorAssuranceLevel: async () => ({
+          data: { currentLevel: "aal2" },
+          error: null,
+        }),
       },
     },
     from: (tabela: string) => {
@@ -67,7 +70,10 @@ vi.mock("@/lib/supabase/admin", () => ({
         select: () => ({
           eq: () => ({
             maybeSingle: async () => ({
-              data: { app_secret_encrypted: "cifra(antiga)", verify_token_encrypted: "cifra(token-antigo)" },
+              data: {
+                app_secret_encrypted: "cifra(antiga)",
+                verify_token_encrypted: "cifra(token-antigo)",
+              },
               error: null,
             }),
           }),
@@ -78,7 +84,12 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ origin: "https://app.test" }),
+}));
+vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_URL: "https://app.test" } }));
+vi.mock("@/lib/auth/server", () => ({ mfaEmDivida: async () => false }));
+vi.mock("@/lib/impersonate/support", () => ({ requireSupportWrite: async () => null }));
 vi.mock("@/lib/webhooks/secrets", () => ({
   encryptWebhookSecret: async (_admin: unknown, valor: string) => `cifra(${valor})`,
 }));
@@ -125,7 +136,10 @@ describe("updateMetaApp — o gate da instalação", () => {
     // Controle do próprio dublê: a sessão FOI consultada. Sem isto, um redirect
     // vindo de outro lugar passaria por esta recusa.
     expect(tabelasDaSessao).toEqual(["platform_admins"]);
-    expect(tabelasDoServiceRole, "a action leu ou gravou o app da Meta para quem não administra a instalação").toEqual([]);
+    expect(
+      tabelasDoServiceRole,
+      "a action leu ou gravou o app da Meta para quem não administra a instalação",
+    ).toEqual([]);
   });
 
   it("CONTROLE: com a linha em platform_admins, a mesma chamada chega ao banco da instalação", async () => {
@@ -143,7 +157,10 @@ describe("rotacionarVerifyTokenDaMeta — o gate da instalação", () => {
 
     expect(await recusa(() => rotacionarVerifyTokenDaMeta())).toBe("/admin/forbidden");
     expect(tabelasDaSessao).toEqual(["platform_admins"]);
-    expect(tabelasDoServiceRole, "a rotação gerou token para quem não administra a instalação").toEqual([]);
+    expect(
+      tabelasDoServiceRole,
+      "a rotação gerou token para quem não administra a instalação",
+    ).toEqual([]);
   });
 
   it("CONTROLE: com a linha em platform_admins, a rotação chega ao banco da instalação", async () => {

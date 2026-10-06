@@ -448,6 +448,12 @@ const schema = z.object({
    * dos webhooks da Meta (#1426), permitindo isolar a interface interna/VPN da URL pública.
    */
   META_WEBHOOK_BASE_URL: z.string().optional().default(""),
+  META_APP_ID: z.string().optional().default(""),
+  META_APP_SECRET: z.string().optional().default(""),
+  META_BUSINESS_LOGIN_CONFIG_ID: z.string().optional().default(""),
+  META_NATIVE_ENABLED: z.enum(["true", "false", ""]).optional().default("false"),
+  META_INSTAGRAM_ENABLED: z.enum(["true", "false", ""]).optional().default("false"),
+  META_ADS_ENABLED: z.enum(["true", "false", ""]).optional().default("false"),
 
   // Marca da instalação (white-label) — ver lib/branding.ts.
   // Sem prefixo NEXT_PUBLIC_ de propósito: essas seriam queimadas no bundle

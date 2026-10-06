@@ -43,6 +43,8 @@
  */
 
 import { logger } from "@/lib/logger";
+import { createHash } from "node:crypto";
+import { graphVersion } from "@/lib/graph-version";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
 
@@ -94,12 +96,14 @@ const TTL_MS = 30_000;
 
 declare global {
   // eslint-disable-next-line no-var
-  var __memoDoAppDaMeta: { readonly valor: AppDaMetaEmVigor; readonly expiraEm: number } | null | undefined;
+  var __memoDoAppDaMeta:
+    { readonly valor: AppDaMetaEmVigor; readonly expiraEm: number } | null | undefined;
 }
 
 /** Chamada por quem ESCREVE a credencial — a server action do /admin. */
 export function invalidarAppDaMeta(): void {
   globalThis.__memoDoAppDaMeta = null;
+  globalThis.__memoDoAppDaMetaNativo = null;
 }
 
 interface LinhaDoApp {
@@ -189,4 +193,122 @@ export async function fontesDoAppDaMeta(): Promise<Record<string, string | undef
     META_APP_SECRET: appSecret ?? undefined,
     META_WEBHOOK_VERIFY_TOKEN: verifyToken ?? undefined,
   };
+}
+
+/** Configuração empresarial server-side; nunca serializar este objeto para o cliente. */
+export interface PlatformMetaAppNative {
+  readonly appId: string | null;
+  readonly configId: string | null;
+  readonly revision: number;
+  readonly appSecret: string | null;
+  readonly apiVersion: string;
+  readonly nativeEnabled: boolean;
+  readonly instagramEnabled: boolean;
+  readonly adsEnabled: boolean;
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __memoDoAppDaMetaNativo:
+    { readonly valor: PlatformMetaAppNative; readonly expiraEm: number } | null | undefined;
+}
+
+const SEM_LOGIN_NATIVO: Omit<PlatformMetaAppNative, "apiVersion"> = {
+  appId: null,
+  configId: null,
+  revision: 0,
+  appSecret: null,
+  nativeEnabled: false,
+  instagramEnabled: false,
+  adsEnabled: false,
+};
+
+function identificadorMeta(v: unknown): string | null {
+  const valor = texto(v);
+  return /^\d{5,30}$/.test(valor) ? valor : null;
+}
+
+/** Fonte inteira do ambiente: App ID, configuração e segredo nunca vêm de origens distintas. */
+export function platformMetaAppNativeDoAmbiente(
+  source: Record<string, string | undefined> = process.env,
+): PlatformMetaAppNative {
+  const appId = identificadorMeta(source.META_APP_ID);
+  const configId = identificadorMeta(source.META_BUSINESS_LOGIN_CONFIG_ID);
+  const appSecret = texto(source.META_APP_SECRET) || null;
+  const apiVersion = graphVersion();
+  if (!appId || !configId || !appSecret) return { ...SEM_LOGIN_NATIVO, apiVersion };
+
+  const nativeEnabled = source.META_NATIVE_ENABLED?.trim() === "true";
+  const instagramEnabled = source.META_INSTAGRAM_ENABLED?.trim() === "true";
+  const adsEnabled = source.META_ADS_ENABLED?.trim() === "true";
+  // Inteiro seguro, estável por configuração, inclusive rotação de segredo. O hash não sai ao cliente.
+  const revision = Number.parseInt(
+    createHash("sha256")
+      .update(
+        JSON.stringify([appId, configId, appSecret, nativeEnabled, instagramEnabled, adsEnabled]),
+      )
+      .digest("hex")
+      .slice(0, 12),
+    16,
+  );
+  return {
+    appId,
+    configId,
+    revision,
+    appSecret,
+    apiVersion,
+    nativeEnabled,
+    instagramEnabled,
+    adsEnabled,
+  };
+}
+
+/**
+ * Banco vence quando contém identidade nativa, mesmo com capacidade desligada.
+ * Falha de cifra/leitura ou ausência do snapshot persistido fecha o login.
+ * O callback valida a mesma revisão no banco; ambiente deve ser configurado
+ * explicitamente no singleton antes de autorizar clientes.
+ */
+export async function getPlatformMetaAppNative(): Promise<PlatformMetaAppNative> {
+  const memo = globalThis.__memoDoAppDaMetaNativo;
+  if (memo && memo.expiraEm > Date.now()) return memo.valor;
+  const apiVersion = graphVersion();
+  let valor: PlatformMetaAppNative = { ...SEM_LOGIN_NATIVO, apiVersion };
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("platform_meta_app")
+      .select(
+        "app_id, config_id, config_revision, app_secret_encrypted, native_enabled, instagram_enabled, ads_enabled",
+      )
+      .eq("id", 1)
+      .maybeSingle();
+    if (error) {
+      logger.warn("[meta.app] login nativo indisponível: leitura falhou", { codigo: error.code });
+    } else if (data) {
+      const appId = identificadorMeta(data.app_id);
+      const configId = identificadorMeta(data.config_id);
+      const revision = Number(data.config_revision);
+      const encrypted = texto(data.app_secret_encrypted);
+      const appSecret = encrypted
+        ? texto(await decryptWebhookSecret(admin, encrypted)) || null
+        : null;
+      if (appId && configId && appSecret && Number.isSafeInteger(revision) && revision > 0) {
+        valor = {
+          appId,
+          configId,
+          revision,
+          appSecret,
+          apiVersion,
+          nativeEnabled: data.native_enabled === true,
+          instagramEnabled: data.instagram_enabled === true,
+          adsEnabled: data.ads_enabled === true,
+        };
+      }
+    }
+  } catch {
+    logger.warn("[meta.app] login nativo indisponível: configuração não pôde ser validada");
+  }
+  globalThis.__memoDoAppDaMetaNativo = { valor, expiraEm: Date.now() + TTL_MS };
+  return valor;
 }

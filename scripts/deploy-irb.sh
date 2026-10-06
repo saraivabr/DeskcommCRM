@@ -50,7 +50,7 @@ finish() {
     else
       echo 'Rollback could not restore all service states; operator intervention required' >&2
     fi
-    # 0415 is additive and remains installed. Never restore the live DB dump
+    # Additive migrations remain installed. Never restore the live DB dump
     # automatically: doing so would discard writes made during the deployment.
     status=1
   fi
@@ -110,11 +110,18 @@ IMAGES
 extract_container=$(docker create "$worker_ref")
 migration="$workdir/0415.sql"
 docker cp "$extract_container:/app/supabase/migrations/20261001220000_0415_prospecting_inbox_scope.sql" "$migration"
+native_migration="$workdir/0416.sql"
+native_contract="$workdir/0416-contract.sql"
+docker cp "$extract_container:/app/supabase/migrations/20261005160000_0416_meta_native_platform.sql" "$native_migration"
+docker cp "$extract_container:/app/scripts/deploy-meta-native-contract.sql" "$native_contract"
 docker rm "$extract_container" >/dev/null
 extract_container=''
 [[ -s "$migration" ]]
 grep -q '^-- 0415 ' "$migration"
 grep -q '^create or replace function public.automatico_da_prospeccao' "$migration"
+[[ -s "$native_migration" && -s "$native_contract" ]]
+grep -q '^create or replace function public.fn_meta_operation_checkpoint(' "$native_migration"
+grep -q '^-- 0416 contract:' "$native_contract"
 
 migration_state() {
   docker exec -i escreveai-db psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres <<'CONTRACT'
@@ -144,6 +151,14 @@ schema_state=$(migration_state)
   echo 'Existing prospecting function has an incompatible contract; live services preserved' >&2
   exit 1
 }
+native_migration_state() {
+  docker exec -i escreveai-db psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres < "$native_contract"
+}
+native_schema_state=$(native_migration_state)
+[[ "$native_schema_state" = missing || "$native_schema_state" = ready ]] || {
+  echo 'Native Meta schema is partial, incompatible or missing prerequisites; live services preserved' >&2
+  exit 1
+}
 
 # All failures from this point, including a signal during stop/SQL/up/health,
 # restore BOTH images and the worker's original running state.
@@ -161,6 +176,15 @@ if [[ "$schema_state" = missing ]]; then
   docker exec -i escreveai-db psql -X -1 -v ON_ERROR_STOP=1 -U postgres -d postgres < "$workdir/install-0415.sql"
 fi
 [[ "$(migration_state)" = ready ]]
+if [[ "$native_schema_state" = missing ]]; then
+  # First installation must fail if an operator installs concurrently. Never
+  # replace an existing function or adopt an unknown partial native schema.
+  sed -e 's/^create or replace function public.fn_meta_/create function public.fn_meta_/' \
+      -e 's/^create table if not exists public.meta_/create table public.meta_/' \
+    "$native_migration" > "$workdir/install-0416.sql"
+  docker exec -i escreveai-db psql -X -1 -v ON_ERROR_STOP=1 -U postgres -d postgres < "$workdir/install-0416.sql"
+fi
+[[ "$(native_migration_state)" = ready ]]
 docker exec escreveai-db psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "notify pgrst, 'reload schema';"
 python3 - "$compose" "$tag" "$app_ref" "$worker_ref" <<'CONFIG'
 import json, os, sys

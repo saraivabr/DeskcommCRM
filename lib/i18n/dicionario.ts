@@ -32,11 +32,13 @@
  * do que estava.
  */
 import type { Idioma } from "./idiomas";
+import { META_NATIVE_ES } from "./meta-native";
 
 /** `pt-BR` não aparece: é a chave. Só o que DIFERE precisa de linha. */
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  ...META_NATIVE_ES,
   "Abrir conversas": { es: "Abrir conversaciones" },
   "ESCREVE AÍ": { es: "ESCRIBE AQUÍ" },
   "Uma pergunta. Um próximo passo.": { es: "Una pregunta. Un próximo paso." },

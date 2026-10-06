@@ -91,6 +91,7 @@ import {
 } from "@/lib/instalacao/comportamento-sql";
 import { runDrainLoop } from "@/lib/agent-engine/edge/crm/drain";
 import { runEventLogDrainLoop, prontidaoDoLacoDeEventLog } from "@/lib/event-log/drain-loop";
+import { runMetaOperationLoop } from "@/workers/meta-operation-loop";
 import { crmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/crm/mcp-client";
 import { enforceHolds, sessionHealthMetrics } from "@/lib/agent-engine/edge/crm/session-watchdog";
 import { runVoiceMissionLoop } from "@/lib/voice/missions/worker";
@@ -366,6 +367,7 @@ export async function startWorker(
     log,
     loopsAbort.signal,
   );
+  const metaOperationLoop = runMetaOperationLoop(log, loopsAbort.signal);
 
   // Watchdog de sessão (4A-2): reconcilia channel_sessions×WAHA + redrive de
   // queued. Liga só com as credenciais do WAHA no env (sem elas: warn + off).
@@ -403,7 +405,8 @@ export async function startWorker(
           log,
           loopsAbort.signal,
         )
-      : (log.info('ponte WaCalls OFF — endereço ou credencial ausente no env', {}), Promise.resolve());
+      : (log.info("ponte WaCalls OFF — endereço ou credencial ausente no env", {}),
+        Promise.resolve());
 
   // Circuito de saúde do número (block/response rate → hold).
   const healthLoop = runHealthLoop(
@@ -580,6 +583,7 @@ export async function startWorker(
     await Promise.all([
       drainLoop,
       eventLogLoop,
+      metaOperationLoop,
       healthLoop,
       cronLoop,
       sessionWatchdogLoop,

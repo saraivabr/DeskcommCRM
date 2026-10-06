@@ -7848,24 +7848,42 @@ export type Database = {
       }
       platform_meta_app: {
         Row: {
+          ads_enabled: boolean
+          app_id: string | null
           app_secret_encrypted: string | null
+          config_id: string | null
+          config_revision: number
           id: number
+          instagram_enabled: boolean
+          native_enabled: boolean
           updated_at: string
           updated_by: string | null
           verify_token_created_at: string | null
           verify_token_encrypted: string | null
         }
         Insert: {
+          ads_enabled?: boolean
+          app_id?: string | null
           app_secret_encrypted?: string | null
+          config_id?: string | null
+          config_revision?: number
           id?: number
+          instagram_enabled?: boolean
+          native_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           verify_token_created_at?: string | null
           verify_token_encrypted?: string | null
         }
         Update: {
+          ads_enabled?: boolean
+          app_id?: string | null
           app_secret_encrypted?: string | null
+          config_id?: string | null
+          config_revision?: number
           id?: number
+          instagram_enabled?: boolean
+          native_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           verify_token_created_at?: string | null
@@ -9168,6 +9186,589 @@ export type Database = {
           },
         ]
       }
+
+      meta_oauth_attempts: {
+        Row: {
+          actor_id: string
+          app_id: string
+          auth_session_id: string
+          callback_claim_id: string | null
+          callback_claimed_at: string | null
+          config_id: string
+          config_revision: number
+          cookie_hash: string
+          created_at: string
+          expires_at: string
+          failure_code: string | null
+          finalized_at: string | null
+          id: string
+          organization_id: string
+          pending_result_encrypted: string | null
+          state_hash: string
+          status: string
+          ticket_hash: string | null
+          updated_at: string
+        }
+        Insert: {
+          actor_id: string
+          app_id: string
+          auth_session_id: string
+          callback_claim_id?: string | null
+          callback_claimed_at?: string | null
+          config_id: string
+          config_revision: number
+          cookie_hash: string
+          created_at?: string
+          expires_at: string
+          failure_code?: string | null
+          finalized_at?: string | null
+          id?: string
+          organization_id: string
+          pending_result_encrypted?: string | null
+          state_hash: string
+          status?: string
+          ticket_hash?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actor_id?: string
+          app_id?: string
+          auth_session_id?: string
+          callback_claim_id?: string | null
+          callback_claimed_at?: string | null
+          config_id?: string
+          config_revision?: number
+          cookie_hash?: string
+          created_at?: string
+          expires_at?: string
+          failure_code?: string | null
+          finalized_at?: string | null
+          id?: string
+          organization_id?: string
+          pending_result_encrypted?: string | null
+          state_hash?: string
+          status?: string
+          ticket_hash?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_oauth_attempts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_connections: {
+        Row: {
+          actor_name: string
+          app_id: string
+          created_at: string
+          data_access_expires_at: string | null
+          granular_scopes: Json
+          id: string
+          last_validated_at: string
+          local_actor_id: string
+          oauth_access_token_encrypted: string | null
+          organization_id: string
+          remote_actor_id: string
+          revoked_at: string | null
+          scopes: string[]
+          status: string
+          token_expires_at: string | null
+          token_type: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          actor_name?: string
+          app_id: string
+          created_at?: string
+          data_access_expires_at?: string | null
+          granular_scopes?: Json
+          id?: string
+          last_validated_at?: string
+          local_actor_id: string
+          oauth_access_token_encrypted?: string | null
+          organization_id: string
+          remote_actor_id: string
+          revoked_at?: string | null
+          scopes?: string[]
+          status?: string
+          token_expires_at?: string | null
+          token_type?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          actor_name?: string
+          app_id?: string
+          created_at?: string
+          data_access_expires_at?: string | null
+          granular_scopes?: Json
+          id?: string
+          last_validated_at?: string
+          local_actor_id?: string
+          oauth_access_token_encrypted?: string | null
+          organization_id?: string
+          remote_actor_id?: string
+          revoked_at?: string | null
+          scopes?: string[]
+          status?: string
+          token_expires_at?: string | null
+          token_type?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_connections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_assets: {
+        Row: {
+          created_at: string
+          currency: string | null
+          external_id: string
+          id: string
+          kind: string
+          metadata: Json
+          name: string
+          organization_id: string
+          parent_page_id: string | null
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          external_id: string
+          id?: string
+          kind: string
+          metadata?: Json
+          name?: string
+          organization_id: string
+          parent_page_id?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          external_id?: string
+          id?: string
+          kind?: string
+          metadata?: Json
+          name?: string
+          organization_id?: string
+          parent_page_id?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_assets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_assets_organization_id_parent_page_id_fkey"
+            columns: ["organization_id", "parent_page_id"]
+            isOneToOne: false
+            referencedRelation: "meta_assets"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      meta_asset_grants: {
+        Row: {
+          asset_id: string
+          connection_id: string
+          created_at: string
+          id: string
+          observed_at: string
+          organization_id: string
+          page_access_token_encrypted: string | null
+          permissions: string[]
+          selected: boolean
+          status: string
+          tasks: string[]
+          updated_at: string
+        }
+        Insert: {
+          asset_id: string
+          connection_id: string
+          created_at?: string
+          id?: string
+          observed_at?: string
+          organization_id: string
+          page_access_token_encrypted?: string | null
+          permissions?: string[]
+          selected?: boolean
+          status?: string
+          tasks?: string[]
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string
+          connection_id?: string
+          created_at?: string
+          id?: string
+          observed_at?: string
+          organization_id?: string
+          page_access_token_encrypted?: string | null
+          permissions?: string[]
+          selected?: boolean
+          status?: string
+          tasks?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_asset_grants_organization_id_asset_id_fkey"
+            columns: ["organization_id", "asset_id"]
+            isOneToOne: false
+            referencedRelation: "meta_assets"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "meta_asset_grants_organization_id_connection_id_fkey"
+            columns: ["organization_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "meta_connections"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "meta_asset_grants_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_campaign_drafts: {
+        Row: {
+          ad_account_asset_id: string
+          approved_hash: string | null
+          approved_revision: number | null
+          created_at: string
+          created_by: string
+          creative: Json
+          currency: string
+          daily_budget_cents: number
+          destination_url: string | null
+          ends_at: string | null
+          id: string
+          instagram_asset_id: string | null
+          name: string
+          objective: string
+          organization_id: string
+          page_asset_id: string | null
+          revision: number
+          starts_at: string | null
+          status: string
+          targeting: Json
+          updated_at: string
+        }
+        Insert: {
+          ad_account_asset_id: string
+          approved_hash?: string | null
+          approved_revision?: number | null
+          created_at?: string
+          created_by: string
+          creative?: Json
+          currency: string
+          daily_budget_cents: number
+          destination_url?: string | null
+          ends_at?: string | null
+          id?: string
+          instagram_asset_id?: string | null
+          name: string
+          objective: string
+          organization_id: string
+          page_asset_id?: string | null
+          revision?: number
+          starts_at?: string | null
+          status?: string
+          targeting?: Json
+          updated_at?: string
+        }
+        Update: {
+          ad_account_asset_id?: string
+          approved_hash?: string | null
+          approved_revision?: number | null
+          created_at?: string
+          created_by?: string
+          creative?: Json
+          currency?: string
+          daily_budget_cents?: number
+          destination_url?: string | null
+          ends_at?: string | null
+          id?: string
+          instagram_asset_id?: string | null
+          name?: string
+          objective?: string
+          organization_id?: string
+          page_asset_id?: string | null
+          revision?: number
+          starts_at?: string | null
+          status?: string
+          targeting?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_campaign_drafts_organization_id_ad_account_asset_id_fkey"
+            columns: ["organization_id", "ad_account_asset_id"]
+            isOneToOne: false
+            referencedRelation: "meta_assets"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "meta_campaign_drafts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_campaign_drafts_organization_id_instagram_asset_id_fkey"
+            columns: ["organization_id", "instagram_asset_id"]
+            isOneToOne: false
+            referencedRelation: "meta_assets"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "meta_campaign_drafts_organization_id_page_asset_id_fkey"
+            columns: ["organization_id", "page_asset_id"]
+            isOneToOne: false
+            referencedRelation: "meta_assets"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      meta_operations: {
+        Row: {
+          actor_id: string
+          asset_id: string
+          authorization_version: number
+          campaign_draft_id: string | null
+          completed_at: string | null
+          connection_id: string
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          external_dispatch_started_at: string | null
+          external_ids: Json
+          fence: number
+          grant_id: string
+          id: string
+          kind: string
+          lease_owner: string | null
+          lease_until: string | null
+          operation_key: string
+          organization_id: string
+          receipt: Json | null
+          request_hash: string
+          request_payload: Json
+          retry_at: string
+          stage: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actor_id: string
+          asset_id: string
+          authorization_version: number
+          campaign_draft_id?: string | null
+          completed_at?: string | null
+          connection_id: string
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          external_dispatch_started_at?: string | null
+          external_ids?: Json
+          fence?: number
+          grant_id: string
+          id?: string
+          kind: string
+          lease_owner?: string | null
+          lease_until?: string | null
+          operation_key: string
+          organization_id: string
+          receipt?: Json | null
+          request_hash: string
+          request_payload: Json
+          retry_at?: string
+          stage?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actor_id?: string
+          asset_id?: string
+          authorization_version?: number
+          campaign_draft_id?: string | null
+          completed_at?: string | null
+          connection_id?: string
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          external_dispatch_started_at?: string | null
+          external_ids?: Json
+          fence?: number
+          grant_id?: string
+          id?: string
+          kind?: string
+          lease_owner?: string | null
+          lease_until?: string | null
+          operation_key?: string
+          organization_id?: string
+          receipt?: Json | null
+          request_hash?: string
+          request_payload?: Json
+          retry_at?: string
+          stage?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_operations_organization_id_asset_id_fkey"
+            columns: ["organization_id", "asset_id"]
+            isOneToOne: false
+            referencedRelation: "meta_assets"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "meta_operations_organization_id_campaign_draft_id_fkey"
+            columns: ["organization_id", "campaign_draft_id"]
+            isOneToOne: false
+            referencedRelation: "meta_campaign_drafts"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "meta_operations_organization_id_connection_id_fkey"
+            columns: ["organization_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "meta_connections"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "meta_operations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_operations_organization_id_grant_id_connection_id_ass_fkey"
+            columns: [
+              "organization_id",
+              "grant_id",
+              "connection_id",
+              "asset_id",
+            ]
+            isOneToOne: false
+            referencedRelation: "meta_asset_grants"
+            referencedColumns: [
+              "organization_id",
+              "id",
+              "connection_id",
+              "asset_id",
+            ]
+          },
+        ]
+      }
+      instagram_publications: {
+        Row: {
+          account_id: string
+          caption: string
+          created_at: string
+          error: string | null
+          format: string
+          id: string
+          item_ids: string[]
+          meta_asset_id: string | null
+          operation_id: string | null
+          organization_id: string
+          permalink: string | null
+          provider: string
+          provider_post_id: string | null
+          requested_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          caption?: string
+          created_at?: string
+          error?: string | null
+          format: string
+          id: string
+          item_ids: string[]
+          meta_asset_id?: string | null
+          operation_id?: string | null
+          organization_id: string
+          permalink?: string | null
+          provider?: string
+          provider_post_id?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          caption?: string
+          created_at?: string
+          error?: string | null
+          format?: string
+          id?: string
+          item_ids?: string[]
+          meta_asset_id?: string | null
+          operation_id?: string | null
+          organization_id?: string
+          permalink?: string | null
+          provider?: string
+          provider_post_id?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_publications_meta_asset_fk"
+            columns: ["organization_id", "meta_asset_id"]
+            isOneToOne: false
+            referencedRelation: "meta_assets"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "instagram_publications_meta_operation_fk"
+            columns: ["organization_id", "operation_id"]
+            isOneToOne: false
+            referencedRelation: "meta_operations"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "instagram_publications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       calendar_google_reconcilable_appointments: {
@@ -9930,6 +10531,163 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+
+      fn_meta_app_configure: {
+        Args: {
+          p_actor_id: string
+          p_ads_enabled: boolean
+          p_app_id: string
+          p_app_secret_encrypted?: string
+          p_config_id: string
+          p_expected_revision: number
+          p_instagram_enabled: boolean
+          p_native_enabled: boolean
+        }
+        Returns: number
+      }
+      fn_meta_require_actor: {
+        Args: {
+          p_actor_id: string
+          p_min_role: string
+          p_organization_id: string
+        }
+        Returns: undefined
+      }
+      fn_meta_oauth_claim: {
+        Args: { p_cookie_hash: string; p_state_hash: string }
+        Returns: Json
+      }
+      fn_meta_oauth_store_result: {
+        Args: {
+          p_attempt_id: string
+          p_callback_claim_id: string
+          p_result_encrypted: string
+          p_ticket_hash: string
+        }
+        Returns: boolean
+      }
+      fn_meta_inventory_apply: {
+        Args: {
+          p_assets: Json
+          p_connection_id: string
+          p_organization_id: string
+          p_preserve_selected: boolean
+        }
+        Returns: undefined
+      }
+      fn_meta_refresh_inventory: {
+        Args: {
+          p_assets: Json
+          p_connection_id: string
+          p_data_access_expires_at: string
+          p_expected_version: number
+          p_granular_scopes: Json
+          p_organization_id: string
+          p_scopes: string[]
+          p_token_expires_at: string
+        }
+        Returns: boolean
+      }
+      fn_meta_oauth_finalize: {
+        Args: {
+          p_actor_id: string
+          p_auth_session_id: string
+          p_organization_id: string
+          p_ticket_hash: string
+        }
+        Returns: Json
+      }
+      fn_meta_select_assets: {
+        Args: {
+          p_actor_id: string
+          p_asset_ids: string[]
+          p_connection_id: string
+          p_organization_id: string
+        }
+        Returns: Json
+      }
+      fn_meta_disconnect: {
+        Args: {
+          p_actor_id: string
+          p_connection_id?: string
+          p_organization_id: string
+        }
+        Returns: Json
+      }
+      fn_meta_expire_oauth: { Args: { p_limit?: number }; Returns: number }
+      fn_meta_scope_granted: {
+        Args: {
+          p_external_id: string
+          p_granular_scopes: Json
+          p_parent_external_id?: string
+          p_permissions: string[]
+          p_scope: string
+          p_scopes: string[]
+        }
+        Returns: boolean
+      }
+      fn_meta_operation_authorized: {
+        Args: { p_operation_id: string }
+        Returns: boolean
+      }
+      fn_meta_operation_reserve: {
+        Args: {
+          p_actor_id: string
+          p_asset_id: string
+          p_authorization_version: number
+          p_connection_id: string
+          p_grant_id: string
+          p_kind: string
+          p_operation_key: string
+          p_organization_id: string
+          p_request_hash: string
+          p_request_payload: Json
+        }
+        Returns: Json
+      }
+      fn_meta_operation_claim: {
+        Args: {
+          p_lease_seconds?: number
+          p_operation_id: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      fn_meta_operation_begin_dispatch: {
+        Args: {
+          p_fence: number
+          p_operation_id: string
+          p_organization_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      fn_meta_operation_heartbeat: {
+        Args: {
+          p_fence: number
+          p_lease_seconds?: number
+          p_operation_id: string
+          p_organization_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      fn_meta_operation_checkpoint: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_external_ids: Json
+          p_fence: number
+          p_operation_id: string
+          p_organization_id: string
+          p_receipt: Json
+          p_retry_at: string
+          p_stage: string
+          p_status: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

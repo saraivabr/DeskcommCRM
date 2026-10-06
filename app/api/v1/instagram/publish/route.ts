@@ -17,20 +17,30 @@ import {
   publishInstagram,
   readInstagramPublication,
   findInstagramPublication,
+  LEGACY_INSTAGRAM_PUBLICATION_PROVIDER,
 } from "@/lib/channels/social/instagram-publishing";
 import { SocialError } from "@/lib/channels/social/client";
+import { readSocialIntegration } from "@/lib/channels/social/store";
+import { MetaIntegrationError } from "@/lib/channels/meta/social/types";
+import { sameOriginMutation } from "@/lib/channels/meta/social/oauth";
+import { metaPublicOrigin, metaReadBody } from "@/lib/channels/meta/social/api";
+import {
+  listNativeInstagramAccounts,
+  queueNativeInstagramPublication,
+  publicationColumns,
+  nativePublicationResult,
+} from "@/lib/instagram/native-publication";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 const headers = { "Cache-Control": "no-store" };
-const columns =
-  "id,account_id,item_ids,format,caption,status,provider_post_id,permalink,error,created_at";
+const columns = publicationColumns;
 function failure(e: unknown, requestId: string) {
   return fail(
     "instagram_publish_failed",
-    e instanceof SocialError
+    e instanceof SocialError || e instanceof MetaIntegrationError
       ? e.message
       : "Não foi possível concluir. Consulte o resultado antes de tentar novamente.",
-    e instanceof SocialError ? e.status : 502,
+    e instanceof SocialError || e instanceof MetaIntegrationError ? e.status : 502,
     { requestId, headers },
   );
 }
@@ -44,10 +54,41 @@ export async function GET() {
       `select ${columns} from instagram_publications where organization_id=$1 order by created_at desc limit 50`,
       [auth.org.orgId],
     );
-    const context = await instagramContext(createAdminClient(), auth.org.orgId);
+    const admin = createAdminClient();
+    const [legacySource, nativeSource] = await Promise.allSettled([
+      (async () => {
+        const config = await readSocialIntegration(admin, auth.org.orgId);
+        return config ? instagramContext(admin, auth.org.orgId) : null;
+      })(),
+      listNativeInstagramAccounts(auth.org.orgId),
+    ]);
+    const context = legacySource.status === "fulfilled" ? legacySource.value : null;
+    const nativeAccounts = nativeSource.status === "fulfilled" ? nativeSource.value : [];
+    const provider_errors = {
+      legacy:
+        legacySource.status === "rejected"
+          ? "Não foi possível consultar esta fonte de conexão. Suas publicações existentes foram preservadas."
+          : null,
+      native:
+        nativeSource.status === "rejected"
+          ? "Não foi possível consultar a conexão nativa. Atualize o estado em Conexões."
+          : null,
+    };
     // Read-only upstream reconciliation; never sends content during refresh.
     const publications = await Promise.all(
       rows.map(async (row) => {
+        if (row.provider === "meta") {
+          try {
+            return await nativePublicationResult(auth.org.orgId, row);
+          } catch {
+            return {
+              ...row,
+              status: "uncertain" as const,
+              error: "Não foi possível confirmar este resultado. Atualize antes de continuar.",
+            };
+          }
+        }
+        if (!context) return row;
         if (!["pending", "uncertain", "sending"].includes(row.status)) return row;
         if (!context.accounts.some((a) => a._id === row.account_id)) return row;
         try {
@@ -77,12 +118,17 @@ export async function GET() {
     return ok(
       {
         publications,
-        accounts: context.accounts.map((a) => ({
-          id: a._id,
-          username: a.username ?? a.displayName ?? a._id,
-          active: a.isActive,
-        })),
+        accounts: [
+          ...(context?.accounts ?? []).map((a) => ({
+            id: a._id,
+            provider: LEGACY_INSTAGRAM_PUBLICATION_PROVIDER,
+            username: a.username ?? a.displayName ?? a._id,
+            active: a.isActive,
+          })),
+          ...nativeAccounts,
+        ],
         can_publish: ["manager", "admin"].includes(auth.org.role),
+        provider_errors,
       },
       { requestId, headers },
     );
@@ -98,12 +144,27 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
   if (await mfaEmDivida())
     return fail("mfa_required", "Confirme a verificação em duas etapas.", 403, { requestId });
-  const parsed = publicationInput.safeParse(await req.json().catch(() => null));
-  if (!parsed.success)
-    return fail("validation_failed", "Confira as imagens, a conta e a legenda.", 400, {
-      requestId,
-    });
-  const input = parsed.data;
+  let input;
+  try {
+    input = await metaReadBody(req, publicationInput);
+  } catch (error) {
+    return failure(error, requestId);
+  }
+  if (input.provider === "meta") {
+    if (!sameOriginMutation(req, metaPublicOrigin()))
+      return fail("forbidden", "Esta ação precisa partir da própria aplicação.", 403, {
+        requestId,
+        headers,
+      });
+    try {
+      return ok(
+        await queueNativeInstagramPublication(auth.org.orgId, auth.user.id, input, requestId),
+        { requestId, headers },
+      );
+    } catch (e) {
+      return failure(e, requestId);
+    }
+  }
   const pool = getRequestPool();
   const org = auth.org.orgId;
   let inserted = false;

@@ -26,7 +26,7 @@ import { traduzir } from "@/lib/i18n/dicionario";
 import { existeConexaoDeLeitura } from "@/lib/plataformas-de-anuncio/credenciais-de-leitura";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-import { MetaAdsClient } from "./_components/MetaAdsClient";
+import { MetaAdsSource } from "@/components/ads/MetaAdsSource";
 
 export const metadata = { title: "Meta Ads" };
 export const dynamic = "force-dynamic";
@@ -47,7 +47,8 @@ export default async function MetaAdsPage() {
   // Quem NÃO pode conectar não deve ler "vá em Configurações" — a tela lá é
   // `admin`, e mandar um manager para uma porta que devolve 403 é pior que
   // dizer a verdade: ele precisa pedir para alguém.
-  const podeConectar = (user.is_platform_admin && !user.support) || ROLE_RANK[activeOrg.role] >= ROLE_RANK.admin;
+  const podeConectar =
+    (user.is_platform_admin && !user.support) || ROLE_RANK[activeOrg.role] >= ROLE_RANK.admin;
 
   return (
     /*
@@ -63,35 +64,17 @@ export default async function MetaAdsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{t("Meta Ads")}</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
           {t(
-            "O desempenho das campanhas que estão trazendo gente para cá. Os números vêm da plataforma no momento em que você clica em Atualizar — nada fica guardado aqui.",
+            "Escolha a conta, consulte os resultados e prepare campanhas para revisão. Os números vêm da Meta no momento da consulta.",
           )}
         </p>
       </header>
 
-      {conexao.conectada ? (
-        <MetaAdsClient contaPadrao={conexao.contaPadrao} idioma={idioma} />
-      ) : (
-        <div className="rounded-md border p-6 text-sm">
-          <p className="font-medium">{t("Nenhuma conta de anúncios conectada.")}</p>
-          <p className="mt-1 text-muted-foreground">
-            {podeConectar
-              ? t(
-                  "Conecte um token de acesso com permissão de leitura de anúncios para ver as campanhas aqui.",
-                )
-              : t(
-                  "Peça a quem administra a organização para conectar a conta de anúncios em Configurações.",
-                )}
-          </p>
-          {podeConectar && (
-            <a
-              className="mt-4 inline-block rounded-md border px-4 py-2 font-medium underline-offset-2 hover:bg-muted"
-              href="/app/settings/meta-ads"
-            >
-              {t("Conectar conta de anúncios")}
-            </a>
-          )}
-        </div>
-      )}
+      <MetaAdsSource
+        legacyConnected={conexao.conectada}
+        defaultAccount={conexao.contaPadrao}
+        canConnect={podeConectar}
+        language={idioma}
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { followupGatilhoLeadHandler } from "@/lib/followup/gatilho-lead.handler"
 import { followupGatilhoCasoHandler } from "@/lib/followup/gatilho-caso.handler";
 import { mediaPersistHandler } from "@/workers/media-persist-worker.handler";
 import { mediaDeriveHandler } from "@/workers/media-derive-worker.handler";
+import { metaOperationHandler } from "@/workers/meta-operation-worker.handler";
 import { webPushInboundHandler } from "@/lib/notifications/push.handler";
 import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 import { avisoDeCasoAoSuporteHandler } from "@/lib/escalacao/aviso-ao-suporte.handler";
@@ -54,6 +55,7 @@ export function ensureHandlersRegistered(): void {
   registerHandler(followupGatilhoPresencaHandler);
   registerHandler(mediaPersistHandler);
   registerHandler(mediaDeriveHandler);
+  registerHandler(metaOperationHandler);
   registerHandler(webPushInboundHandler);
   // Penúltimo, pelo MESMO critério do último: o aviso ao suporte sai por rede de
   // terceiro (o transporte de WhatsApp) e nunca pode atrasar quem escreve no

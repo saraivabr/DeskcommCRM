@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/hooks/i18n/useT";
 import { copyToClipboard } from "@/lib/clipboard";
+import { MetaNativeConfigurationForm, type MetaNativeSettings } from "./_native-form";
 
 interface Props {
   /**
@@ -40,6 +41,7 @@ interface Props {
   /** O par está no `.env` desta instalação (o piso de rollback). */
   readonly temNoAmbiente: boolean;
   readonly leituraFalhou: boolean;
+  readonly nativeConfiguration?: MetaNativeSettings;
 }
 
 /** O piso do schema da action. Abaixo disso o Zod recusa e a tela culparia o dono. */
@@ -52,6 +54,7 @@ export function FormularioDaMeta({
   atualizadoEm,
   temNoAmbiente,
   leituraFalhou,
+  nativeConfiguration,
 }: Props) {
   const t = useT();
   const router = useRouter();
@@ -70,13 +73,17 @@ export function FormularioDaMeta({
   function motivoDaRecusa(r: Extract<UpdateMetaAppResult, { ok: false }>): string {
     switch (r.error) {
       case "invalid_input":
-        return t("A chave parece incompleta. Copie de novo do painel da Meta — ela tem 32 caracteres.");
+        return t(
+          "A chave parece incompleta. Copie de novo do painel da Meta — ela tem 32 caracteres.",
+        );
       case "app_secret_obrigatorio":
         return t("Cadastre a chave secreta do aplicativo primeiro. Sem ela o token não vale.");
       case "nada_para_salvar":
         return t("Nada mudou. Digite uma chave nova para substituir a atual.");
       case "leitura_do_app_falhou":
-        return t("Não consegui conferir o que já está gravado, então nada foi alterado. Tente de novo em instantes.");
+        return t(
+          "Não consegui conferir o que já está gravado, então nada foi alterado. Tente de novo em instantes.",
+        );
       default:
         // Cifra indisponível ou erro do banco: o texto da action diz qual, e
         // quem administra o servidor precisa dele para agir. Nada foi gravado.
@@ -86,6 +93,10 @@ export function FormularioDaMeta({
 
   function aoGravar(r: UpdateMetaAppResult, sucesso: string) {
     if (!r.ok) {
+      if (r.error === "mfa_required") {
+        router.push("/login/mfa?next=/admin/meta");
+        return;
+      }
       toast.error(motivoDaRecusa(r));
       return;
     }
@@ -117,9 +128,13 @@ export function FormularioDaMeta({
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("API Oficial da Meta desta instalação")}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("API Oficial da Meta desta instalação")}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("É com estas duas informações que o sistema confere que cada mensagem recebida pelo número oficial veio mesmo da Meta. Elas valem para a instalação inteira — cada empresa conecta o próprio número depois, em Conexões.")}
+          {t(
+            "É com estas duas informações que o sistema confere que cada mensagem recebida pelo número oficial veio mesmo da Meta. Elas valem para a instalação inteira — cada empresa conecta o próprio número depois, em Conexões.",
+          )}
         </p>
       </header>
 
@@ -128,8 +143,14 @@ export function FormularioDaMeta({
           role="alert"
           className="rounded-md border border-warning/40 bg-warning-bg p-3 text-xs leading-4 text-text-muted"
         >
-          {t("Não deu para ler a configuração salva agora, então o que aparece abaixo pode não ser o que está valendo. Recarregue a página antes de trocar qualquer coisa.")}
+          {t(
+            "Não deu para ler a configuração salva agora, então o que aparece abaixo pode não ser o que está valendo. Recarregue a página antes de trocar qualquer coisa.",
+          )}
         </p>
+      ) : null}
+
+      {nativeConfiguration ? (
+        <MetaNativeConfigurationForm initial={nativeConfiguration} readFailed={leituraFalhou} />
       ) : null}
 
       <Card className="flex flex-col gap-4 p-4">
@@ -142,12 +163,18 @@ export function FormularioDaMeta({
             autoComplete="off"
             value={chave}
             onChange={(e) => setChave(e.target.value)}
-            placeholder={temSegredoSalvo ? t("••••••••  (já cadastrada)") : t("32 letras e números")}
+            placeholder={
+              temSegredoSalvo ? t("••••••••  (já cadastrada)") : t("32 letras e números")
+            }
           />
           <p className="text-xs text-muted-foreground">
             {temSegredoSalvo
-              ? t("Já existe uma chave cadastrada. Deixe em branco para mantê-la, ou digite uma nova para substituir.")
-              : t("Fica no painel da Meta, em Configurações do app › Básico. Ela é guardada cifrada e nunca volta a aparecer nesta tela.")}
+              ? t(
+                  "Já existe uma chave cadastrada. Deixe em branco para mantê-la, ou digite uma nova para substituir.",
+                )
+              : t(
+                  "Fica no painel da Meta, em Configurações do app › Básico. Ela é guardada cifrada e nunca volta a aparecer nesta tela.",
+                )}
           </p>
         </div>
 
@@ -156,7 +183,9 @@ export function FormularioDaMeta({
             data-testid="meta-tem-no-ambiente"
             className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground"
           >
-            {t("Esta instalação já tem a chave e o token no arquivo de configuração do servidor. O que você salvar aqui passa a valer no lugar deles — e, a partir daí, é o token desta tela que precisa estar colado no painel da Meta.")}
+            {t(
+              "Esta instalação já tem a chave e o token no arquivo de configuração do servidor. O que você salvar aqui passa a valer no lugar deles — e, a partir daí, é o token desta tela que precisa estar colado no painel da Meta.",
+            )}
           </p>
         ) : null}
 
@@ -180,7 +209,9 @@ export function FormularioDaMeta({
               ? `${t("Gerado em")} ${tokenGeradoEm}.`
               : temTokenSalvo
                 ? t("Já existe um token gerado.")
-                : t("Ainda não existe. Ele é criado pelo sistema na primeira vez que você salva a chave secreta — ninguém precisa inventar nada.")}
+                : t(
+                    "Ainda não existe. Ele é criado pelo sistema na primeira vez que você salva a chave secreta — ninguém precisa inventar nada.",
+                  )}
           </p>
         </div>
 
@@ -206,13 +237,17 @@ export function FormularioDaMeta({
             </div>
             <p className="rounded-md border border-warning/40 bg-warning-bg p-3 text-xs leading-4 text-text-muted">
               <strong className="font-semibold text-text">{t("Copie agora.")}</strong>{" "}
-              {t("Por segurança, ele não aparece de novo depois que você sair desta página. Se perder, é só gerar outro aqui.")}
+              {t(
+                "Por segurança, ele não aparece de novo depois que você sair desta página. Se perder, é só gerar outro aqui.",
+              )}
             </p>
           </div>
         ) : null}
 
         <p className="text-xs text-muted-foreground">
-          {t("No painel da Meta, em WhatsApp › Configuração › Webhook, este token vai no campo “Verificar token”. O outro campo, “URL de callback”, é de cada número: ele aparece em Conexões › API Oficial (Meta), depois que o número é conectado. Abra Conexões em outra aba, para não perder o token desta página.")}{" "}
+          {t(
+            "No painel da Meta, em WhatsApp › Configuração › Webhook, este token vai no campo “Verificar token”. O outro campo, “URL de callback”, é de cada número: ele aparece em Conexões › API Oficial (Meta), depois que o número é conectado. Abra Conexões em outra aba, para não perder o token desta página.",
+          )}{" "}
           {/*
             Outra aba de propósito: o token recém-gerado vive só nesta página, e
             a URL de callback só em Conexões. Na mesma aba a pessoa perde o token
@@ -250,7 +285,9 @@ export function FormularioDaMeta({
           <AlertDialogHeader>
             <AlertDialogTitle>{t("Gerar um novo token de verificação?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("O token atual deixa de valer na hora. As mensagens que já chegam continuam chegando, porque elas são conferidas pela chave secreta. O que muda: a Meta só consegue confirmar o endereço do webhook de novo depois que você colar o token novo no painel dela.")}
+              {t(
+                "O token atual deixa de valer na hora. As mensagens que já chegam continuam chegando, porque elas são conferidas pela chave secreta. O que muda: a Meta só consegue confirmar o endereço do webhook de novo depois que você colar o token novo no painel dela.",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

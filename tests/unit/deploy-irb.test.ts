@@ -62,7 +62,9 @@ if (args[0] === 'inspect') {
 if (args[0] === 'create') { process.stdout.write('extract-container'); process.exit(0); }
 if (args[0] === 'cp') {
   fail('migration');
-  fs.copyFileSync(path.join(process.env.IRB_REPO, 'supabase/migrations/20261001220000_0415_prospecting_inbox_scope.sql'), args[2]);
+  const source = args[1].split(':/app/')[1];
+  if (source.includes('0416_meta_native_platform')) fail('native-migration');
+  fs.copyFileSync(path.join(process.env.IRB_REPO, source), args[2]);
   process.exit(0);
 }
 if (args[0] === 'rm') process.exit(0);
@@ -89,6 +91,13 @@ if (args[0] === 'exec') {
     if (sql.startsWith('-- 0415 contract')) {
       process.stdout.write(failure === 'incompatible' ? 'incompatible' : (failure === 'existing' || state.migration ? 'ready' : 'missing'));
       process.exit(0);
+    }
+    if (sql.startsWith('-- 0416 contract:')) {
+      process.stdout.write(failure === 'native-incompatible' ? 'incompatible' : failure === 'native-dependencies' ? 'dependencies_missing' : (failure === 'existing' || failure === 'native-existing' || state.nativeMigration ? 'ready' : 'missing'));
+      process.exit(0);
+    }
+    if (sql.includes('create function public.fn_meta_app_configure')) {
+      fail('native-sql'); state.nativeMigration = true; save();
     }
     if (sql.includes('create function public.automatico_da_prospeccao')) {
       fail('sql'); state.migration = true; save();
@@ -133,14 +142,14 @@ describe("IRB deploy executes the approved app and worker together", () => {
       expect(proof.calls).toEqual([]);
     }
   });
-  it.each(["backup", "pull", "digest", "revision", "image-version", "migration", "paused", "incompatible"])("%s failure leaves the live services unchanged", (failure) => {
+  it.each(["backup", "pull", "digest", "revision", "image-version", "migration", "native-migration", "native-incompatible", "native-dependencies", "paused", "incompatible"])("%s failure leaves the live services unchanged", (failure) => {
     const proof = deployment(failure);
     expect(proof.result.status).not.toBe(0);
     expect(proof.config).toEqual(previous);
     expect(proof.state.worker).toBe(true);
     expect(proof.calls.some((call) => call[0] === "stop")).toBe(false);
   });
-  it.each(["stop", "forced-stop", "graceful-timeout", "sql", "signal", "config", "app-up", "worker-up", "app-health", "app-version", "worker-health", "worker-version"])("%s failure restores both images and the previously active worker", (failure) => {
+  it.each(["stop", "forced-stop", "graceful-timeout", "sql", "native-sql", "signal", "config", "app-up", "worker-up", "app-health", "app-version", "worker-health", "worker-version"])("%s failure restores both images and the previously active worker", (failure) => {
     const proof = deployment(failure);
     expect(proof.result.status, proof.result.stdout + proof.result.stderr).not.toBe(0);
     expect(proof.config).toEqual(previous);
@@ -150,7 +159,7 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expect(proof.result.stderr).toContain("restoring previous app and worker");
     if (["forced-stop", "graceful-timeout"].includes(failure)) expect(proof.sql).not.toContain("create function public.automatico_da_prospeccao");
   });
-  it("extracts but never starts the migration container, commits only 0415, and preserves unrelated configuration", () => {
+  it("extracts reviewed 0415 and 0416 without starting the container, drains the worker and preserves unrelated configuration", () => {
     const proof = deployment();
     expect(proof.result.status, proof.result.stdout + proof.result.stderr).toBe(0);
     const expected = structuredClone(previous);
@@ -167,6 +176,9 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expect(applied).toBeLessThan(appUp);
     expect(proof.calls[applied]).toEqual(expect.arrayContaining(["-X", "-1", "ON_ERROR_STOP=1"]));
     expect(proof.sql).toContain("create function public.automatico_da_prospeccao");
+    expect(proof.sql).toContain("create function public.fn_meta_app_configure");
+    expect(proof.sql).toContain("create table public.meta_connections");
+    expect(proof.state.nativeMigration).toBe(true);
     expect(proof.sql).not.toContain("create or replace function");
     expect(proof.sql).not.toContain("CREATE TABLE");
     expect(proof.calls.flat().some((arg) => /voice|scheduler/.test(arg))).toBe(false);
@@ -185,6 +197,13 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expect(proof.sql).not.toContain("create or replace function");
     expect(proof.calls.some((call) => call.includes("psql") && call.includes("-1"))).toBe(false);
     expect(proof.state.worker).toBe(true);
+  });
+  it("preserves an installed compatible Meta schema while installing only missing 0415", () => {
+    const proof = deployment("native-existing");
+    expect(proof.result.status, proof.result.stdout + proof.result.stderr).toBe(0);
+    expect(proof.sql).toContain("create function public.automatico_da_prospeccao");
+    expect(proof.sql).not.toContain("create function public.fn_meta_");
+    expect(proof.sql).not.toContain("create table public.meta_");
   });
   it("reports a rollback failure instead of claiming services were restored", () => {
     const proof = deployment("rollback");

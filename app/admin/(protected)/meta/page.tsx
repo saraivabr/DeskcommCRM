@@ -49,18 +49,24 @@ export default async function Page() {
   // anon/authenticated): o admin client é o único caminho.
   const { data, error } = await createAdminClient()
     .from("platform_meta_app")
-    .select("app_secret_encrypted, verify_token_encrypted, verify_token_created_at, updated_at")
+    .select(
+      "app_secret_encrypted, verify_token_encrypted, verify_token_created_at, updated_at, app_id, config_id, config_revision, native_enabled, instagram_enabled, ads_enabled",
+    )
     .eq("id", 1)
     .maybeSingle();
 
-  const linha = data as
-    | {
-        app_secret_encrypted: string | null;
-        verify_token_encrypted: string | null;
-        verify_token_created_at: string | null;
-        updated_at: string | null;
-      }
-    | null;
+  const linha = data as {
+    app_secret_encrypted: string | null;
+    verify_token_encrypted: string | null;
+    verify_token_created_at: string | null;
+    updated_at: string | null;
+    app_id?: string | null;
+    config_id?: string | null;
+    config_revision?: number;
+    native_enabled?: boolean;
+    instagram_enabled?: boolean;
+    ads_enabled?: boolean;
+  } | null;
 
   // O `.env` é o piso de rollback (`lib/channels/meta/app.ts`). Dizer que ele
   // existe é o que torna a precedência visível: sem isto, quem tem o par no
@@ -77,6 +83,14 @@ export default async function Page() {
       // Leitura que falhou não pode virar "nunca configurado": essa frase
       // levaria o dono a gerar um token por cima do que já está colado na Meta.
       leituraFalhou={Boolean(error)}
+      nativeConfiguration={{
+        app_id: linha?.app_id ?? "",
+        config_id: linha?.config_id ?? "",
+        expected_revision: linha?.config_revision ?? 0,
+        native_enabled: linha?.native_enabled === true,
+        instagram_enabled: linha?.instagram_enabled === true,
+        ads_enabled: linha?.ads_enabled === true,
+      }}
     />
   );
 }

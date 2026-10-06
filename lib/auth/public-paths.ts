@@ -78,6 +78,9 @@ export const PUBLIC_PATHS: RegExp[] = [
   // volta do Google não tem, e não pode ter, o cookie.
   /^\/api\/v1\/plataformas-de-anuncio\/google\/callback$/,
   /^\/api\/v1\/integrations\/nuvemshop\/callback$/,
+  // Cookie Strict não acompanha a volta externa. O handler valida state/vínculo
+  // de uso único; somente o POST autenticado finalize ativa a conexão local.
+  /^\/api\/v1\/integrations\/meta\/callback$/,
   /^\/api\/internal\//,
   /^\/api\/mcp(\/.*)?$/,
   // GET /api/v1/contacts aceita SESSÃO ou Bearer `dsk_...` (api_tokens) — a

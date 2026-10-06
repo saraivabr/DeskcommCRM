@@ -75,6 +75,18 @@ interface Excecao {
  * linhas da OUTRA organização, não uma leitura como superusuário.
  */
 const PROVA_PROPRIA: readonly Excecao[] = [
+  ...[
+    "meta_oauth_attempts",
+    "meta_connections",
+    "meta_assets",
+    "meta_asset_grants",
+    "meta_operations",
+    "meta_campaign_drafts",
+  ].map((tabela) => ({
+    tabela,
+    razao:
+      "meta-native-platform.test.ts: authenticated owner and anon receive permission denied under Supabase default ACLs; composite foreign keys reject cross-org grants and publications, service_role remains a positive control.",
+  })),
   {
     tabela: "knowledge_pages",
     razao: "knowledge-pages.test.ts: JWT cross-org, stale revision and direct mutation denial.",

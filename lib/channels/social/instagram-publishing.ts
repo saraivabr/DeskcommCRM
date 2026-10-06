@@ -1,4 +1,6 @@
 import { z } from "zod";
+export const LEGACY_INSTAGRAM_PUBLICATION_PROVIDER = "zernio" as const;
+export type InstagramPublicationProvider = typeof LEGACY_INSTAGRAM_PUBLICATION_PROVIDER | "meta";
 import { socialRequest, SocialError } from "./client";
 const targetSchema = z.object({
   platform: z.string(),

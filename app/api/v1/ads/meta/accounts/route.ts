@@ -20,19 +20,36 @@ import { randomUUID } from "node:crypto";
 import { requireRole } from "@/lib/auth/require-role";
 import { listarContas } from "@/lib/plataformas-de-anuncio/meta/insights";
 import { lerCredencialDeLeitura } from "@/lib/plataformas-de-anuncio/credenciais-de-leitura";
-import { ok } from "@/lib/api/wrappers";
+import { fail, ok } from "@/lib/api/wrappers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { nativeAdAccounts } from "@/lib/ads/read";
+import { metaAPIError } from "@/lib/channels/meta/social/api";
 
 import { respostaDeFalha, respostaSemConexao } from "../_falha";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+export async function GET(req?: Request): Promise<Response> {
   const requestId = randomUUID();
 
   const authz = await requireRole("manager", { requestId, resource: "ads_insights" });
   if (!authz.ok) return authz.response;
   const { org } = authz;
+
+  const source = req ? new URL(req.url).searchParams.get("source") : null;
+  if (source !== null && source !== "native" && source !== "legacy") {
+    return fail("validation_failed", "Escolha uma fonte de conexão válida.", 422, { requestId });
+  }
+  if (source === "native") {
+    try {
+      return ok(await nativeAdAccounts(org.orgId), {
+        requestId,
+        headers: { "cache-control": "no-store" },
+      });
+    } catch (error) {
+      return metaAPIError(error, requestId);
+    }
+  }
 
   // Admin client: `ad_insights_connections` tem RLS ligada e ZERO policies
   // (0214). Pelo client de sessão isto devolveria vazio, sem erro.

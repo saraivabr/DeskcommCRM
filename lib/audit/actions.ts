@@ -885,6 +885,17 @@ export const AUDIT_ACTIONS = [
   "mcp.connection_revoked",
   "mcp.action_approved",
   "sales.waitlist_requested",
+  "meta.oauth_started",
+  "meta.oauth_failed",
+  "meta.connected",
+  "meta.assets_selected",
+  "meta.connection_checked",
+  "meta.disconnected",
+  "platform_meta_app.native_configured",
+  "meta.operation_requested",
+  "meta.operation_checkpointed",
+  "meta.campaign_draft_updated",
+  "meta.campaign_approved",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

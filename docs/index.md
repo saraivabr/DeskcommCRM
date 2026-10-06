@@ -62,6 +62,7 @@ Detalham schema SQL e payloads exatos. **Consulte antes de modelar qualquer cois
 
 | Spec | Domínio |
 |---|---|
+| [Meta própria](specs/meta-native-platform.md) | Arquitetura proposta e plano: OAuth por organização, ativos, anúncios/publicações, App Review e rollout |
 | [`specs/01`](specs/01-spec-platform-base.md) | Plataforma base — tenancy, RLS, RBAC, API, audit |
 | [`specs/02`](specs/02-spec-customer-360.md) | Customer 360 |
 | [`specs/03`](specs/03-spec-whatsapp-waha.md) | WAHA — fila outbound, warm-up, spinning, crons |

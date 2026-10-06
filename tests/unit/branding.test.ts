@@ -846,6 +846,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint da Graph API do WhatsApp Cloud — 6 arquivos: envio de template, sincronização de modelos, validação de credencial, conversões e insights. É contrato da Meta, não escolha nossa.",
   },
+  "www.facebook.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "tela oficial de consentimento Facebook Login for Business; o cliente autoriza o app Meta da instalação nesse domínio do fornecedor.",
+  },
   "www.googleapis.com": {
     categoria: "FORNECEDOR",
     motivo:
