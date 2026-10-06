@@ -9458,6 +9458,7 @@ export type Database = {
       }
       meta_campaign_drafts: {
         Row: {
+          meta_connection_id: string | null
           ad_account_asset_id: string
           approved_hash: string | null
           approved_revision: number | null
@@ -9481,6 +9482,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          meta_connection_id?: string | null
           ad_account_asset_id: string
           approved_hash?: string | null
           approved_revision?: number | null
@@ -9504,6 +9506,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          meta_connection_id?: string | null
           ad_account_asset_id?: string
           approved_hash?: string | null
           approved_revision?: number | null
@@ -9527,6 +9530,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "meta_campaign_drafts_connection_fk"
+            columns: ["organization_id", "meta_connection_id"]
+            isOneToOne: false
+            referencedRelation: "meta_connections"
+            referencedColumns: ["organization_id", "id"]
+          },
           {
             foreignKeyName: "meta_campaign_drafts_organization_id_ad_account_asset_id_fkey"
             columns: ["organization_id", "ad_account_asset_id"]
@@ -9644,6 +9654,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "meta_operations_draft_connection_fk"
+            columns: ["organization_id", "campaign_draft_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "meta_campaign_drafts"
+            referencedColumns: ["organization_id", "id", "meta_connection_id"]
+          },
+          {
             foreignKeyName: "meta_operations_organization_id_asset_id_fkey"
             columns: ["organization_id", "asset_id"]
             isOneToOne: false
@@ -9692,6 +9709,8 @@ export type Database = {
       }
       instagram_publications: {
         Row: {
+          meta_media_cleanup_uncertain: boolean
+          meta_connection_id: string | null
           account_id: string
           caption: string
           created_at: string
@@ -9710,6 +9729,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          meta_media_cleanup_uncertain?: boolean
+          meta_connection_id?: string | null
           account_id: string
           caption?: string
           created_at?: string
@@ -9728,6 +9749,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          meta_media_cleanup_uncertain?: boolean
+          meta_connection_id?: string | null
           account_id?: string
           caption?: string
           created_at?: string
@@ -9746,6 +9769,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "instagram_publications_meta_connection_fk"
+            columns: ["organization_id", "meta_connection_id"]
+            isOneToOne: false
+            referencedRelation: "meta_connections"
+            referencedColumns: ["organization_id", "id"]
+          },
           {
             foreignKeyName: "instagram_publications_meta_asset_fk"
             columns: ["organization_id", "meta_asset_id"]
@@ -9768,6 +9798,165 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meta_privacy_subjects: {
+        Row: {
+          subject_hash: string
+          app_id: string
+          cutoff_at: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          subject_hash: string
+          app_id: string
+          cutoff_at: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          subject_hash?: string
+          app_id?: string
+          cutoff_at?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meta_privacy_requests: {
+        Row: {
+          retry_at: string
+          id: string
+          subject_hash: string
+          app_id: string
+          kind: string
+          request_digest: string
+          confirmation_code_hash: string
+          confirmation_code_encrypted: string
+          issued_at: string
+          status: string
+          lease_owner: string | null
+          lease_until: string | null
+          fence: number
+          completed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          retry_at?: string
+          id?: string
+          subject_hash: string
+          app_id: string
+          kind: string
+          request_digest: string
+          confirmation_code_hash: string
+          confirmation_code_encrypted: string
+          issued_at: string
+          status?: string
+          lease_owner?: string | null
+          lease_until?: string | null
+          fence?: number
+          completed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          retry_at?: string
+          id?: string
+          subject_hash?: string
+          app_id?: string
+          kind?: string
+          request_digest?: string
+          confirmation_code_hash?: string
+          confirmation_code_encrypted?: string
+          issued_at?: string
+          status?: string
+          lease_owner?: string | null
+          lease_until?: string | null
+          fence?: number
+          completed_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_privacy_requests_subject_hash_fkey"
+            columns: ["subject_hash"]
+            isOneToOne: false
+            referencedRelation: "meta_privacy_subjects"
+            referencedColumns: ["subject_hash"]
+          },
+        ]
+      }
+      meta_privacy_targets: {
+        Row: {
+          subject_hash: string
+          connection_id: string
+          organization_id: string
+          asset_ids: string[]
+        }
+        Insert: {
+          subject_hash: string
+          connection_id: string
+          organization_id: string
+          asset_ids?: string[]
+        }
+        Update: {
+          subject_hash?: string
+          connection_id?: string
+          organization_id?: string
+          asset_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_privacy_targets_subject_hash_fkey"
+            columns: ["subject_hash"]
+            isOneToOne: false
+            referencedRelation: "meta_privacy_subjects"
+            referencedColumns: ["subject_hash"]
+          },
+        ]
+      }
+      meta_privacy_storage_objects: {
+        Row: {
+          id: string
+          subject_hash: string
+          organization_id: string
+          publication_id: string
+          object_index: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          subject_hash: string
+          organization_id: string
+          publication_id: string
+          object_index: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          subject_hash?: string
+          organization_id?: string
+          publication_id?: string
+          object_index?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_privacy_storage_objects_subject_hash_fkey"
+            columns: ["subject_hash"]
+            isOneToOne: false
+            referencedRelation: "meta_privacy_subjects"
+            referencedColumns: ["subject_hash"]
+          },
+        ]
+      }
+      meta_privacy_media_tombstones: {
+        Row: { organization_id: string; publication_id: string; created_at: string }
+        Insert: { organization_id: string; publication_id: string; created_at?: string }
+        Update: { organization_id?: string; publication_id?: string; created_at?: string }
+        Relationships: []
       }
     }
     Views: {
@@ -9835,6 +10024,35 @@ export type Database = {
       }
     }
     Functions: {
+      fn_meta_privacy_subject_hash: {
+        Args: { p_app_id: string; p_remote_actor_id: string }
+        Returns: string
+      }
+      fn_meta_privacy_request: {
+        Args: {
+          p_app_id: string
+          p_remote_actor_id: string
+          p_kind: string
+          p_request_digest: string
+          p_confirmation_code: string
+          p_issued_at: string
+        }
+        Returns: Json
+      }
+      fn_meta_privacy_claim: {
+        Args: { p_worker_id: string; p_lease_seconds?: number }
+        Returns: Json
+      }
+      fn_meta_privacy_step: {
+        Args: {
+          p_request_id: string
+          p_worker_id: string
+          p_fence: number
+          p_storage_object_ids?: string[]
+          p_limit?: number
+        }
+        Returns: Json
+      }
       automatico_da_prospeccao: {
         Args: { c: Database["public"]["Tables"]["conversations"]["Row"] }
         Returns: boolean

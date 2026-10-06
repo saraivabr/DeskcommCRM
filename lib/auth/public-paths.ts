@@ -81,6 +81,8 @@ export const PUBLIC_PATHS: RegExp[] = [
   // Cookie Strict não acompanha a volta externa. O handler valida state/vínculo
   // de uso único; somente o POST autenticado finalize ativa a conexão local.
   /^\/api\/v1\/integrations\/meta\/callback$/,
+  // Callbacks do provedor: a assinatura HMAC é validada dentro do handler.
+  /^\/api\/v1\/integrations\/meta\/(deauthorization|data-deletion)$/,
   /^\/api\/internal\//,
   /^\/api\/mcp(\/.*)?$/,
   // GET /api/v1/contacts aceita SESSÃO ou Bearer `dsk_...` (api_tokens) — a
@@ -135,6 +137,9 @@ export const PUBLIC_PATHS: RegExp[] = [
   // dois nomes de propósito: `/^\/legal/` deixaria qualquer sub-path futuro
   // nascer público de carona.
   /^\/legal\/(terms|privacy)$/,
+  // Instruções públicas e status com código opaco; nenhum sub-path adicional.
+  /^\/legal\/meta-data-deletion$/,
+  /^\/legal\/meta-data-deletion\/status$/,
 ];
 
 export function isPublicPath(pathname: string): boolean {

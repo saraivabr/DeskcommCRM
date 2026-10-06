@@ -8,6 +8,8 @@ import {
 import { executeNativeInstagramOperation } from "@/lib/channels/meta/social/publish";
 import { MetaIntegrationError } from "@/lib/channels/meta/social/types";
 import type { EventRow, HandlerResult } from "@/lib/event-log/dispatcher";
+import { createBoundedMetaAdminClient } from "@/lib/channels/meta/social/bounded-admin";
+import { queryMetaMedia, withMetaMediaLock } from "@/lib/channels/meta/social/media-lock";
 
 export const META_OPERATION_CONSUMER = "meta-native-operation-v1";
 /** Bounded maintenance clears unused encrypted callback results after expiry. */
@@ -23,18 +25,55 @@ export async function expireMetaOAuthAttempts(store = new MetaOperationStore()):
 /** Recover provisional rows left by a crash before the atomic operation reservation. */
 export async function pruneUnreservedMetaPublications(): Promise<number> {
   const { getRequestPool } = await import("@/lib/agent-engine/db/request-pool");
-  const result = await getRequestPool().query(
-    `with stale as (
-      select organization_id,id from public.instagram_publications
+  const pool = getRequestPool();
+  const result = await pool.query<{
+    organization_id: string;
+    id: string;
+    meta_connection_id: string;
+  }>(
+    `select organization_id,id,meta_connection_id from public.instagram_publications
       where provider='meta' and status='preparing' and operation_id is null
         and created_at < now()-interval '10 minutes'
-      order by created_at for update skip locked limit 100
-    ) delete from public.instagram_publications p using stale s
-      where p.organization_id=s.organization_id and p.id=s.id
-        and p.provider='meta' and p.status='preparing' and p.operation_id is null
-      returning p.id`,
+        and not meta_media_cleanup_uncertain
+      order by created_at limit 10`,
   );
-  return result.rowCount ?? 0;
+  let removed = 0;
+  const db = createBoundedMetaAdminClient();
+  for (const publication of result.rows) {
+    if (!publication.meta_connection_id) continue;
+    try {
+      removed += await withMetaMediaLock(publication.meta_connection_id, false, async (client) => {
+        const stillPreparing = await queryMetaMedia(
+          client,
+          `select id from instagram_publications where organization_id=$1 and id=$2
+           and provider='meta' and status='preparing' and operation_id is null
+           and not meta_media_cleanup_uncertain`,
+          [publication.organization_id, publication.id],
+        );
+        if (!stillPreparing.rowCount) return 0;
+        const paths = Array.from(
+          { length: 10 },
+          (_, index) =>
+            `${publication.organization_id}/instagram/publications/${publication.id}/${index}.jpg`,
+        );
+        const storage = await db.storage.from("whatsapp-media").remove(paths);
+        if (storage.error)
+          throw new MetaIntegrationError("meta_store_unavailable", "Limpeza de mídia pendente.");
+        const deleted = await queryMetaMedia(
+          client,
+          `delete from instagram_publications where organization_id=$1 and id=$2
+           and provider='meta' and status='preparing' and operation_id is null
+           and not meta_media_cleanup_uncertain returning id`,
+          [publication.organization_id, publication.id],
+        );
+        return deleted.rowCount ?? 0;
+      });
+    } catch (error) {
+      if (error instanceof MetaIntegrationError && error.code === "meta_preparation_busy") continue;
+      throw error;
+    }
+  }
+  return removed;
 }
 export async function executeMetaOperation(
   organizationId: string,

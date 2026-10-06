@@ -2,8 +2,8 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Meta própria no escreve.ai — implementação em QA",
-    "subtitle": "OAuth, ativos, publicação Instagram e criação pausada implementados localmente; produção, efeitos reais e Advanced Access ainda pendentes.",
+    "title": "Meta própria no escreve.ai — núcleo publicado e privacidade em QA",
+    "subtitle": "Núcleo publicado na revisão 99792f820; revogação/exclusão em QA. OAuth, publicação, anúncios reais e Advanced Access ainda precisam de comprovação.",
     "output": "meta-native-platform.html",
     "quality_profile": "standard"
   },
@@ -618,7 +618,13 @@
     }
   ],
   "contracts": {
-    "status": "PLANEJADO / NÃO IMPLEMENTADO. Este arquivo é planta de implementação e não prova OAuth, publicação, campanhas, aprovação Meta ou deploy.",
+    "status": "Núcleo implementado e publicado; app/worker 99792f820 com health healthy em 06/10/2026. Callbacks de privacidade em QA. Este mapa não prova OAuth, publicação, campanhas ou aprovação externa da Meta.",
+    "privacy": [
+      "POST deauthorization/data-deletion em caminhos públicos exatos, autenticados por HMAC-SHA256 de signed_request com segredo atual, após rate limit.",
+      "Revogação imediata, recibo cifrado/idempotente e outbox durável; dados e cópias de mídia são atribuídos à autorização, preservando Studio/CRM/Zernio/autorizações independentes.",
+      "Upload sem resposta terminal mantém a exclusão pendente até reconciliação comprovada. Mutex de preparação por publicação usa chave separada do fence Storage.",
+      "Status público por código opaco, no-store/no-referrer/noindex; não renderiza código nem identidade. Recibos mínimos e marcadores antirretorno permanecem."
+    ],
     "base_revision": "34aa784880868fd939bf99a985c6b97f00bae27a",
     "render_status": "JSON fonte no formato lanes/nodes/edges já usado neste repositório. Não há HTML gerado; o README declara que esse formato não é aceito pelo archify 2.11.0.",
     "existing_bases": [

@@ -77,8 +77,8 @@ function preparePublication(key: string): string {
   if (existing) return existing;
   const id = randomUUID();
   sql(`insert into public.instagram_publications
-    (id,organization_id,account_id,item_ids,format,caption,provider,meta_asset_id,requested_by)
-    values('${id}','${org}','shared-remote-id',array['${asset}'::uuid],'feed','Synthetic publication','meta','${asset}','${actor}')`);
+    (id,organization_id,account_id,item_ids,format,caption,provider,meta_asset_id,requested_by,meta_connection_id)
+    values('${id}','${org}','shared-remote-id',array['${asset}'::uuid],'feed','Synthetic publication','meta','${asset}','${actor}','${connection}')`);
   preparedPublications.set(key, id);
   return id;
 }
@@ -123,6 +123,10 @@ beforeAll(() => {
       ('a4160000-3333-4000-8000-000000000002','${org}','page','synthetic-parent','Synthetic Page'),
       ('${asset}','${org}','instagram','shared-remote-id','Synthetic account'),
       ('${otherAsset}','${otherOrg}','instagram','shared-remote-id','Neighbor account');
+    insert into public.meta_connections(id,organization_id,app_id,local_actor_id,remote_actor_id,oauth_access_token_encrypted,status)
+      values('b4160000-2222-4000-8000-000000000001','${otherOrg}','${appId}','${actor}','other-remote',public.fn_encrypt_oauth('other-synthetic-token'),'healthy');
+    insert into public.meta_asset_grants(organization_id,connection_id,asset_id,selected)
+      values('${otherOrg}','b4160000-2222-4000-8000-000000000001','${otherAsset}',true);
     update public.meta_assets set parent_page_id='a4160000-3333-4000-8000-000000000002' where id='${asset}';
     insert into public.meta_asset_grants(id,organization_id,connection_id,asset_id,selected,tasks,permissions)
       values('${grant}','${org}','${connection}','${asset}',true,array['CREATE_CONTENT'],array['instagram_basic','instagram_content_publish','pages_read_engagement']);
@@ -211,8 +215,8 @@ describe("Meta native tenant and credential boundaries", () => {
       sql("select provider from public.instagram_publications where account_id='legacy-account'"),
     ).toBe("zernio");
     denied(
-      `insert into public.instagram_publications(id,organization_id,account_id,item_ids,format,provider,meta_asset_id)
-      values('a4160000-5555-4000-8000-000000000002','${org}','remote',array['${asset}'::uuid],'feed','meta','${otherAsset}')`,
+      `insert into public.instagram_publications(id,organization_id,account_id,item_ids,format,provider,meta_asset_id,meta_connection_id)
+      values('a4160000-5555-4000-8000-000000000002','${org}','remote',array['${asset}'::uuid],'feed','meta','${otherAsset}','${connection}')`,
       "foreign key constraint",
     );
   });
@@ -525,12 +529,12 @@ describe("Meta durable external operation intent", () => {
       `insert into auth.users(id,email) values('${secondActor}','meta-publication-other@invariant.test')`,
     );
     const cases = [
-      ["wrong-org", `organization_id='${otherOrg}',meta_asset_id='${otherAsset}'`],
+      ["wrong-org", `organization_id='${otherOrg}',meta_asset_id='${otherAsset}',meta_connection_id='b4160000-2222-4000-8000-000000000001'`],
       ["wrong-actor", `requested_by='${secondActor}'`],
       ["wrong-asset", "meta_asset_id='a4160000-3333-4000-8000-000000000002'"],
       ["wrong-account", "account_id='different-remote-id'"],
       ["wrong-status", "status='published'"],
-      ["wrong-provider", "provider='zernio',meta_asset_id=null"],
+      ["wrong-provider", "provider='zernio',meta_asset_id=null,meta_connection_id=null"],
     ] as const;
     for (const [key, changes] of cases) {
       const id = preparePublication(key);
