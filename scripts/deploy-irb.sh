@@ -114,14 +114,21 @@ native_migration="$workdir/0416.sql"
 native_contract="$workdir/0416-contract.sql"
 docker cp "$extract_container:/app/supabase/migrations/20261005160000_0416_meta_native_platform.sql" "$native_migration"
 docker cp "$extract_container:/app/scripts/deploy-meta-native-contract.sql" "$native_contract"
+privacy_migration="$workdir/0417.sql"
+privacy_contract="$workdir/0417-contract.sql"
+docker cp "$extract_container:/app/supabase/migrations/20261006193000_0417_meta_privacy_lifecycle.sql" "$privacy_migration"
+docker cp "$extract_container:/app/scripts/deploy-meta-privacy-contract.sql" "$privacy_contract"
 docker rm "$extract_container" >/dev/null
 extract_container=''
-[[ -s "$migration" ]]
+[[ -s "$migration" ]] || exit 1
 grep -q '^-- 0415 ' "$migration"
 grep -q '^create or replace function public.automatico_da_prospeccao' "$migration"
-[[ -s "$native_migration" && -s "$native_contract" ]]
+[[ -s "$native_migration" && -s "$native_contract" ]] || exit 1
 grep -q '^create or replace function public.fn_meta_operation_checkpoint(' "$native_migration"
 grep -q '^-- 0416 contract:' "$native_contract"
+[[ -s "$privacy_migration" && -s "$privacy_contract" ]] || exit 1
+grep -q '^create or replace function public.fn_meta_privacy_request(' "$privacy_migration"
+grep -q '^-- 0417 contract:' "$privacy_contract"
 
 migration_state() {
   docker exec -i escreveai-db psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres <<'CONTRACT'
@@ -159,6 +166,15 @@ native_schema_state=$(native_migration_state)
   echo 'Native Meta schema is partial, incompatible or missing prerequisites; live services preserved' >&2
   exit 1
 }
+privacy_migration_state() {
+  docker exec -i escreveai-db psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres < "$privacy_contract"
+}
+privacy_schema_state=$(privacy_migration_state)
+[[ "$privacy_schema_state" = missing || "$privacy_schema_state" = ready ||
+  ( "$privacy_schema_state" = dependencies_missing && "$native_schema_state" = missing ) ]] || {
+  echo 'Meta privacy schema is partial, incompatible or missing prerequisites; live services preserved' >&2
+  exit 1
+}
 
 # All failures from this point, including a signal during stop/SQL/up/health,
 # restore BOTH images and the worker's original running state.
@@ -175,7 +191,7 @@ if [[ "$schema_state" = missing ]]; then
   sed 's/^create or replace function public.automatico_da_prospeccao/create function public.automatico_da_prospeccao/' "$migration" > "$workdir/install-0415.sql"
   docker exec -i escreveai-db psql -X -1 -v ON_ERROR_STOP=1 -U postgres -d postgres < "$workdir/install-0415.sql"
 fi
-[[ "$(migration_state)" = ready ]]
+[[ "$(migration_state)" = ready ]] || exit 1
 if [[ "$native_schema_state" = missing ]]; then
   # First installation must fail if an operator installs concurrently. Never
   # replace an existing function or adopt an unknown partial native schema.
@@ -184,7 +200,19 @@ if [[ "$native_schema_state" = missing ]]; then
     "$native_migration" > "$workdir/install-0416.sql"
   docker exec -i escreveai-db psql -X -1 -v ON_ERROR_STOP=1 -U postgres -d postgres < "$workdir/install-0416.sql"
 fi
-[[ "$(native_migration_state)" = ready ]]
+[[ "$(native_migration_state)" = ready ]] || exit 1
+if [[ "$privacy_schema_state" != ready ]]; then
+  # 0416 may have supplied missing dependencies. Recheck before installing and
+  # adopt no concurrent or partial privacy schema after the original preflight.
+  [[ "$(privacy_migration_state)" = missing ]] || exit 1
+  # Only NEW helpers become CREATE. The three existing core functions have a
+  # migration-local allowlist of reviewed 0416 bodies before conditional upgrade.
+  sed -e 's/^create or replace function public.fn_meta_privacy_/create function public.fn_meta_privacy_/' \
+      -e 's/^create table if not exists public.meta_privacy_/create table public.meta_privacy_/' \
+    "$privacy_migration" > "$workdir/install-0417.sql"
+  docker exec -i escreveai-db psql -X -1 -v ON_ERROR_STOP=1 -U postgres -d postgres < "$workdir/install-0417.sql"
+fi
+[[ "$(privacy_migration_state)" = ready ]] || exit 1
 docker exec escreveai-db psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "notify pgrst, 'reload schema';"
 python3 - "$compose" "$tag" "$app_ref" "$worker_ref" <<'CONFIG'
 import json, os, sys

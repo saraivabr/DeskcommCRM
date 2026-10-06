@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { nomeDoOperador, resolverOperador } from "@/lib/legal/operador";
@@ -122,6 +123,21 @@ export default async function PrivacyPage() {
       </section>
 
       <section className="space-y-2">
+        <h2 className="text-base font-semibold">{t("Dados da conexão Meta")}</h2>
+        <p>
+          {t(
+            "Ao conectar Facebook ou Instagram, esta instalação recebe a identificação da autorização, as contas permitidas e os dados necessários para publicar e acompanhar campanhas. Você pode solicitar a exclusão dos dados locais recebidos por essa autorização.",
+          )}
+        </p>
+        <Link
+          className="inline-block underline underline-offset-2"
+          href="/legal/meta-data-deletion"
+        >
+          {t("Como excluir os dados da conexão Meta")}
+        </Link>
+      </section>
+
+      <section className="space-y-2">
         <h2 className="text-base font-semibold">{t("7. Segurança")}</h2>
         <p>
           {t(
@@ -135,7 +151,9 @@ export default async function PrivacyPage() {
         <p>
           {op.dpoEmail ? (
             <>
-              {t("Para exercer seus direitos ou tirar dúvidas sobre privacidade, fale com o encarregado de dados:")}{" "}
+              {t(
+                "Para exercer seus direitos ou tirar dúvidas sobre privacidade, fale com o encarregado de dados:",
+              )}{" "}
               <a className="underline underline-offset-2" href={`mailto:${op.dpoEmail}`}>
                 {op.dpoEmail}
               </a>

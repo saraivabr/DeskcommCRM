@@ -265,4 +265,90 @@ export const META_NATIVE_ES: Record<string, { es: string }> = {
   "Habilitar conexão com a Meta": { es: "Habilitar conexión con Meta" },
   "Habilitar publicação no Instagram": { es: "Habilitar publicación en Instagram" },
   "Habilitar anúncios Meta": { es: "Habilitar anuncios de Meta" },
+  "Excluir dados da conexão Meta": { es: "Eliminar datos de la conexión con Meta" },
+  "Como solicitar a remoção dos dados recebidos do Facebook e do Instagram nesta instalação.": {
+    es: "Cómo solicitar la eliminación de los datos recibidos de Facebook e Instagram en esta instalación.",
+  },
+  "Como solicitar": { es: "Cómo solicitarla" },
+  "No Facebook, abra as configurações de aplicativos e sites e localize o aplicativo usado nesta conexão.":
+    {
+      es: "En Facebook, abre la configuración de aplicaciones y sitios web y localiza la aplicación usada en esta conexión.",
+    },
+  "Ao remover o aplicativo, solicite também a exclusão de dados, quando essa opção for oferecida.":
+    {
+      es: "Al eliminar la aplicación, solicita también la eliminación de datos cuando se ofrezca esa opción.",
+    },
+  "Guarde o código de confirmação e abra o link de acompanhamento fornecido para consultar o andamento da exclusão.":
+    {
+      es: "Guarda el código de confirmación y abre el enlace de seguimiento proporcionado para consultar el progreso de la eliminación.",
+    },
+  "Desconectar em Conexões interrompe novas ações. Para remover também os dados locais dessa autorização, solicite a exclusão pelo Facebook.":
+    {
+      es: "Desconectar en Conexiones interrumpe las nuevas acciones. Para eliminar también los datos locales de esa autorización, solicita la eliminación desde Facebook.",
+    },
+  "O que é excluído": { es: "Qué se elimina" },
+  "O pedido remove a identificação e os tokens dessa autorização, os registros locais de publicações e campanhas associados a ela e as cópias de imagens preparadas para publicação. O inventário de contas é removido quando não está vinculado a outra autorização independente.":
+    {
+      es: "La solicitud elimina la identificación y los tokens de esa autorización, los registros locales de publicaciones y campañas asociados a ella y las copias de imágenes preparadas para publicar. El inventario de cuentas se elimina cuando no está vinculado a otra autorización independiente.",
+    },
+  "Novas ações ficam bloqueadas enquanto o pedido é processado. Uma ação já enviada à Meta pode concluir antes da revogação; confira o resultado na própria Meta.":
+    {
+      es: "Las nuevas acciones quedan bloqueadas mientras se procesa la solicitud. Una acción ya enviada a Meta puede completarse antes de la revocación; comprueba el resultado en Meta.",
+    },
+  "O que permanece": { es: "Qué se conserva" },
+  "Os arquivos originais do Studio e os dados de atendimento do CRM.": {
+    es: "Los archivos originales del Studio y los datos de atención del CRM.",
+  },
+  "As conexões sociais já existentes e as outras autorizações independentes.": {
+    es: "Las conexiones sociales existentes y las otras autorizaciones independientes.",
+  },
+  "As publicações e os anúncios que já existem no Facebook ou no Instagram. Para removê-los ou alterar a veiculação, use a própria Meta.":
+    {
+      es: "Las publicaciones y los anuncios que ya existen en Facebook o Instagram. Para eliminarlos o cambiar su difusión, usa Meta.",
+    },
+  "Ajuda com a solicitação": { es: "Ayuda con la solicitud" },
+  "Para pedir ajuda com a exclusão, fale com o encarregado de dados desta instalação:": {
+    es: "Para pedir ayuda con la eliminación, contacta con el responsable de protección de datos de esta instalación:",
+  },
+  "Se não conseguir solicitar a exclusão pelo Facebook, entre em contato com quem opera esta instalação pelos canais de atendimento que você já utiliza.":
+    {
+      es: "Si no puedes solicitar la eliminación desde Facebook, contacta con quien opera esta instalación por los canales de atención que ya utilizas.",
+    },
+  "Acompanhamento da exclusão Meta": { es: "Seguimiento de la eliminación de datos de Meta" },
+  "Consulta temporariamente indisponível": { es: "Consulta temporalmente no disponible" },
+  "Não foi possível consultar o pedido agora. Atualize esta página em instantes; a falha de consulta não confirma a conclusão da exclusão.":
+    {
+      es: "No se pudo consultar la solicitud ahora. Actualiza esta página en unos instantes; el error de consulta no confirma que la eliminación haya finalizado.",
+    },
+  "Exclusão concluída": { es: "Eliminación completada" },
+  "O comprovante mínimo do pedido e marcadores de segurança que impedem o retorno de dados excluídos.":
+    {
+      es: "El comprobante mínimo de la solicitud y los marcadores de seguridad que impiden que regresen los datos eliminados.",
+    },
+  "Permanecem o comprovante mínimo do pedido e os marcadores de segurança descritos nas instruções de exclusão.":
+    {
+      es: "Se conservan el comprobante mínimo de la solicitud y los marcadores de seguridad descritos en las instrucciones de eliminación.",
+    },
+  "A remoção dos dados locais da autorização Meta solicitada foi concluída.": {
+    es: "Se completó la eliminación de los datos locales de la autorización de Meta solicitada.",
+  },
+  "Exclusão em processamento": { es: "Eliminación en curso" },
+  "Seu pedido foi recebido e a remoção dos dados está em andamento. Atualize esta página para consultar o resultado.":
+    {
+      es: "Se recibió tu solicitud y la eliminación de los datos está en curso. Actualiza esta página para consultar el resultado.",
+    },
+  "Pedido não encontrado": { es: "Solicitud no encontrada" },
+  "Abra o link completo fornecido na confirmação da solicitação. Se o pedido continuar indisponível, consulte as instruções de exclusão e o contato responsável.":
+    {
+      es: "Abre el enlace completo proporcionado en la confirmación de la solicitud. Si la solicitud sigue sin estar disponible, consulta las instrucciones de eliminación y el contacto responsable.",
+    },
+  "Instruções de exclusão e contato": { es: "Instrucciones de eliminación y contacto" },
+  "Dados da conexão Meta": { es: "Datos de la conexión con Meta" },
+  "Ao conectar Facebook ou Instagram, esta instalação recebe a identificação da autorização, as contas permitidas e os dados necessários para publicar e acompanhar campanhas. Você pode solicitar a exclusão dos dados locais recebidos por essa autorização.":
+    {
+      es: "Al conectar Facebook o Instagram, esta instalación recibe la identificación de la autorización, las cuentas permitidas y los datos necesarios para publicar y seguir campañas. Puedes solicitar la eliminación de los datos locales recibidos mediante esa autorización.",
+    },
+  "Como excluir os dados da conexão Meta": {
+    es: "Cómo eliminar los datos de la conexión con Meta",
+  },
 };

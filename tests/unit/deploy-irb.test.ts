@@ -11,14 +11,24 @@ const APP = `ghcr.io/saraivabr/deskcomm-app@${APP_DIGEST}`;
 const WORKER = `ghcr.io/saraivabr/deskcomm-worker@${WORKER_DIGEST}`;
 const previous = {
   services: {
-    app: { image: "app:previous", environment: { APP_VERSION: "old", KEEP: "literal $value" }, command: ["node", "server.js"] },
-    worker: { image: "worker:previous", environment: { APP_VERSION: "old", KEEP: "worker" }, command: ["pnpm", "exec", "tsx", "workers/agent-worker/main.ts"] },
+    app: {
+      image: "app:previous",
+      environment: { APP_VERSION: "old", KEEP: "literal $value" },
+      command: ["node", "server.js"],
+    },
+    worker: {
+      image: "worker:previous",
+      environment: { APP_VERSION: "old", KEEP: "worker" },
+      command: ["pnpm", "exec", "tsx", "workers/agent-worker/main.ts"],
+    },
     "voice-worker": { image: "voice:previous", environment: { KEEP: "voice" } },
     scheduler: { image: "scheduler:previous", command: ["original", "cron"] },
   },
 };
 const dirs: string[] = [];
-afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
 
 function deployment(failure = "", active = true, args = [SHA, APP_DIGEST, WORKER_DIGEST]) {
   const dir = mkdtempSync(join(tmpdir(), "irb-deploy-"));
@@ -27,8 +37,13 @@ function deployment(failure = "", active = true, args = [SHA, APP_DIGEST, WORKER
   mkdirSync(join(dir, "root"));
   writeFileSync(join(dir, "root", "compose.json"), JSON.stringify(previous));
   if (failure === "config") mkdirSync(join(dir, "root", "compose.json.tmp"));
-  writeFileSync(join(dir, "state.json"), JSON.stringify({ worker: active, app: true, changed: false }));
-  writeFileSync(join(dir, "bin", "docker"), `#!/usr/bin/env node
+  writeFileSync(
+    join(dir, "state.json"),
+    JSON.stringify({ worker: active, app: true, changed: false }),
+  );
+  writeFileSync(
+    join(dir, "bin", "docker"),
+    `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
 const dir = process.env.IRB_FIXTURE;
@@ -64,6 +79,7 @@ if (args[0] === 'cp') {
   fail('migration');
   const source = args[1].split(':/app/')[1];
   if (source.includes('0416_meta_native_platform')) fail('native-migration');
+  if (source.includes('0417_meta_privacy_lifecycle')) fail('privacy-migration');
   fs.copyFileSync(path.join(process.env.IRB_REPO, source), args[2]);
   process.exit(0);
 }
@@ -96,8 +112,21 @@ if (args[0] === 'exec') {
       process.stdout.write(failure === 'native-incompatible' ? 'incompatible' : failure === 'native-dependencies' ? 'dependencies_missing' : (failure === 'existing' || failure === 'native-existing' || state.nativeMigration ? 'ready' : 'missing'));
       process.exit(0);
     }
+    if (sql.startsWith('-- 0417 contract:')) {
+      const nativeReady = failure === 'existing' || failure === 'native-existing' || state.nativeMigration;
+      let result = failure === 'existing' || state.privacyMigration ? 'ready' : nativeReady ? 'missing' : 'dependencies_missing';
+      if (failure === 'privacy-incompatible') result = 'incompatible';
+      if (failure === 'privacy-partial') result = 'partial';
+      if (failure === 'privacy-dependencies' && nativeReady) result = 'dependencies_missing';
+      if (failure === 'privacy-concurrent' && nativeReady) result = 'ready';
+      state.privacyChecks = [...(state.privacyChecks || []), {nativeReady, result}]; save();
+      process.stdout.write(result); process.exit(0);
+    }
     if (sql.includes('create function public.fn_meta_app_configure')) {
       fail('native-sql'); state.nativeMigration = true; save();
+    }
+    if (sql.includes('create function public.fn_meta_privacy_request')) {
+      fail('privacy-sql'); state.privacyMigration = true; save();
     }
     if (sql.includes('create function public.automatico_da_prospeccao')) {
       fail('sql'); state.migration = true; save();
@@ -112,13 +141,20 @@ if (args[0] === 'exec') {
 }
 process.stderr.write('Unknown docker fixture command: ' + args.join(' ') + '\\n');
 process.exit(1);
-`, { mode: 0o755 });
-  writeFileSync(join(dir, "bin", "curl"), `#!/usr/bin/env node
+`,
+    { mode: 0o755 },
+  );
+  writeFileSync(
+    join(dir, "bin", "curl"),
+    `#!/usr/bin/env node
 if (['app-health', 'rollback'].includes(process.env.IRB_FAILURE)) process.exit(1);
 if (!process.argv.some((arg) => arg.includes('/health'))) process.exit(0);
 process.stdout.write(JSON.stringify({ data: { status: 'healthy', version: process.env.IRB_FAILURE === 'app-version' ? 'wrong' : '${SHA}' } }));
-`, { mode: 0o755 });
-  for (const command of ["flock", "sleep"]) writeFileSync(join(dir, "bin", command), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+`,
+    { mode: 0o755 },
+  );
+  for (const command of ["flock", "sleep"])
+    writeFileSync(join(dir, "bin", command), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
   const script = readFileSync("scripts/deploy-irb.sh", "utf8")
     .replaceAll("/opt/backups/escreveai", join(dir, "backups"))
     .replaceAll("/opt/escreveai", join(dir, "root"))
@@ -127,39 +163,107 @@ process.stdout.write(JSON.stringify({ data: { status: 'healthy', version: proces
     .replace("for attempt in {1..40}", "for attempt in {1..2}");
   writeFileSync(join(dir, "deploy.sh"), script);
   const result = spawnSync("bash", [join(dir, "deploy.sh"), ...args], {
-    encoding: "utf8", timeout: 15_000,
-    env: { ...process.env, PATH: `${join(dir, "bin")}:${process.env.PATH}`, IRB_FIXTURE: dir, IRB_FAILURE: failure, IRB_REPO: process.cwd() },
+    encoding: "utf8",
+    timeout: 15_000,
+    env: {
+      ...process.env,
+      PATH: `${join(dir, "bin")}:${process.env.PATH}`,
+      IRB_FIXTURE: dir,
+      IRB_FAILURE: failure,
+      IRB_REPO: process.cwd(),
+    },
   });
-  const calls = (() => { try { return readFileSync(join(dir, "calls.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line) as string[]); } catch { return []; } })();
-  return { result, calls, config: JSON.parse(readFileSync(join(dir, "root", "compose.json"), "utf8")), state: JSON.parse(readFileSync(join(dir, "state.json"), "utf8")), sql: (() => { try { return readFileSync(join(dir, "sql.txt"), "utf8"); } catch { return ""; } })() };
+  const calls = (() => {
+    try {
+      return readFileSync(join(dir, "calls.jsonl"), "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line) as string[]);
+    } catch {
+      return [];
+    }
+  })();
+  return {
+    result,
+    calls,
+    config: JSON.parse(readFileSync(join(dir, "root", "compose.json"), "utf8")),
+    state: JSON.parse(readFileSync(join(dir, "state.json"), "utf8")),
+    sql: (() => {
+      try {
+        return readFileSync(join(dir, "sql.txt"), "utf8");
+      } catch {
+        return "";
+      }
+    })(),
+  };
 }
 
 describe("IRB deploy executes the approved app and worker together", () => {
   it("rejects mutable or malformed arguments before touching Docker", () => {
-    for (const args of [["latest", APP_DIGEST, WORKER_DIGEST], [SHA, "bad", WORKER_DIGEST], [SHA, APP_DIGEST, WORKER_DIGEST, "extra"]]) {
+    for (const args of [
+      ["latest", APP_DIGEST, WORKER_DIGEST],
+      [SHA, "bad", WORKER_DIGEST],
+      [SHA, APP_DIGEST, WORKER_DIGEST, "extra"],
+    ]) {
       const proof = deployment("", true, args);
       expect(proof.result.status).not.toBe(0);
       expect(proof.calls).toEqual([]);
     }
   });
-  it.each(["backup", "pull", "digest", "revision", "image-version", "migration", "native-migration", "native-incompatible", "native-dependencies", "paused", "incompatible"])("%s failure leaves the live services unchanged", (failure) => {
+  it.each([
+    "backup",
+    "pull",
+    "digest",
+    "revision",
+    "image-version",
+    "migration",
+    "native-migration",
+    "privacy-migration",
+    "privacy-incompatible",
+    "privacy-partial",
+    "native-incompatible",
+    "native-dependencies",
+    "paused",
+    "incompatible",
+  ])("%s failure leaves the live services unchanged", (failure) => {
     const proof = deployment(failure);
     expect(proof.result.status).not.toBe(0);
     expect(proof.config).toEqual(previous);
     expect(proof.state.worker).toBe(true);
     expect(proof.calls.some((call) => call[0] === "stop")).toBe(false);
   });
-  it.each(["stop", "forced-stop", "graceful-timeout", "sql", "native-sql", "signal", "config", "app-up", "worker-up", "app-health", "app-version", "worker-health", "worker-version"])("%s failure restores both images and the previously active worker", (failure) => {
+  it.each([
+    "stop",
+    "forced-stop",
+    "graceful-timeout",
+    "sql",
+    "native-sql",
+    "privacy-sql",
+    "privacy-dependencies",
+    "privacy-concurrent",
+    "signal",
+    "config",
+    "app-up",
+    "worker-up",
+    "app-health",
+    "app-version",
+    "worker-health",
+    "worker-version",
+  ])("%s failure restores both images and the previously active worker", (failure) => {
     const proof = deployment(failure);
-    expect(proof.result.status, proof.result.stdout + proof.result.stderr).not.toBe(0);
+    expect(
+      proof.result.status,
+      proof.result.stdout + proof.result.stderr + JSON.stringify(proof.state),
+    ).not.toBe(0);
     expect(proof.config).toEqual(previous);
     expect(proof.state.worker).toBe(true);
     expect(proof.state.app).toBe(true);
     expect(proof.calls.some((call) => call.includes("up") && call.includes("worker"))).toBe(true);
     expect(proof.result.stderr).toContain("restoring previous app and worker");
-    if (["forced-stop", "graceful-timeout"].includes(failure)) expect(proof.sql).not.toContain("create function public.automatico_da_prospeccao");
+    if (["forced-stop", "graceful-timeout"].includes(failure))
+      expect(proof.sql).not.toContain("create function public.automatico_da_prospeccao");
   });
-  it("extracts reviewed 0415 and 0416 without starting the container, drains the worker and preserves unrelated configuration", () => {
+  it("extracts reviewed 0415, 0416 and 0417 without starting the container, drains the worker and preserves unrelated configuration", () => {
     const proof = deployment();
     expect(proof.result.status, proof.result.stdout + proof.result.stderr).toBe(0);
     const expected = structuredClone(previous);
@@ -179,7 +283,11 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expect(proof.sql).toContain("create function public.fn_meta_app_configure");
     expect(proof.sql).toContain("create table public.meta_connections");
     expect(proof.state.nativeMigration).toBe(true);
-    expect(proof.sql).not.toContain("create or replace function");
+    expect(proof.state.privacyMigration).toBe(true);
+    expect(proof.sql).toContain("create function public.fn_meta_privacy_request");
+    expect(proof.sql).toContain("create table public.meta_privacy_subjects");
+    expect(proof.sql).not.toContain("create or replace function public.fn_meta_privacy_");
+    expect(proof.sql).toContain("meta_privacy_known_core");
     expect(proof.sql).not.toContain("CREATE TABLE");
     expect(proof.calls.flat().some((arg) => /voice|scheduler/.test(arg))).toBe(false);
     expect(proof.state.worker).toBe(true);
@@ -202,30 +310,50 @@ describe("IRB deploy executes the approved app and worker together", () => {
     const proof = deployment("native-existing");
     expect(proof.result.status, proof.result.stdout + proof.result.stderr).toBe(0);
     expect(proof.sql).toContain("create function public.automatico_da_prospeccao");
-    expect(proof.sql).not.toContain("create function public.fn_meta_");
-    expect(proof.sql).not.toContain("create table public.meta_");
+    expect(proof.sql).not.toContain("create function public.fn_meta_app_configure");
+    expect(proof.sql).not.toContain("create table public.meta_connections");
+    expect(proof.sql).toContain("create function public.fn_meta_privacy_request");
   });
   it("reports a rollback failure instead of claiming services were restored", () => {
     const proof = deployment("rollback");
     expect(proof.result.status).not.toBe(0);
     expect(proof.result.stderr).toContain("operator intervention required");
-    expect(proof.result.stderr).not.toContain("Previous configuration and worker running state restored");
+    expect(proof.result.stderr).not.toContain(
+      "Previous configuration and worker running state restored",
+    );
   });
 });
 
 it("the forced SSH command accepts exactly three immutable values without shell evaluation", () => {
   const dir = mkdtempSync(join(tmpdir(), "irb-command-"));
   dirs.push(dir);
-  writeFileSync(join(dir, "sudo"), '#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify(process.argv.slice(2)));\n', { mode: 0o755 });
+  writeFileSync(
+    join(dir, "sudo"),
+    "#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify(process.argv.slice(2)));\n",
+    { mode: 0o755 },
+  );
   function call(command: string) {
     return spawnSync("bash", ["scripts/deploy-irb-command.sh"], {
-      encoding: "utf8", env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, SSH_ORIGINAL_COMMAND: command },
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, SSH_ORIGINAL_COMMAND: command },
     });
   }
   const valid = call(`${SHA} ${APP_DIGEST} ${WORKER_DIGEST}`);
   expect(valid.status).toBe(0);
-  expect(JSON.parse(valid.stdout)).toEqual(["-n", "/opt/escreveai/deploy-live.sh", SHA, APP_DIGEST, WORKER_DIGEST]);
-  for (const wrong of [SHA, `latest ${APP_DIGEST} ${WORKER_DIGEST}`, `${SHA} ${APP_DIGEST} ${WORKER_DIGEST}; echo executed`, `${SHA} ${APP_DIGEST} ${WORKER_DIGEST}\necho executed`, `$(echo ${SHA}) ${APP_DIGEST} ${WORKER_DIGEST}`]) {
+  expect(JSON.parse(valid.stdout)).toEqual([
+    "-n",
+    "/opt/escreveai/deploy-live.sh",
+    SHA,
+    APP_DIGEST,
+    WORKER_DIGEST,
+  ]);
+  for (const wrong of [
+    SHA,
+    `latest ${APP_DIGEST} ${WORKER_DIGEST}`,
+    `${SHA} ${APP_DIGEST} ${WORKER_DIGEST}; echo executed`,
+    `${SHA} ${APP_DIGEST} ${WORKER_DIGEST}\necho executed`,
+    `$(echo ${SHA}) ${APP_DIGEST} ${WORKER_DIGEST}`,
+  ]) {
     const invalid = call(wrong);
     expect(invalid.status).toBe(2);
     expect(invalid.stdout).toBe("");

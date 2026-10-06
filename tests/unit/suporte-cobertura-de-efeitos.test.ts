@@ -47,6 +47,13 @@ it("todo handler mutante do app declara guarda de suporte ou é infraestrutura i
   if(/app\/api\/v1\/(cron|webhooks)\//.test(path)||path==="app/api/v1/system/agent/route.ts")continue; // segredo de máquina, sem actor/session cookie
   // Stripe authenticates raw body HMAC; machine callback, never a session actor.
   if(path === "app/api/v1/billing/webhook/route.ts") continue;
+  // Provider callbacks authenticate signed_request with the current app HMAC;
+  // no cookie actor/support session participates. Keep this exception exact.
+  if(path === "app/api/v1/integrations/meta/deauthorization/route.ts" ||
+    path === "app/api/v1/integrations/meta/data-deletion/route.ts") {
+    expect(readFileSync(path,"utf8")).toContain("receiveMetaPrivacyRequest(request,");
+    continue;
+  }
   // Provisionamento por sistema externo: Bearer do segredo da INSTALAÇÃO
   // (TENANT_PROVISIONING_SECRET), sem cookie nem ator — a mesma natureza das
   // linhas acima. Não há sessão de suporte para a guarda ler; chamá-la aqui

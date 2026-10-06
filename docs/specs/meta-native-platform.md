@@ -1,7 +1,7 @@
 # Meta própria: login, anúncios e publicações no escreve.ai
 
-Status: **implementação local de OAuth, publicações Instagram e campanhas pausadas; build e QA das telas aprovados. Verificação geral e de banco aprovadas; produção e efeitos reais ainda não comprovados**.
-Data da validação: 2026-10-05. Base: `saraivabr/DeskcommCRM`, revisão `34aa784880868fd939bf99a985c6b97f00bae27a`, também confirmada no health de produção.
+Status: **núcleo nativo publicado; callbacks de revogação/exclusão em QA. OAuth, publicação e anúncios reais ainda não comprovados**.
+Verificação de produção em 2026-10-06: app e worker executam `99792f820c8ec8929cbf34a11a5da2ca9f613acb`, com health `healthy`; deploy `37524021957`. A liberação para clientes externos depende das permissões da Meta e da demonstração real.
 
 ## Resultado e limite da primeira entrega
 
@@ -58,6 +58,10 @@ flowchart LR
   Worker --> Graph[Graph API]
   Graph --> Receipt[Reconciliação e recibo]
   Receipt --> Screens[Resultado ou ação necessária na tela]
+  Meta --> Removal[Callback assinado: revogação ou exclusão]
+  Removal --> Erasure[Revoga credenciais e grava recibo durável]
+  Erasure --> Purge[Worker: dados e cópias de mídia]
+  Purge --> Status[Status público por código opaco]
 ```
 
 ## Contrato de autorização
@@ -81,6 +85,16 @@ Os dez minutos são uma proposta técnica inicial, não SLA comercial. Não exig
 Toda nova mutação autenticada por cookie verifica Origin/CSRF, incluindo finalização, seleção, desconexão, publicação e comandos Ads de criação/ativação/orçamento. Origin ausente ou divergente é rejeitado conforme a política da API; `SameSite=Strict` não substitui essa verificação. Somente callbacks externos em caminhos exatos usam a exceção apropriada, autenticados pelo vínculo/state ou assinatura da Meta.
 
 Falha na finalização elimina o resultado temporário conforme retenção curta. Logout, troca de sessão/organização ou retirada de papel entre início e retorno impedem ativação. Nunca usar `META_SYSTEM_USER_TOKEN` do WhatsApp como fallback de cliente.
+
+## Revogação e exclusão
+
+Configure no console da Meta os callbacks HTTPS `https://os.escreve.ai/api/v1/integrations/meta/deauthorization` e `https://os.escreve.ai/api/v1/integrations/meta/data-deletion`. São POSTs de formulário com `signed_request`, validados por HMAC-SHA256 do segredo atual. Não usam sessão de navegador; somente os caminhos exatos passam pelo proxy. A exclusão responde no formato exigido pela Meta, `{url, confirmation_code}`, após persistência confirmada. O status em `/legal/meta-data-deletion/status` exige o código aleatório e não mostra identidade, tokens ou o próprio código; as instruções ficam em `/legal/meta-data-deletion`.
+
+A migration 0417 atribui publicações e rascunhos à autorização, revoga credenciais, bloqueia novas ações e limpa seus dados locais e cópias de mídia. Preserva arquivos originais do Studio, CRM, Zernio, autorizações independentes e objetos remotos da Meta. Recibos mínimos, digest por sujeito e marcadores de mídia permanecem para impedir repetição e retorno de dados excluídos; esses marcadores não são declarados anônimos.
+
+O worker só confirma os objetos removidos após sucesso do Storage e lease válido. Um upload sem resposta terminal deixa `meta_media_cleanup_uncertain` ativo; a exclusão permanece pendente até reconciliação comprovada pelo operador. Um timeout ou a mera ausência de metadados não permite marcar a limpeza como concluída. A trava de preparação por publicação usa chave separada da trava do trigger Storage para evitar deadlock no upload.
+
+Os contratos de deploy 0416/0417 distinguem ausência, estado compatível e instalação parcial. Instalam somente objetos ausentes; o upgrade das três funções existentes admite somente os corpos 0416 conhecidos e preserva funções futuras já marcadas como 0417. Nunca reaplique todo o baseline na instalação recuperada do IRB.
 
 ## Modelo de dados proposto
 

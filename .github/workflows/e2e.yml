@@ -606,6 +606,7 @@ jobs:
         instagram-social.spec.ts
         meta-native-connections.spec.ts
         meta-native-ads.spec.ts
+        meta-privacy-public.spec.ts
         pre-go-live-whatsapp.spec.ts
         smoke.spec.ts auth.spec.ts error-pages.spec.ts
         knowledge-pages-mcp.spec.ts

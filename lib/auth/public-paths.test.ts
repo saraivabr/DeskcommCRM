@@ -48,4 +48,23 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/legal/terms/interno")).toBe(false);
     expect(isPublicPath("/legal/qualquer-outra")).toBe(false);
   });
+
+  it("libera somente os callbacks Meta que validam a assinatura do provedor", () => {
+    expect(isPublicPath("/api/v1/integrations/meta/deauthorization")).toBe(true);
+    expect(isPublicPath("/api/v1/integrations/meta/data-deletion")).toBe(true);
+    expect(isPublicPath("/api/v1/integrations/meta")).toBe(false);
+    expect(isPublicPath("/api/v1/integrations/meta/finalize")).toBe(false);
+    expect(isPublicPath("/api/v1/integrations/meta/deauthorization/extra")).toBe(false);
+    expect(isPublicPath("/api/v1/integrations/meta/data-deletion/status")).toBe(false);
+    expect(isPublicPath("/api/v1/integrations/meta/data-deletion-extra")).toBe(false);
+  });
+
+  it("libera as instruções e o status de exclusão Meta sem abrir outros caminhos legais", () => {
+    expect(isPublicPath("/legal/meta-data-deletion")).toBe(true);
+    expect(isPublicPath("/legal/meta-data-deletion/status")).toBe(true);
+    expect(isPublicPath("/legal/meta-data-deletion/extra")).toBe(false);
+    expect(isPublicPath("/legal/meta-data-deletion/status/extra")).toBe(false);
+    expect(isPublicPath("/legal/meta-data-deletion/status-extra")).toBe(false);
+    expect(isPublicPath("/legal/meta-data-deletion-extra")).toBe(false);
+  });
 });

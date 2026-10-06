@@ -21,14 +21,15 @@ export const legacyPublicationInput = z
     (v) => (v.format === "carousel" ? v.item_ids.length >= 2 : v.item_ids.length === 1),
     "Confira a quantidade de imagens.",
   );
+const canonicalUUID = z.uuid().transform((id) => id.toLowerCase());
 export const nativePublicationInput = z
   .object({
-    id: z.uuid(),
+    id: canonicalUUID,
     provider: z.literal("meta"),
-    meta_asset_id: z.uuid(),
-    connection_id: z.uuid(),
+    meta_asset_id: canonicalUUID,
+    connection_id: canonicalUUID,
     item_ids: z
-      .array(z.uuid())
+      .array(canonicalUUID)
       .min(1)
       .max(10)
       .refine((ids) => new Set(ids).size === ids.length),
@@ -46,6 +47,8 @@ export interface Publication {
   account_id: string;
   provider: InstagramPublicationProvider;
   meta_asset_id: string | null;
+  meta_connection_id?: string | null;
+  meta_media_cleanup_uncertain?: boolean;
   operation_id: string | null;
   requested_by: string | null;
   connection_id?: string;

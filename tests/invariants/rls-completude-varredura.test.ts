@@ -75,6 +75,13 @@ interface Excecao {
  * linhas da OUTRA organização, não uma leitura como superusuário.
  */
 const PROVA_PROPRIA: readonly Excecao[] = [
+  ...["meta_privacy_targets", "meta_privacy_storage_objects", "meta_privacy_media_tombstones"].map(
+    (tabela) => ({
+      tabela,
+      razao:
+        "meta-privacy-lifecycle.test.ts: seeded records from two organizations deny authenticated owner/cross-org reads and direct mutations under real JWT claims; anon is denied and service_role reads both records as a positive control.",
+    }),
+  ),
   ...[
     "meta_oauth_attempts",
     "meta_connections",

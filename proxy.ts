@@ -18,6 +18,11 @@ export async function proxy(request: NextRequest) {
   response.headers.set("x-request-id", requestId);
 
   const { pathname, search } = request.nextUrl;
+  if (pathname === "/legal/meta-data-deletion/status") {
+    response.headers.set("cache-control", "no-store, max-age=0");
+    response.headers.set("referrer-policy", "no-referrer");
+    response.headers.set("x-robots-tag", "noindex, nofollow");
+  }
   // Recupera retornos de OAuth social já emitidos antes da landing pública existir.
   // Apenas a navegação é tratada: o vínculo de conta segue protegido pelos guards canônicos.
   if (

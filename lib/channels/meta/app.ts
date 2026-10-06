@@ -312,3 +312,22 @@ export async function getPlatformMetaAppNative(): Promise<PlatformMetaAppNative>
   globalThis.__memoDoAppDaMetaNativo = { valor, expiraEm: Date.now() + TTL_MS };
   return valor;
 }
+
+/** Callback identity remains available when login capabilities are disabled. */
+export async function getPlatformMetaAppPrivacy(): Promise<{
+  appId: string;
+  appSecret: string;
+} | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("platform_meta_app")
+    .select("app_id,app_secret_encrypted")
+    .eq("id", 1)
+    .maybeSingle();
+  if (error) throw new Error("Meta app privacy configuration unavailable");
+  const appId = identificadorMeta(data?.app_id);
+  const encrypted = texto(data?.app_secret_encrypted);
+  if (!appId || !encrypted) return null;
+  const appSecret = texto(await decryptWebhookSecret(admin, encrypted));
+  return appSecret ? { appId, appSecret } : null;
+}
