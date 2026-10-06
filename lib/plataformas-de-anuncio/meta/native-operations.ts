@@ -119,6 +119,7 @@ export async function executeNativeAdsOperation(context: MetaExecutionContext): 
           objective: "OUTCOME_TRAFFIC",
           special_ad_categories: "[]",
           status: "PAUSED",
+          is_adset_budget_sharing_enabled: "false",
         }),
       (result) => ({ campaign_id: result.id }),
       guard,

@@ -168,6 +168,21 @@ beforeEach(() => {
   mocks.page.mockResolvedValue("99");
 });
 describe("criação nativa de anúncios pausados", () => {
+  it("desativa explicitamente o compartilhamento de orçamento no POST da campanha pausada", async () => {
+    const ctx = context();
+    await executeNativeAdsOperation(ctx);
+    const campaigns = vi
+      .mocked(ctx.graph.request)
+      .mock.calls.filter((call) => call[0] === "act_12/campaigns" && call[2]?.method === "POST");
+    expect(campaigns).toHaveLength(1);
+    expect(campaigns[0]?.[2]?.body).toEqual({
+      name: draft.name,
+      objective: "OUTCOME_TRAFFIC",
+      special_ad_categories: "[]",
+      status: "PAUSED",
+      is_adset_budget_sharing_enabled: "false",
+    });
+  });
   it("grava checkpoints de todos os objetos e confirma orçamento e PAUSED antes do sucesso", async () => {
     const ctx = context();
     await executeNativeAdsOperation(ctx);
