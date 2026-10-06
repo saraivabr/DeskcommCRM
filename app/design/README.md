@@ -57,8 +57,9 @@ Inter / Geist / Space Grotesk **proibidos** por saturação em training data.
 ## Arquitetura
 
 - `lib/tokens.ts` — alternativas isoladas do showcase; os tokens do produto estão em `app/globals.css`.
-- `lib/fonts.ts` — todas as fontes carregadas via `next/font/google` no boot do
-  `_design/layout.tsx` (escopo isolado). Variáveis CSS expostas globalmente.
+- `lib/fonts.ts` — fontes carregadas via `next/font/google` no boot do
+  `design/layout.tsx` (escopo isolado), com IBM Plex Sans oficial versionada via
+  `next/font/local`. Variáveis CSS expostas globalmente.
 - `lib/variant-context.tsx` — Context React + `setProperty` na `.ds-root` para
   injetar tokens sem afetar o tema e a marca do produto. Hidrata de `localStorage`.
 - `showcase.css` — todos os estilos do showcase prefixados `.ds-*`. Não interfere

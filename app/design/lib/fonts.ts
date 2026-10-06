@@ -5,10 +5,10 @@ import {
   Manrope,
   Atkinson_Hyperlegible,
   Source_Serif_4,
-  IBM_Plex_Sans,
   IBM_Plex_Mono,
   JetBrains_Mono,
 } from "next/font/google";
+import localFont from "next/font/local";
 
 // Note: next/font requires module-level constants; we expose all 4 pair vars
 // at once. CSS swaps via --font-display / --font-body / --font-mono picker.
@@ -51,9 +51,35 @@ export const sourceSerif = Source_Serif_4({
   variable: "--font-source-serif",
 });
 
-export const plexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+// Arquivos oficiais versionados evitam a falha do resolvedor Google do Turbopack.
+export const plexSans = localFont({
+  src: [
+    {
+      path: "../../../public/fonts/ibm-plex-sans/IBMPlexSans-Light.woff2",
+      weight: "300",
+      style: "normal",
+    },
+    {
+      path: "../../../public/fonts/ibm-plex-sans/IBMPlexSans-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../../public/fonts/ibm-plex-sans/IBMPlexSans-Medium.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../../../public/fonts/ibm-plex-sans/IBMPlexSans-SemiBold.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../../../public/fonts/ibm-plex-sans/IBMPlexSans-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   display: "swap",
   variable: "--font-plex-sans",
 });
