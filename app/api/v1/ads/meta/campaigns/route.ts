@@ -25,6 +25,8 @@ import { lerCredencialDeLeitura } from "@/lib/plataformas-de-anuncio/credenciais
 import { lerCampanhas, lerInsights } from "@/lib/plataformas-de-anuncio/meta/insights";
 import { montarTabelaDeCampanhas } from "@/lib/plataformas-de-anuncio/meta/tabela-de-campanhas";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { nativeCampaigns, nativeCampaignQuery } from "@/lib/ads/read";
+import { metaAPIError } from "@/lib/channels/meta/social/api";
 
 import { respostaDeFalha, respostaSemConexao } from "../_falha";
 
@@ -72,6 +74,26 @@ export async function GET(req: NextRequest): Promise<Response> {
   const authz = await requireRole("manager", { requestId, resource: "ads_insights" });
   if (!authz.ok) return authz.response;
   const { org } = authz;
+
+  const source = req.nextUrl.searchParams.get("source");
+  if (source !== null && source !== "native" && source !== "legacy") {
+    return fail("validation_failed", "Escolha uma fonte de conexão válida.", 422, { requestId });
+  }
+  if (source === "native") {
+    const nativeInput = nativeCampaignQuery.safeParse(Object.fromEntries(req.nextUrl.searchParams));
+    if (!nativeInput.success)
+      return fail("validation_failed", "Confira a conta, a conexão e o período.", 422, {
+        requestId,
+      });
+    try {
+      return ok(await nativeCampaigns(org.orgId, nativeInput.data), {
+        requestId,
+        headers: { "cache-control": "no-store" },
+      });
+    } catch (error) {
+      return metaAPIError(error, requestId);
+    }
+  }
 
   const parsed = querySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
   if (!parsed.success) {

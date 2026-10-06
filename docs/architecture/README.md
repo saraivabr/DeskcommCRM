@@ -16,6 +16,7 @@ ser fonte sem ninguém decidir isso.
 
 | arquivo | escopo |
 |---|---|
+| `meta-native-platform.architecture.json` | **PLANTA, não implementação:** OAuth próprio com finalização autenticada, ativos por organização, intenções/worker/recibos, compatibilidade Zernio e gates Meta; contrato em [`../specs/meta-native-platform.md`](../specs/meta-native-platform.md) |
 | `historico-whatsapp.architecture.json` | importação retomável ao parear, classificação Jev de assuntos e objeções, panorama e busca por contato em Conhecimento, contexto do agente e proteção de dados |
 | `instagram-studio.architecture.json` | criação, pesquisa, consumo medido, imagens privadas e resultados por organização |
 | `escreve-workspace.architecture.json` | entrada conversacional do CRM, sessão/RLS, fontes, orçamento e links para os fluxos existentes |

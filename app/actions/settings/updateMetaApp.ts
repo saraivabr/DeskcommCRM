@@ -10,11 +10,13 @@ import { logger } from "@/lib/logger";
 import { requirePlatformAdmin } from "@/lib/auth/requirePlatformAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
+import { requireSupportWrite } from "@/lib/impersonate/support";
+import { env } from "@/lib/env";
+import { mfaEmDivida } from "@/lib/auth/server";
 
 export type UpdateMetaAppResult =
   /** `verifyToken` SÓ vem quando o token acabou de ser gerado — é a única vez que ele sai do servidor. */
-  | { ok: true; verifyToken?: string }
-  | { ok: false; error: string; details?: unknown };
+  { ok: true; verifyToken?: string } | { ok: false; error: string; details?: unknown };
 
 /**
  * O app da Meta DESTA INSTALAÇÃO: App Secret gravado pelo dono, verify token
@@ -79,6 +81,109 @@ const entradaSchema = z.object({
 });
 
 export type MetaAppInput = z.infer<typeof entradaSchema>;
+
+const nativeSchema = z
+  .object({
+    app_id: z
+      .string()
+      .trim()
+      .regex(/^\d{5,30}$/),
+    config_id: z
+      .string()
+      .trim()
+      .regex(/^\d{5,30}$/),
+    expected_revision: z.number().int().nonnegative().safe(),
+    native_enabled: z.boolean(),
+    instagram_enabled: z.boolean(),
+    ads_enabled: z.boolean(),
+    app_secret: z.string().trim().min(16).max(300).optional(),
+  })
+  .strict();
+
+export type MetaNativeConfigurationInput = z.infer<typeof nativeSchema>;
+export type MetaNativeConfigurationResult =
+  { ok: true; revision: number } | { ok: false; error: string };
+
+/** Todo writer da credencial compartilhada passa pelo mesmo gate. */
+async function authorizeMetaAppWrite() {
+  const { user, platformAdmin } = await requirePlatformAdmin();
+  if (platformAdmin.scope !== "full") return { ok: false as const, error: "forbidden" };
+  if (await mfaEmDivida()) return { ok: false as const, error: "mfa_required" };
+  if (await requireSupportWrite()) return { ok: false as const, error: "support_read_only" };
+  const requestHeaders = await headers();
+  const origin = requestHeaders.get("origin");
+  try {
+    if (
+      !origin ||
+      origin !== new URL(env.NEXT_PUBLIC_APP_URL).origin ||
+      requestHeaders.get("sec-fetch-site") === "cross-site"
+    ) {
+      return { ok: false as const, error: "invalid_origin" };
+    }
+  } catch {
+    return { ok: false as const, error: "invalid_origin" };
+  }
+  return { ok: true as const, user, requestHeaders };
+}
+
+/** Grava um snapshot indivisível para que start e callback vejam o mesmo app. */
+export async function updateMetaNativeConfiguration(
+  input: MetaNativeConfigurationInput,
+): Promise<MetaNativeConfigurationResult> {
+  const authorization = await authorizeMetaAppWrite();
+  if (!authorization.ok) return authorization;
+  const { user, requestHeaders } = authorization;
+  const parsed = nativeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid_input" };
+  const value = parsed.data;
+  const admin = createAdminClient();
+  const encrypted = value.app_secret ? await encryptWebhookSecret(admin, value.app_secret) : null;
+  if (value.app_secret && !encrypted) return { ok: false, error: "encryption_unavailable" };
+  const { data, error } = await admin.rpc("fn_meta_app_configure", {
+    p_app_id: value.app_id,
+    p_config_id: value.config_id,
+    p_native_enabled: value.native_enabled,
+    p_instagram_enabled: value.instagram_enabled,
+    p_ads_enabled: value.ads_enabled,
+    p_actor_id: user.id,
+    p_expected_revision: value.expected_revision,
+    p_app_secret_encrypted: encrypted,
+  });
+  if (error) {
+    logger.warn("[meta.app] configuração nativa recusada", { codigo: error.code });
+    const known = new Set([
+      "meta_app_config_changed",
+      "meta_app_identity_requires_secret",
+      "meta_app_config_incomplete",
+      "meta_app_secret_invalid",
+      "meta_app_config_invalid",
+      "platform_admin_required",
+    ]);
+    return {
+      ok: false,
+      error: known.has(error.message) ? error.message : "native_configuration_failed",
+    };
+  }
+  invalidarAppDaMeta();
+  await audit({
+    action: "platform_meta_app.native_configured",
+    actorUserId: user.id,
+    resourceType: "platform_meta_app",
+    resourceId: null,
+    actingAsPlatformAdmin: true,
+    requestId: requestHeaders.get("x-request-id") ?? undefined,
+    metadata: {
+      app_id: value.app_id,
+      config_id: value.config_id,
+      revision: Number(data),
+      native_enabled: value.native_enabled,
+      instagram_enabled: value.instagram_enabled,
+      ads_enabled: value.ads_enabled,
+      secret_changed: Boolean(value.app_secret),
+    },
+  });
+  return { ok: true, revision: Number(data) };
+}
 
 function texto(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
@@ -164,10 +269,18 @@ async function oQueEstaGravado(): Promise<
     .eq("id", 1)
     .maybeSingle();
   if (error) {
-    logger.warn("[meta.app] não deu para ler o que está gravado; nada foi alterado", { codigo: error.code });
-    return { ok: false, recusa: { ok: false, error: "leitura_do_app_falhou", details: { codigo: error.code } } };
+    logger.warn("[meta.app] não deu para ler o que está gravado; nada foi alterado", {
+      codigo: error.code,
+    });
+    return {
+      ok: false,
+      recusa: { ok: false, error: "leitura_do_app_falhou", details: { codigo: error.code } },
+    };
   }
-  const linha = data as { app_secret_encrypted?: string | null; verify_token_encrypted?: string | null } | null;
+  const linha = data as {
+    app_secret_encrypted?: string | null;
+    verify_token_encrypted?: string | null;
+  } | null;
   return {
     ok: true,
     temSegredo: texto(linha?.app_secret_encrypted) !== "",
@@ -192,7 +305,9 @@ const SEM_SEGREDO: UpdateMetaAppResult = { ok: false, error: "app_secret_obrigat
  * que o produto oferece desse valor.
  */
 export async function updateMetaApp(input: MetaAppInput): Promise<UpdateMetaAppResult> {
-  const { user: authUser } = await requirePlatformAdmin();
+  const authorization = await authorizeMetaAppWrite();
+  if (!authorization.ok) return authorization;
+  const authUser = authorization.user;
 
   const parsed = entradaSchema.safeParse(input);
   if (!parsed.success) {
@@ -264,7 +379,9 @@ export async function updateMetaApp(input: MetaAppInput): Promise<UpdateMetaAppR
  * avisa em vez de trocar sozinha.
  */
 export async function rotacionarVerifyTokenDaMeta(): Promise<UpdateMetaAppResult> {
-  const { user: authUser } = await requirePlatformAdmin();
+  const authorization = await authorizeMetaAppWrite();
+  if (!authorization.ok) return authorization;
+  const authUser = authorization.user;
 
   const gravado = await oQueEstaGravado();
   if (!gravado.ok) return gravado.recusa;

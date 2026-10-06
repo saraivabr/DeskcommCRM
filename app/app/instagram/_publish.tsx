@@ -9,9 +9,18 @@ import type { StudioItem } from "@/lib/instagram/schema";
 import type { Publication } from "@/lib/instagram/publication-schema";
 import { Notice, studioApi } from "./_shared";
 type State = {
-  accounts: { id: string; username: string; active: boolean }[];
+  accounts: {
+    id: string;
+    username: string;
+    active: boolean;
+    provider?: Publication["provider"];
+    meta_asset_id?: string;
+    connection_id?: string;
+    story_eligible?: boolean;
+  }[];
   publications: Publication[];
   can_publish: boolean;
+  provider_errors?: { native: string | null; legacy: string | null };
 };
 const labels: Record<Publication["status"], string> = {
   preparing: "Preparando imagens",
@@ -21,6 +30,11 @@ const labels: Record<Publication["status"], string> = {
   failed: "Falhou",
   uncertain: "Aguardando confirmação",
 };
+function destinationKey(account: State["accounts"][number]) {
+  return account.provider === "meta"
+    ? `meta:${account.connection_id ?? ""}:${account.id}`
+    : `legacy:${account.id}`;
+}
 export function PublishPost({
   item,
   caption,
@@ -45,13 +59,14 @@ export function PublishPost({
   async function load() {
     const value = await studioApi<State>("/publish");
     setState(value);
-    setAccount((current) => current || value.accounts.find((a) => a.active)?.id || "");
+    setAccount((current) =>
+      value.accounts.some((a) => a.active && destinationKey(a) === current) ? current : "",
+    );
   }
   useEffect(() => {
     void studioApi<State>("/publish")
       .then((value) => {
         setState(value);
-        setAccount(value.accounts.find((a) => a.active)?.id ?? "");
       })
       .catch((e) => setError(e.message));
   }, []);
@@ -59,11 +74,62 @@ export function PublishPost({
   const unresolved = publications.some((p) =>
     ["sending", "uncertain", "pending", "preparing"].includes(p.status),
   );
+  const processing = publications.some((p) =>
+    ["sending", "pending", "preparing"].includes(p.status),
+  );
+  const destination = state?.accounts.find((a) => destinationKey(a) === account && a.active);
+  const destinationReady =
+    !!destination &&
+    (destination.provider !== "meta" ||
+      (!!destination.meta_asset_id && !!destination.connection_id));
+  const storyUnavailable =
+    story && destination?.provider === "meta" && destination.story_eligible !== true;
+  useEffect(() => {
+    if (!processing) return;
+    let alive = true;
+    let checking = false;
+    let attempts = 0;
+    const interval = setInterval(() => {
+      if (checking) return;
+      if (++attempts > 24) {
+        clearInterval(interval);
+        return;
+      }
+      checking = true;
+      void studioApi<State>("/publish")
+        .then((value) => {
+          if (alive) setState(value);
+        })
+        .catch(() => {
+          if (alive)
+            setError(
+              t("Não foi possível atualizar o resultado. Atualize novamente antes de publicar."),
+            );
+        })
+        .finally(() => {
+          checking = false;
+        });
+    }, 5000);
+    return () => {
+      alive = false;
+      clearInterval(interval);
+    };
+  }, [processing, t]);
   async function publish() {
+    if (!destinationReady || storyUnavailable || unresolved) {
+      setError(t("Confira a conexão e o resultado anterior antes de publicar."));
+      return;
+    }
     setBusy(true);
     setError("");
     const body = {
-      account_id: account,
+      ...(destination?.provider === "meta"
+        ? {
+            provider: "meta",
+            meta_asset_id: destination.meta_asset_id,
+            connection_id: destination.connection_id,
+          }
+        : { account_id: destination?.id }),
       item_ids: selected,
       format: story ? "story" : selected.length > 1 ? "carousel" : "feed",
       caption,
@@ -92,6 +158,16 @@ export function PublishPost({
         {t("Conectar ou trocar minha conta")}
       </Link>
       {error && <Notice error>{error}</Notice>}
+      {state?.provider_errors?.native && (
+        <Notice error>
+          {t("Conexão Meta")}: {state.provider_errors.native}
+        </Notice>
+      )}
+      {state?.provider_errors?.legacy && (
+        <Notice error>
+          {t("Conexão existente")}: {state.provider_errors.legacy}
+        </Notice>
+      )}
       {state && (
         <>
           <label className="block space-y-2">
@@ -106,8 +182,9 @@ export function PublishPost({
               {state.accounts
                 .filter((a) => a.active)
                 .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    @{a.username}
+                  <option key={destinationKey(a)} value={destinationKey(a)}>
+                    @{a.username} ·{" "}
+                    {a.provider === "meta" ? t("Conexão Meta") : t("Conexão existente")}
                   </option>
                 ))}
             </select>
@@ -183,6 +260,13 @@ export function PublishPost({
               {t("Stories ficam disponíveis por 24 horas e não exibem a legenda.")}
             </p>
           )}
+          {storyUnavailable && (
+            <Notice>
+              {t(
+                "Esta conexão ainda não confirmou a permissão para Stories. Publique uma imagem ou um carrossel.",
+              )}
+            </Notice>
+          )}
           {reviewing ? (
             <div className="space-y-3 rounded-xl bg-muted/40 p-4">
               <p>
@@ -192,8 +276,7 @@ export function PublishPost({
                   : story
                     ? t("este Story")
                     : t("esta imagem")}{" "}
-                {t("em")} <strong>@{state.accounts.find((a) => a.id === account)?.username}</strong>
-                ?
+                {t("em")} <strong>@{destination?.username}</strong>?
               </p>
               {!story && (
                 <p className="text-sm whitespace-pre-wrap">{caption || t("Sem legenda")}</p>
@@ -202,7 +285,10 @@ export function PublishPost({
                 {t("O conteúdo ficará visível na conta escolhida.")}
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button disabled={busy || unresolved} onClick={() => void publish()}>
+                <Button
+                  disabled={busy || unresolved || !destinationReady || storyUnavailable}
+                  onClick={() => void publish()}
+                >
                   {busy ? t("Publicando…") : t("Confirmar publicação")}
                 </Button>
                 <Button variant="outline" disabled={busy} onClick={() => setReviewing(false)}>
@@ -213,7 +299,12 @@ export function PublishPost({
           ) : (
             <Button
               disabled={
-                !state.can_publish || !account || busy || item.status !== "ready" || unresolved
+                !state.can_publish ||
+                !destinationReady ||
+                storyUnavailable ||
+                busy ||
+                item.status !== "ready" ||
+                unresolved
               }
               onClick={() => setReviewing(true)}
             >
@@ -229,6 +320,21 @@ export function PublishPost({
                   variant="outline"
                   disabled={busy || unresolved}
                   onClick={() => {
+                    const previousDestination = state.accounts.find(
+                      (a) =>
+                        a.active &&
+                        (p.provider === "meta"
+                          ? a.provider === "meta" &&
+                            a.meta_asset_id === p.meta_asset_id &&
+                            a.connection_id === p.connection_id
+                          : a.provider !== "meta" && a.id === p.account_id),
+                    );
+                    if (!previousDestination) {
+                      setError(t("Reconecte a conta original antes de revisar esta tentativa."));
+                      return;
+                    }
+                    setAccount(destinationKey(previousDestination));
+                    setSelected(p.item_ids);
                     intent.current = null;
                     setReviewing(true);
                   }}
@@ -255,19 +361,6 @@ export function PublishPost({
               void (async () => {
                 setBusy(true);
                 try {
-                  if (state.can_publish)
-                    for (const p of publications) {
-                      await studioApi("/publish", {
-                        method: "POST",
-                        body: JSON.stringify({
-                          id: p.id,
-                          account_id: p.account_id,
-                          item_ids: p.item_ids,
-                          format: p.format,
-                          caption: p.caption,
-                        }),
-                      });
-                    }
                   await load();
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "Não foi possível atualizar.");

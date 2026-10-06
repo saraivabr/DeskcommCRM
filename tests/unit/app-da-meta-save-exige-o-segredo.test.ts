@@ -36,16 +36,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const USUARIO = "11111111-1111-4111-8111-111111111111";
 const SEGREDO = "0123456789abcdef0123456789abcdef";
 
-let linha: { app_secret_encrypted: string | null; verify_token_encrypted: string | null } | null = null;
+let linha: { app_secret_encrypted: string | null; verify_token_encrypted: string | null } | null =
+  null;
 /** Quando preenchido, a leitura de `platform_meta_app` falha como o PostgREST falha: `data` nulo e `error`. */
 let erroDeLeitura: { code: string; message: string } | null = null;
 const gravacoes: Record<string, unknown>[] = [];
 
 vi.mock("@/lib/auth/requirePlatformAdmin", () => ({
-  requirePlatformAdmin: async () => ({ user: { id: USUARIO } }),
+  requirePlatformAdmin: async () => ({ user: { id: USUARIO }, platformAdmin: { scope: "full" } }),
 }));
 
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ origin: "https://app.test" }),
+}));
+vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_URL: "https://app.test" } }));
+vi.mock("@/lib/auth/server", () => ({ mfaEmDivida: async () => false }));
+vi.mock("@/lib/impersonate/support", () => ({ requireSupportWrite: async () => null }));
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -54,7 +60,8 @@ vi.mock("@/lib/supabase/admin", () => ({
       return {
         select: () => ({
           eq: () => ({
-            maybeSingle: async () => (erroDeLeitura ? { data: null, error: erroDeLeitura } : { data: linha, error: null }),
+            maybeSingle: async () =>
+              erroDeLeitura ? { data: null, error: erroDeLeitura } : { data: linha, error: null },
           }),
         }),
         upsert: async (valores: Record<string, unknown>) => {
@@ -71,7 +78,9 @@ vi.mock("@/lib/webhooks/secrets", () => ({
 }));
 
 const audit = vi.fn(async (_evento: { metadata?: Record<string, unknown> }) => undefined);
-vi.mock("@/lib/audit", () => ({ audit: (evento: { metadata?: Record<string, unknown> }) => audit(evento) }));
+vi.mock("@/lib/audit", () => ({
+  audit: (evento: { metadata?: Record<string, unknown> }) => audit(evento),
+}));
 
 beforeEach(() => {
   linha = null;
@@ -122,7 +131,10 @@ describe("updateMetaApp — o primeiro save", () => {
 
 describe("updateMetaApp — com o app já configurado", () => {
   beforeEach(() => {
-    linha = { app_secret_encrypted: "cifra(antiga)", verify_token_encrypted: "cifra(token-antigo)" };
+    linha = {
+      app_secret_encrypted: "cifra(antiga)",
+      verify_token_encrypted: "cifra(token-antigo)",
+    };
   });
 
   it("trocar a chave NÃO devolve o token de novo, nem o regrava", async () => {
@@ -156,12 +168,18 @@ describe("rotacionarVerifyTokenDaMeta", () => {
     linha = { app_secret_encrypted: null, verify_token_encrypted: "cifra(token-antigo)" };
     const { rotacionarVerifyTokenDaMeta } = await acoes();
 
-    expect(await rotacionarVerifyTokenDaMeta()).toEqual({ ok: false, error: "app_secret_obrigatorio" });
+    expect(await rotacionarVerifyTokenDaMeta()).toEqual({
+      ok: false,
+      error: "app_secret_obrigatorio",
+    });
     expect(gravacoes).toEqual([]);
   });
 
   it("com o app configurado, devolve um token NOVO e a trilha não carrega o valor", async () => {
-    linha = { app_secret_encrypted: "cifra(antiga)", verify_token_encrypted: "cifra(token-antigo)" };
+    linha = {
+      app_secret_encrypted: "cifra(antiga)",
+      verify_token_encrypted: "cifra(token-antigo)",
+    };
     const { rotacionarVerifyTokenDaMeta } = await acoes();
 
     const r = await rotacionarVerifyTokenDaMeta();
@@ -184,7 +202,10 @@ describe("a leitura do que está gravado falhou", () => {
     const r = await updateMetaApp({ app_secret: SEGREDO });
 
     expect(r).toMatchObject({ ok: false, error: "leitura_do_app_falhou" });
-    expect(gravacoes, "a falha de leitura virou 'nunca configurado' e a action gravou mesmo assim").toEqual([]);
+    expect(
+      gravacoes,
+      "a falha de leitura virou 'nunca configurado' e a action gravou mesmo assim",
+    ).toEqual([]);
     expect(audit).not.toHaveBeenCalled();
   });
 
@@ -192,7 +213,10 @@ describe("a leitura do que está gravado falhou", () => {
     erroDeLeitura = FALHA;
     const { rotacionarVerifyTokenDaMeta } = await acoes();
 
-    expect(await rotacionarVerifyTokenDaMeta()).toMatchObject({ ok: false, error: "leitura_do_app_falhou" });
+    expect(await rotacionarVerifyTokenDaMeta()).toMatchObject({
+      ok: false,
+      error: "leitura_do_app_falhou",
+    });
     expect(gravacoes).toEqual([]);
   });
 });

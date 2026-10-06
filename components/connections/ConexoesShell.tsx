@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { RedesSociaisClient } from "./RedesSociaisClient";
+import { MetaNativeClient } from "./MetaNativeClient";
 import { CanalGraphParceiroClient } from "./CanalGraphParceiroClient";
 import { CanalOficialClient } from "./CanalOficialClient";
 import { CanalParceiroClient } from "./CanalParceiroClient";
@@ -58,7 +59,7 @@ export function ConexoesShell({
   const params = useSearchParams();
   const abaParam = params.get("aba");
   const aba =
-    abaParam === "sociais"
+    abaParam === "sociais" || params.has("meta_ticket") || params.has("meta_error")
       ? "sociais"
       : abaParam === "oficial"
       ? "oficial"
@@ -116,7 +117,18 @@ export function ConexoesShell({
       <TabsContent value="telefonia" className="mt-0">
         <TelefoniaClient />
       </TabsContent>
-      <TabsContent value="sociais" className="mt-0"><RedesSociaisClient /></TabsContent>
+      <TabsContent value="sociais" className="mt-0 space-y-6">
+        <MetaNativeClient />
+        <details className="rounded-xl border p-5">
+          <summary className="cursor-pointer text-sm font-medium">{t("Outras conexões sociais")}</summary>
+          <div className="mt-5 space-y-4">
+            <p className="text-sm leading-6 text-muted-foreground">
+              {t("Estas contas usam a integração social já configurada. Cada autorização permanece independente da conexão direta com a Meta.")}
+            </p>
+            <RedesSociaisClient />
+          </div>
+        </details>
+      </TabsContent>
 
       <TabsContent value="voz" className="mt-0">
         <CanalVozClient wacallsConfigured={wacallsConfigured} />

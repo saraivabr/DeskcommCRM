@@ -1,0 +1,703 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Meta própria no escreve.ai — implementação em QA",
+    "subtitle": "OAuth, ativos, publicação Instagram e criação pausada implementados localmente; produção, efeitos reais e Advanced Access ainda pendentes.",
+    "output": "meta-native-platform.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "operation",
+      "label": "Operação e interfaces"
+    },
+    {
+      "id": "server",
+      "label": "Servidor e autorização"
+    },
+    {
+      "id": "database",
+      "label": "Persistência por organização"
+    },
+    {
+      "id": "execution",
+      "label": "Execução e retorno"
+    },
+    {
+      "id": "external",
+      "label": "Provedores e aprovações externas"
+    }
+  ],
+  "mainPath": [
+    "connectionsUI",
+    "oauthStart",
+    "metaConsent",
+    "oauthCallback",
+    "pendingGrant",
+    "sameOriginBridge",
+    "oauthFinalize",
+    "assetDiscovery",
+    "assetSelectionUI",
+    "assetGrants",
+    "capabilityGate",
+    "studioUI",
+    "operations",
+    "eventLog",
+    "operationWorker",
+    "graphTransport",
+    "operations",
+    "receiptUI"
+  ],
+  "nodes": [
+    {
+      "id": "platformAdmin",
+      "lane": "operation",
+      "col": 1,
+      "type": "frontend",
+      "label": "Base existente: /admin/meta; extensão neste branch de App ID e configuração de login"
+    },
+    {
+      "id": "appConfig",
+      "lane": "database",
+      "col": 2,
+      "type": "database",
+      "label": "Base existente: platform_meta_app; extensão neste branch, segredo cifrado e configuração coerente"
+    },
+    {
+      "id": "connectionsUI",
+      "lane": "operation",
+      "col": 1,
+      "type": "frontend",
+      "label": "Base existente: Conexões; ação Conectar Meta neste branch"
+    },
+    {
+      "id": "oauthStart",
+      "lane": "server",
+      "col": 2,
+      "type": "security",
+      "label": "Implementado localmente: POST start; admin, MFA, suporte, Origin e sessão atuais"
+    },
+    {
+      "id": "oauthAttempts",
+      "lane": "database",
+      "col": 2,
+      "type": "database",
+      "label": "Implementado localmente: tentativas; hashes, ator/org/sessão, app/config revision imutáveis, TTL e claim atômico"
+    },
+    {
+      "id": "metaConsent",
+      "lane": "external",
+      "col": 3,
+      "type": "external",
+      "label": "Implementado localmente: consentimento oficial Facebook Login for Business usando nosso app"
+    },
+    {
+      "id": "oauthCallback",
+      "lane": "server",
+      "col": 3,
+      "type": "security",
+      "label": "Implementado localmente: GET callback; vínculo Lax, claim único, troca de código e validação do token"
+    },
+    {
+      "id": "pendingGrant",
+      "lane": "database",
+      "col": 3,
+      "type": "database",
+      "label": "Implementado localmente: resultado cifrado PENDING; sem conexão ativa e sem seleção de ativos"
+    },
+    {
+      "id": "sameOriginBridge",
+      "lane": "operation",
+      "col": 3,
+      "type": "frontend",
+      "label": "Implementado localmente: ponte HTML same-origin, destino fixo, sem segredo na URL; preserva cookie Strict"
+    },
+    {
+      "id": "oauthFinalize",
+      "lane": "server",
+      "col": 4,
+      "type": "security",
+      "label": "Implementado localmente: POST finalize; mesma pessoa/org/sessão, membership, admin, MFA e suporte revalidados"
+    },
+    {
+      "id": "connectionsStore",
+      "lane": "database",
+      "col": 4,
+      "type": "database",
+      "label": "Implementado localmente: meta_connections; token cifrado, app/config revision, escopos, validade e versão de autorização"
+    },
+    {
+      "id": "assetDiscovery",
+      "lane": "server",
+      "col": 4,
+      "type": "backend",
+      "label": "Implementado localmente: inventário server-side de Páginas, Instagram profissional e contas de anúncios"
+    },
+    {
+      "id": "assetSelectionUI",
+      "lane": "operation",
+      "col": 4,
+      "type": "frontend",
+      "label": "Implementado localmente: escolha explícita de ativos descobertos; permissões parciais visíveis"
+    },
+    {
+      "id": "assetGrants",
+      "lane": "database",
+      "col": 4,
+      "type": "database",
+      "label": "Implementado localmente: meta_assets + meta_asset_grants; org, ativo, autorização, tarefas e credenciais por ativo"
+    },
+    {
+      "id": "capabilityGate",
+      "lane": "server",
+      "col": 4,
+      "type": "security",
+      "label": "Implementado localmente: configuração × aprovação × grant × ativo × saúde; releitura antes de cada efeito"
+    },
+    {
+      "id": "studioUI",
+      "lane": "operation",
+      "col": 4,
+      "type": "frontend",
+      "label": "Base existente: Studio Instagram; destino Meta e recibos nativos integrados neste branch"
+    },
+    {
+      "id": "campaignUI",
+      "lane": "operation",
+      "col": 4,
+      "type": "frontend",
+      "label": "Meta Ads: fonte nativa explícita, compositor/revisão/orçamento; hierarquia PAUSED, ativação fora desta entrega"
+    },
+    {
+      "id": "operations",
+      "lane": "database",
+      "col": 4,
+      "type": "database",
+      "label": "Implementado localmente: meta_operations; intenção imutável, org/idempotency key, lease/fencing, referências e uncertain"
+    },
+    {
+      "id": "eventLog",
+      "lane": "execution",
+      "col": 4,
+      "type": "messagebus",
+      "label": "Base existente: event_log; evento e consumidor de operações Meta integrados neste branch"
+    },
+    {
+      "id": "operationWorker",
+      "lane": "execution",
+      "col": 5,
+      "type": "backend",
+      "label": "Implementado localmente: worker por estágio; claim/lease, reconciliação e polling por retry_at"
+    },
+    {
+      "id": "graphTransport",
+      "lane": "external",
+      "col": 5,
+      "type": "external",
+      "label": "Implementado localmente: Graph API; publicação Instagram e hierarquia de anúncios, versão canônica do repo"
+    },
+    {
+      "id": "receiptUI",
+      "lane": "operation",
+      "col": 5,
+      "type": "frontend",
+      "label": "Implementado localmente: resultado comprovável, IDs/permalink, estados pendentes e próxima ação"
+    },
+    {
+      "id": "legacySocial",
+      "lane": "external",
+      "col": 5,
+      "type": "external",
+      "label": "Base existente: Zernio; OAuth, publicações e automações preservados por operação"
+    },
+    {
+      "id": "legacyAds",
+      "lane": "database",
+      "col": 5,
+      "type": "database",
+      "label": "Base existente: ad_insights_connections; token manual permanece como conexão de leitura explícita"
+    },
+    {
+      "id": "externalGates",
+      "lane": "external",
+      "col": 2,
+      "type": "security",
+      "label": "Configuração Login 2499860483845536 e callback validados; App Review/Advanced Access externos pendentes"
+    },
+    {
+      "id": "healthLoop",
+      "lane": "execution",
+      "col": 5,
+      "type": "backend",
+      "label": "Implementado localmente: expiração/revogação, ativos perdidos, operações bloqueadas e reconexão visível"
+    },
+    {
+      "id": "auditLog",
+      "lane": "database",
+      "col": 5,
+      "type": "database",
+      "label": "Base existente: api_audit_log; eventos de conexão, seleção e operações integrados neste branch, sem tokens"
+    },
+    {
+      "id": "auditUI",
+      "lane": "operation",
+      "col": 5,
+      "type": "frontend",
+      "label": "Base existente: auditoria; operador identifica falha e decide reconectar/reconciliar"
+    },
+    {
+      "id": "reviewQA",
+      "lane": "operation",
+      "col": 2,
+      "type": "security",
+      "label": "QA local: PG fresh/update e E2E conexões; Ads em andamento. Screencast real e aprovação ainda pendentes"
+    },
+    {
+      "id": "nextWave",
+      "lane": "execution",
+      "col": 5,
+      "type": "backend",
+      "label": "M6 planejado: Facebook Pages, Reels, agendamento e Instagram Login independente; novos gates e QA"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e01",
+      "from": "platformAdmin",
+      "to": "appConfig",
+      "label": "configura app/segredo/config_id com privilégio de plataforma"
+    },
+    {
+      "id": "e02",
+      "from": "appConfig",
+      "to": "oauthStart",
+      "label": "App ID, segredo e configuração da mesma origem"
+    },
+    {
+      "id": "e03",
+      "from": "connectionsUI",
+      "to": "oauthStart",
+      "label": "inicia consentimento por POST autenticado"
+    },
+    {
+      "id": "e04",
+      "from": "oauthStart",
+      "to": "oauthAttempts",
+      "label": "guarda hashes, ator/org/sessão e validade"
+    },
+    {
+      "id": "e05",
+      "from": "oauthStart",
+      "to": "metaConsent",
+      "label": "auth_url com state opaco e vínculo no navegador"
+    },
+    {
+      "id": "e06",
+      "from": "metaConsent",
+      "to": "oauthCallback",
+      "label": "código ou cancelamento do consentimento"
+    },
+    {
+      "id": "e07",
+      "from": "oauthAttempts",
+      "to": "oauthCallback",
+      "label": "confere vínculo/TTL e reclama state uma vez"
+    },
+    {
+      "id": "e08",
+      "from": "appConfig",
+      "to": "oauthCallback",
+      "label": "confere configuração e app_id antes de persistir"
+    },
+    {
+      "id": "e09",
+      "from": "oauthCallback",
+      "to": "pendingGrant",
+      "label": "troca/inspeciona token e cifra resultado temporário"
+    },
+    {
+      "id": "e10",
+      "from": "pendingGrant",
+      "to": "sameOriginBridge",
+      "label": "ticket opaco HttpOnly; nenhum token ou código na URL"
+    },
+    {
+      "id": "e11",
+      "from": "sameOriginBridge",
+      "to": "oauthFinalize",
+      "label": "retoma origem própria e dispara POST com sessão Strict"
+    },
+    {
+      "id": "e12",
+      "from": "pendingGrant",
+      "to": "oauthFinalize",
+      "label": "consome ticket válido uma única vez"
+    },
+    {
+      "id": "e13",
+      "from": "oauthFinalize",
+      "to": "oauthAttempts",
+      "label": "consumo do ticket na mesma transação de criação da conexão"
+    },
+    {
+      "id": "e14",
+      "from": "oauthFinalize",
+      "to": "connectionsStore",
+      "label": "grava pending_selection atomicamente com consumo do ticket, após guardas atuais"
+    },
+    {
+      "id": "e15",
+      "from": "oauthFinalize",
+      "to": "assetDiscovery",
+      "label": "permite inventário; organização nunca vem do corpo"
+    },
+    {
+      "id": "e16",
+      "from": "connectionsStore",
+      "to": "assetDiscovery",
+      "label": "credencial escopada e válida somente no servidor"
+    },
+    {
+      "id": "e17",
+      "from": "assetDiscovery",
+      "to": "graphTransport",
+      "label": "descobre ativos e tarefas via transporte oficial"
+    },
+    {
+      "id": "e18",
+      "from": "graphTransport",
+      "to": "assetDiscovery",
+      "label": "respostas limitadas, paginação e validação de formato"
+    },
+    {
+      "id": "e19",
+      "from": "assetDiscovery",
+      "to": "assetSelectionUI",
+      "label": "projeção de ativos/permissões sem segredos"
+    },
+    {
+      "id": "e20",
+      "from": "assetSelectionUI",
+      "to": "assetGrants",
+      "label": "POST assets autenticado com Origin/CSRF revalida seleção; API grava somente ativos da organização"
+    },
+    {
+      "id": "e21",
+      "from": "assetGrants",
+      "to": "connectionsStore",
+      "label": "conexão torna-se utilizável para ativos selecionados"
+    },
+    {
+      "id": "e22",
+      "from": "assetGrants",
+      "to": "capabilityGate",
+      "label": "autorizações e tarefas reais por ativo/org"
+    },
+    {
+      "id": "e23",
+      "from": "appConfig",
+      "to": "capabilityGate",
+      "label": "habilitação da instalação por capacidade"
+    },
+    {
+      "id": "e24",
+      "from": "externalGates",
+      "to": "capabilityGate",
+      "label": "aprovação externa verificada; falta de aprovação mantém gate fechado"
+    },
+    {
+      "id": "e25",
+      "from": "capabilityGate",
+      "to": "studioUI",
+      "label": "mostra publicação disponível e motivo de bloqueio"
+    },
+    {
+      "id": "e26",
+      "from": "capabilityGate",
+      "to": "campaignUI",
+      "label": "separa leitura, criação pausada e ativação"
+    },
+    {
+      "id": "e27",
+      "from": "studioUI",
+      "to": "operations",
+      "label": "confirma conteúdo/alvo e persiste intenção nativa"
+    },
+    {
+      "id": "e28",
+      "from": "campaignUI",
+      "to": "operations",
+      "label": "confirma revisão atual; hierarquia começa PAUSED"
+    },
+    {
+      "id": "e29",
+      "from": "operations",
+      "to": "eventLog",
+      "label": "meta.operation_requested contém somente referência local"
+    },
+    {
+      "id": "e30",
+      "from": "eventLog",
+      "to": "operationWorker",
+      "label": "consumidor registrado no dreno existente"
+    },
+    {
+      "id": "e31",
+      "from": "operationWorker",
+      "to": "operations",
+      "label": "claim/lease/fencing, estágio, IDs remotos e estado incerto"
+    },
+    {
+      "id": "e32",
+      "from": "operationWorker",
+      "to": "capabilityGate",
+      "label": "revalida conexão, ativo, permissão e autorização antes do efeito"
+    },
+    {
+      "id": "e33",
+      "from": "capabilityGate",
+      "to": "operationWorker",
+      "label": "autoriza estágio ou bloqueia com motivo seguro"
+    },
+    {
+      "id": "e34",
+      "from": "operationWorker",
+      "to": "graphTransport",
+      "label": "um estágio externo por vez; sem reenvio cego após timeout"
+    },
+    {
+      "id": "e35",
+      "from": "graphTransport",
+      "to": "operations",
+      "label": "container, objetos de anúncio e recibos reconciliáveis"
+    },
+    {
+      "id": "e36",
+      "from": "operations",
+      "to": "receiptUI",
+      "label": "status e resultado sanitizados da intenção persistida"
+    },
+    {
+      "id": "e37",
+      "from": "receiptUI",
+      "to": "operations",
+      "label": "solicita reconciliação; uncertain não equivale a novo envio"
+    },
+    {
+      "id": "e38",
+      "from": "receiptUI",
+      "to": "connectionsUI",
+      "label": "orienta seleção de ativos ou reconexão"
+    },
+    {
+      "id": "e39",
+      "from": "studioUI",
+      "to": "legacySocial",
+      "label": "publicações legadas continuam pelo provedor já escolhido"
+    },
+    {
+      "id": "e40",
+      "from": "legacySocial",
+      "to": "receiptUI",
+      "label": "recibos/automação existentes preservados; não migra implicitamente"
+    },
+    {
+      "id": "e41",
+      "from": "campaignUI",
+      "to": "legacyAds",
+      "label": "leitura pela conexão manual explicitamente selecionada"
+    },
+    {
+      "id": "e42",
+      "from": "legacyAds",
+      "to": "campaignUI",
+      "label": "insights legados; nunca fallback de token nativo expirado"
+    },
+    {
+      "id": "e43",
+      "from": "connectionsStore",
+      "to": "healthLoop",
+      "label": "token, prazo de acesso, status e identidade do app"
+    },
+    {
+      "id": "e44",
+      "from": "graphTransport",
+      "to": "healthLoop",
+      "label": "erro de permissão, revogação assinada ou ativo perdido"
+    },
+    {
+      "id": "e45",
+      "from": "healthLoop",
+      "to": "connectionsStore",
+      "label": "marca reconexão necessária; desativa autorização local"
+    },
+    {
+      "id": "e46",
+      "from": "healthLoop",
+      "to": "operations",
+      "label": "bloqueia próximas operações sem duplicar efeitos externos"
+    },
+    {
+      "id": "e47",
+      "from": "healthLoop",
+      "to": "connectionsUI",
+      "label": "erro persistente e próximo passo aparecem para a pessoa"
+    },
+    {
+      "id": "e48",
+      "from": "oauthFinalize",
+      "to": "auditLog",
+      "label": "ator, sessão, org e desfecho; sem token ou código"
+    },
+    {
+      "id": "e49",
+      "from": "assetGrants",
+      "to": "auditLog",
+      "label": "seleção e alteração de autorização rastreáveis"
+    },
+    {
+      "id": "e50",
+      "from": "operationWorker",
+      "to": "auditLog",
+      "label": "estágio, resultado e motivo seguro"
+    },
+    {
+      "id": "e51",
+      "from": "auditLog",
+      "to": "auditUI",
+      "label": "operador lê a trilha pelo acesso existente"
+    },
+    {
+      "id": "e52",
+      "from": "auditUI",
+      "to": "connectionsUI",
+      "label": "laço de retorno: corrige conexão/seleção que falhou"
+    },
+    {
+      "id": "e53",
+      "from": "auditUI",
+      "to": "platformAdmin",
+      "label": "corrige configuração da instalação quando necessário"
+    },
+    {
+      "id": "e54",
+      "from": "receiptUI",
+      "to": "reviewQA",
+      "label": "prova login, consentimento, escolha, ação e resultado em tela"
+    },
+    {
+      "id": "e55",
+      "from": "reviewQA",
+      "to": "externalGates",
+      "label": "submissão preparada e aprovação verificada; ação externa exige autorização"
+    },
+    {
+      "id": "e56",
+      "from": "platformAdmin",
+      "to": "externalGates",
+      "label": "operador configura login e acompanha revisões/acesso Marketing"
+    },
+    {
+      "id": "e57",
+      "from": "assetGrants",
+      "to": "nextWave",
+      "label": "base de autorização reaproveitada nas próximas capacidades"
+    },
+    {
+      "id": "e58",
+      "from": "nextWave",
+      "to": "operations",
+      "label": "novas publicações/agendamento e login IG separado reutilizam autorização e recibos"
+    },
+    {
+      "id": "e59",
+      "from": "connectionsUI",
+      "to": "assetSelectionUI",
+      "label": "abre gestão dos ativos concedidos"
+    }
+  ],
+  "contracts": {
+    "status": "PLANEJADO / NÃO IMPLEMENTADO. Este arquivo é planta de implementação e não prova OAuth, publicação, campanhas, aprovação Meta ou deploy.",
+    "base_revision": "34aa784880868fd939bf99a985c6b97f00bae27a",
+    "render_status": "JSON fonte no formato lanes/nodes/edges já usado neste repositório. Não há HTML gerado; o README declara que esse formato não é aceito pelo archify 2.11.0.",
+    "existing_bases": [
+      "lib/channels/meta/app.ts",
+      "app/actions/settings/updateMetaApp.ts",
+      "components/connections/ConexoesShell.tsx",
+      "lib/channels/social/instagram-publishing.ts",
+      "app/api/v1/instagram/publish/route.ts",
+      "lib/plataformas-de-anuncio/credenciais-de-leitura.ts",
+      "lib/plataformas-de-anuncio/meta/insights.ts",
+      "lib/event-log/register-handlers.ts",
+      "lib/graph-version.ts"
+    ],
+    "proposed_paths_not_yet_existing": [
+      "lib/channels/meta/social/config.ts",
+      "lib/channels/meta/social/oauth.ts",
+      "lib/channels/meta/social/store.ts",
+      "lib/channels/meta/social/graph-client.ts",
+      "lib/channels/meta/social/assets.ts",
+      "lib/channels/meta/social/capabilities.ts",
+      "lib/channels/meta/social/operations.ts",
+      "lib/channels/meta/social/instagram-publishing.ts",
+      "lib/plataformas-de-anuncio/meta/management.ts",
+      "lib/plataformas-de-anuncio/meta/draft-schema.ts",
+      "app/api/v1/integrations/meta/start/route.ts",
+      "app/api/v1/integrations/meta/callback/route.ts",
+      "app/api/v1/integrations/meta/finalize/route.ts",
+      "workers/meta-operation-worker.handler.ts",
+      "workers/meta-operation-worker.ts"
+    ],
+    "transport_boundary": "OAuth/Graph/social ficam em lib/channels/meta/social; gestão de anúncios em lib/plataformas-de-anuncio/meta. UI/rotas/workers consomem contratos e serviços da fronteira. Publicação/ads não introduzem ChannelProvider de mensagens.",
+    "oauth": [
+      "POST start exige sessão atual, papel admin, MFA, política de suporte e verificação de Origin.",
+      "Toda nova mutação com sessão cookie exige Origin/CSRF, inclusive finalize, assets, disconnect, publicação e comandos Ads. Origin ausente/divergente é rejeitado; somente callbacks externos em caminhos exatos usam vínculo/state ou assinatura como autenticação própria.",
+      "State opaco de 256 bits, hash persistido, TTL curto, vínculo HttpOnly/Secure/Lax e claim único; App ID/config revision ficam imutáveis na tentativa e conexão.",
+      "Callback externo não depende do cookie de sessão Strict, não cria conexão ativa e não escolhe ativos.",
+      "Token é validado quanto a app, identidade, tipo, escopos e permissões granulares; cifra ocorre antes da persistência.",
+      "Resultado pending e ticket de finalização expiram; nenhum segredo, código ou token entra em URL, HTML de retorno ou logs.",
+      "POST finalize revalida mesma pessoa/org/auth_session_id, existência da sessão comum, membership/papel atuais, MFA e suporte. supportCallbackWriteAllowed sozinho não faz essas verificações.",
+      "Consumo do ticket e criação da conexão são atômicos; falha não deixa ticket consumido com conexão inexistente nem conexão utilizável com ticket reutilizável.",
+      "Falha de qualquer claim, persistência, cifra ou revalidação fecha o fluxo; seleção ocorre depois da finalização autenticada e resultado pendente expira sob retenção curta."
+    ],
+    "tenant_and_credentials": [
+      "Organization_id vem da sessão validada ou da tentativa persistida; serviço sempre filtra pela organização.",
+      "FKs entre ativos, grants, operações e conexões incluem a organização; ID externo não prova posse nem isolamento.",
+      "Credenciais/tentativas são acessíveis somente ao serviço. Metadados de ativos/drafts têm leitura RLS por organização e escrita via serviço.",
+      "Uma autorização pode conceder vários ativos; capacidades exigem tarefa/permissão efetiva no ativo selecionado.",
+      "Desconexão local não revoga automaticamente o app inteiro para a mesma identidade em outras organizações e não pausa campanhas já ativas na Meta."
+    ],
+    "operations": [
+      "Intenção imutável precede efeito externo e contém provider/alvo/revisão próprios; a conexão padrão atual não troca o provider de uma intenção antiga.",
+      "Unique org/idempotency_key, payload hash e lease/fencing evitam concorrência local e escrita de worker atrasado; payload diferente com a mesma chave retorna 409. Não garantem exactly-once externo nem idempotência genérica da Graph.",
+      "Claim e intenção falham fechados se persistência/idempotência falhar. Não reutilizar comIdempotencia atual, que pode falhar aberto.",
+      "Timeout depois do envio vira uncertain; antes de reenviar é necessário reconciliar IDs/containers/objetos remotos.",
+      "Campanha, conjunto e anúncio nascem PAUSED. Ativação exige administrador, MFA e confirmação explícita da revisão atual.",
+      "Polling usa retry_at sem manter um worker bloqueado; falha permanente bloqueia a operação e aparece na tela.",
+      "Event_log recebe referências locais sem tokens; audit registra IDs/ator/org/estado e motivos seguros."
+    ],
+    "external_gates": [
+      "Tech Provider verificado não substitui App ID, configuração de login, permissões aprovadas, acesso Marketing nem grants dos ativos.",
+      "Configuração e aprovação são estados externos revalidados antes da liberação; o mapa não atesta que já existem.",
+      "QA controlado não publica conteúdo nem veicula anúncios reais. Screencast com ação real precisa de autorização específica para conta/conteúdo/gasto."
+    ],
+    "milestones": {
+      "M0": "Plano, arquitetura e coordenação; entrega documental deste pedido.",
+      "M1": "Configuração, OAuth, finalização, ativos e Conexões.",
+      "M2": "Leitura de anúncios pela conexão própria; depende de M1.",
+      "M3A": "Publicação Instagram imagem/carrossel/Story conforme elegibilidade; depende de M1.",
+      "M3B": "Rascunho e campanha pausada; depende de M2 e pode executar em paralelo com M3A.",
+      "M4": "App Review e acesso Marketing; requer jornadas demonstráveis M1/M3A/M3B.",
+      "M5": "Piloto externo e rollout das capacidades aprovadas, com QA/schema/CI/produção comprovados.",
+      "M6": "Facebook Pages, Reels, agendamento e Instagram Login independente, com gates específicos."
+    },
+    "next_wave": "M6: Facebook Pages, Reels, agendamento e Instagram Login independente. São capacidades planejadas com contratos, permissões e QA próprios; não estão declaradas como incapacidade permanente. Instagram Login independente não concede autorização Ads.",
+    "non_connections": [
+      "Não adicionar provider a ChannelProvider/channel_sessions para habilitar login, publicação ou anúncios.",
+      "Não enviar payloads sociais para o webhook WhatsApp Meta existente; deauthorization/data-deletion têm contrato assinado próprio.",
+      "Não copiar token OAuth nativo para ad_insights_connections nem escolher credencial manual ou META_SYSTEM_USER_TOKEN do WhatsApp como fallback de token nativo vencido.",
+      "Não migrar publicações ou automações Zernio automaticamente e não ligar dois executores de comentário/DM ao mesmo evento."
+    ]
+  }
+}

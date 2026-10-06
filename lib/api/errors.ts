@@ -124,6 +124,28 @@ export const ApiErrorCodes = {
   ads_campo_invalido: "ads_campo_invalido",
   ads_cifra_indisponivel: "ads_cifra_indisponivel",
 
+  // Login e inventário Meta nativos (spec meta-native-platform).
+  meta_not_configured: "meta_not_configured",
+  meta_graph_path_invalid: "meta_graph_path_invalid",
+  meta_provider_unavailable: "meta_provider_unavailable",
+  meta_provider_response_invalid: "meta_provider_response_invalid",
+  meta_token_invalid: "meta_token_invalid",
+  meta_permission_missing: "meta_permission_missing",
+  meta_provider_error: "meta_provider_error",
+  meta_assets_invalid: "meta_assets_invalid",
+  meta_pagination_invalid: "meta_pagination_invalid",
+  meta_inventory_limit: "meta_inventory_limit",
+  meta_store_unavailable: "meta_store_unavailable",
+  meta_encryption_unavailable: "meta_encryption_unavailable",
+  meta_finalize_denied: "meta_finalize_denied",
+  meta_connection_not_found: "meta_connection_not_found",
+  meta_asset_selection_denied: "meta_asset_selection_denied",
+  meta_connection_changed: "meta_connection_changed",
+  meta_cancelled: "meta_cancelled",
+  meta_config_changed: "meta_config_changed",
+  meta_support_expired: "meta_support_expired",
+  meta_asset_not_found: "meta_asset_not_found",
+
   // ─── BANCO DE DADOS EXTERNO DO AGENTE (migration 0372) ───
   //
   // Declarados aqui pelo mesmo motivo dos da Agenda/Anúncios: `fail()` aceita

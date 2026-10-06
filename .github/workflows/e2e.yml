@@ -604,6 +604,8 @@ jobs:
       EXTENSIONS_LOCAL_CATALOG_ORIGIN: "http://127.0.0.1:56331"
       SPECS_PARTE_1: >-
         instagram-social.spec.ts
+        meta-native-connections.spec.ts
+        meta-native-ads.spec.ts
         pre-go-live-whatsapp.spec.ts
         smoke.spec.ts auth.spec.ts error-pages.spec.ts
         knowledge-pages-mcp.spec.ts
