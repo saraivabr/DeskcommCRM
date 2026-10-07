@@ -350,15 +350,14 @@ export interface ChannelAdapter {
    * OPCIONAL: canal sem mídia de entrada não implementa, e quem chama testa a
    * presença em vez de perguntar quem é.
    */
-  fetchInboundMedia?(
-    input: ChannelTenantScope & {
-      sessionRef: string;
-      /** A URL como o provider a anunciou. Cada canal sabe o que fazer com ela. */
-      url: string;
-      /** Mime declarado no webhook, quando houve. Dica, não verdade. */
-      hintMime?: string | null;
-    },
-  ): Promise<FetchedMedia>;
+  // prettier-ignore
+  fetchInboundMedia?(input: ChannelTenantScope & {
+    sessionRef: string;
+    /** A URL como o provider a anunciou. Cada canal sabe o que fazer com ela. */
+    url: string;
+    /** Mime declarado no webhook, quando houve. Dica, não verdade. */
+    hintMime?: string | null;
+  }): Promise<FetchedMedia>;
 
   sendTemplate?(
     input: ChannelTenantScope & {
