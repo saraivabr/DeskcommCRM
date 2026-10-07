@@ -63,6 +63,8 @@ interface Props {
   contactName?: string | null;
   /** Contato da conversa — excluído do seletor de cartão compartilhado. */
   currentContactId?: string | null;
+  /** Capability do canal: anexos, áudio e cartões de contato de saída. */
+  canSendAttachments?: boolean;
 }
 
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
@@ -79,6 +81,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
     currentContactId,
     respondendo,
     onCancelarResposta,
+    canSendAttachments = true,
   },
   ref,
 ) {
@@ -88,6 +91,12 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [menuDismissed, setMenuDismissed] = useState(false);
   const [mode, setMode] = useState<"reply" | "note">(initialMode);
+  // Ao mudar a capability, descarte o preview da conversa anterior antes
+  // de renderizar; ele não pode reaparecer em outra conta depois.
+  if (!canSendAttachments && (pendingFile || contactPickerOpen)) {
+    setPendingFile(null);
+    setContactPickerOpen(false);
+  }
   useEffect(() => {
     onDraftChange?.(text, mode);
   }, [text, mode, onDraftChange]);
@@ -181,7 +190,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
    * Ctrl+V precisa continuar sendo o Ctrl+V de sempre.
    */
   function onPaste(e: ClipboardEvent<HTMLTextAreaElement>) {
-    if (mode !== "reply" || respostaBarrada || pendingFile) return;
+    if (!canSendAttachments || mode !== "reply" || respostaBarrada || pendingFile) return;
     const imagem = imagemDoClipboard(e.clipboardData, new Date());
     if (!imagem) return; // colagem de texto segue o caminho normal do browser
     e.preventDefault();
@@ -285,7 +294,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           </div>
         )}
         <div className="flex items-end gap-2">
-          {mode === "reply" && (
+          {mode === "reply" && canSendAttachments && (
             <AttachMenu
               disabled={respostaBarrada}
               onPick={setPendingFile}
@@ -361,16 +370,19 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
               <PaperPlaneTilt size={16} weight="fill" aria-hidden />
             </Button>
           ) : (
-            active && <AudioRecorder conversationId={conversationId} disabled={respostaBarrada} />
+            active &&
+            canSendAttachments && (
+              <AudioRecorder conversationId={conversationId} disabled={respostaBarrada} />
+            )
           )}
         </div>
       </div>
       <AttachmentPreviewDialog
-        file={pendingFile}
+        file={canSendAttachments ? pendingFile : null}
         sending={upload.isPending || send.isPending}
         onCancel={() => setPendingFile(null)}
         onSend={async (caption) => {
-          if (!pendingFile) return;
+          if (!canSendAttachments || respostaBarrada || !pendingFile) return;
           try {
             const uploaded = await upload.mutateAsync({ conversationId, file: pendingFile });
             send.mutate(
@@ -391,11 +403,12 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         }}
       />
       <ContactPickerDialog
-        open={contactPickerOpen}
+        open={canSendAttachments && contactPickerOpen}
         onOpenChange={setContactPickerOpen}
         excludeContactId={currentContactId}
         sending={send.isPending}
         onPick={(payload) => {
+          if (!canSendAttachments || respostaBarrada) return;
           send.mutate(
             {
               conversation_id: conversationId,

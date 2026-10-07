@@ -2,8 +2,8 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Meta própria no escreve.ai — núcleo publicado e privacidade em QA",
-    "subtitle": "Núcleo publicado na revisão 99792f820; revogação/exclusão em QA. OAuth, publicação, anúncios reais e Advanced Access ainda precisam de comprovação.",
+    "title": "Meta própria no escreve.ai — núcleo publicado e mensageria manual em QA",
+    "subtitle": "Núcleo e privacidade publicados na revisão 1a79bbc1b82d016a1f7de1775e280d81255e2155; publicação Instagram real confirmada. Mensageria manual em QA, sem deploy/prova externa; App Review não enviado.",
     "output": "meta-native-platform.html",
     "quality_profile": "standard"
   },
@@ -259,6 +259,41 @@
       "col": 5,
       "type": "backend",
       "label": "M6 planejado: Facebook Pages, Reels, agendamento e Instagram Login independente; novos gates e QA"
+    },
+    {
+      "id": "nativeMessagingConfigure",
+      "lane": "operation",
+      "col": 2,
+      "type": "frontend",
+      "label": "Em QA: Conexões ativa/desativa Direct/Messenger após assinatura comprovada"
+    },
+    {
+      "id": "nativeMessagingIngress",
+      "lane": "server",
+      "col": 3,
+      "type": "security",
+      "label": "Em QA: HMAC app → RPC ingresso durável, atual concessão e destino único"
+    },
+    {
+      "id": "nativeMessagingConsumer",
+      "lane": "execution",
+      "col": 4,
+      "type": "backend",
+      "label": "Em QA: cron event-log → transação manual Inbox; lock, dedupe e reapuração de tenant"
+    },
+    {
+      "id": "nativeMessagingInbox",
+      "lane": "operation",
+      "col": 5,
+      "type": "frontend",
+      "label": "Inbox existente: texto, não lidas, eco, delivered/read e remoção"
+    },
+    {
+      "id": "nativeMessagingReply",
+      "lane": "execution",
+      "col": 5,
+      "type": "backend",
+      "label": "Em QA: resposta humana pelo handler canônico, Page token atual e janela24h"
     }
   ],
   "edges": [
@@ -615,6 +650,78 @@
       "from": "connectionsUI",
       "to": "assetSelectionUI",
       "label": "abre gestão dos ativos concedidos"
+    },
+    {
+      "id": "native-message-1",
+      "from": "assetGrants",
+      "to": "nativeMessagingConfigure",
+      "label": "capacidade de mensageria por ativo"
+    },
+    {
+      "id": "native-message-2",
+      "from": "nativeMessagingConfigure",
+      "to": "graphTransport",
+      "label": "subscribed_apps consulta, inscrição e confirmação"
+    },
+    {
+      "id": "native-message-3",
+      "from": "appConfig",
+      "to": "nativeMessagingIngress",
+      "label": "segredo coerente para HMAC"
+    },
+    {
+      "id": "native-message-4",
+      "from": "graphTransport",
+      "to": "nativeMessagingIngress",
+      "label": "entrega assinada"
+    },
+    {
+      "id": "native-message-5",
+      "from": "nativeMessagingIngress",
+      "to": "eventLog",
+      "label": "entrada persistida antes do HTTP 200"
+    },
+    {
+      "id": "native-message-6",
+      "from": "eventLog",
+      "to": "nativeMessagingConsumer",
+      "label": "channel.messaging_received"
+    },
+    {
+      "id": "native-message-7",
+      "from": "assetGrants",
+      "to": "nativeMessagingConsumer",
+      "label": "concessão atual e organização"
+    },
+    {
+      "id": "native-message-8",
+      "from": "nativeMessagingConsumer",
+      "to": "nativeMessagingInbox",
+      "label": "mensagem/eco/desfecho sem agentes de IA"
+    },
+    {
+      "id": "native-message-9",
+      "from": "nativeMessagingInbox",
+      "to": "nativeMessagingReply",
+      "label": "ação humana explícita"
+    },
+    {
+      "id": "native-message-10",
+      "from": "nativeMessagingReply",
+      "to": "graphTransport",
+      "label": "uma tentativa; receiptMID ou falha sem reenvio"
+    },
+    {
+      "id": "native-message-11",
+      "from": "graphTransport",
+      "to": "nativeMessagingInbox",
+      "label": "read/delivered via fila assinada"
+    },
+    {
+      "id": "native-message-12",
+      "from": "nativeMessagingConfigure",
+      "to": "nativeMessagingInbox",
+      "label": "canal pronto ou motivo de falha visível"
     }
   ],
   "contracts": {

@@ -888,6 +888,8 @@ export const AUDIT_ACTIONS = [
   "meta.oauth_started",
   "meta.oauth_failed",
   "meta.connected",
+  "channel.messaging_enabled",
+  "channel.messaging_disabled",
   "meta.assets_selected",
   "meta.connection_checked",
   "meta.disconnected",

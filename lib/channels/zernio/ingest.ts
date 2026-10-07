@@ -73,15 +73,17 @@ export function waIdentityFrom(identity: ZernioIdentity): string | null {
  * token): este módulo não descobre de quem é o webhook, só escreve o que já se
  * sabe de quem é.
  */
-export async function ingestZernioInbound(
+export async function ingestChannelInbound(
   admin: SupabaseClient,
   input: {
     organizationId: string;
     channelSessionId: string;
     payload: unknown;
     socialMessage?: SocialMessage;
+    source?: string;
   },
 ): Promise<ZernioIngestResult> {
+  const source = input.source ?? "zernio";
   const msg = input.socialMessage ?? parseZernioInbound(input.payload);
   if (!msg) return { status: "ignored", reason: "evento_sem_interesse" };
 
@@ -89,7 +91,7 @@ export async function ingestZernioInbound(
   // status — inserir aqui criaria uma segunda linha para a mesma mensagem, uma
   // por transição de estado.
   if (msg.kind === "status") {
-    const { data } = await admin
+    const { data, error } = await admin
       .from("messages")
       .update({
         status: msg.status,
@@ -103,6 +105,7 @@ export async function ingestZernioInbound(
       // ordem de entrega do webhook não é garantida.
       .not("status", "in", "(read)")
       .select("id");
+    if (error) throw new Error("channel_status_update_failed");
     const afetadas = (data ?? []).length;
     return afetadas > 0
       ? { status: "ingested", reason: `status_${msg.status}` }
@@ -188,7 +191,7 @@ export async function ingestZernioInbound(
         .is("phone_number", null);
     }
     if (inseridaNaExistente !== "duplicate") {
-      await marcarConversa(admin, input.organizationId, existente.id, msg);
+      await marcarConversa(admin, input.organizationId, existente.id, msg, source);
       if (msg.attachments[0]?.url) {
         await pedirPersistenciaDaMidia(
           admin,
@@ -209,7 +212,7 @@ export async function ingestZernioInbound(
         await pausarIaPorAtendimentoManual(admin, {
           organizationId: input.organizationId,
           conversationId: existente.id,
-          canal: "zernio",
+          canal: source,
         });
       }
     }
@@ -237,6 +240,7 @@ export async function ingestZernioInbound(
     contactId,
     channelSessionId: input.channelSessionId,
     providerConversationId: msg.conversationId,
+    strict: source === "meta_social",
   });
   if (!conversationId) return { status: "ignored", reason: "conversa_nao_resolvida" };
   if (input.socialMessage) {
@@ -268,7 +272,7 @@ export async function ingestZernioInbound(
 
   if (inserted === "duplicate") return { status: "duplicate", conversationId };
 
-  await marcarConversa(admin, input.organizationId, conversationId, msg);
+  await marcarConversa(admin, input.organizationId, conversationId, msg, source);
   if (msg.attachments[0]?.url) {
     await pedirPersistenciaDaMidia(admin, input.organizationId, conversationId, inserted);
   }
@@ -281,7 +285,7 @@ export async function ingestZernioInbound(
     await pausarIaPorAtendimentoManual(admin, {
       organizationId: input.organizationId,
       conversationId,
-      canal: "zernio",
+      canal: source,
     });
   }
 
@@ -305,20 +309,22 @@ export async function ingestZernioInbound(
  */
 async function efeitosDaEntrada(
   admin: SupabaseClient,
-  input: { organizationId: string; channelSessionId: string; requestId?: string },
+  input: { organizationId: string; channelSessionId: string; requestId?: string; source?: string },
   msg: ZernioInboundMessage,
   contactId: string,
   conversationId: string,
   messageId: string,
 ): Promise<void> {
-  if (msg.direction !== "inbound") return;
+  if (msg.direction !== "inbound" || input.source === "meta_social") return;
+  // Native Direct/Messenger starts as manual Inbox. No AI/CRM derivatives without per-source erasure.
 
   // O `referral` do webhook oficial é o caminho CONFIÁVEL de atribuição —
   // documentado pela plataforma, ao contrário do best-effort do WAHA. Mesma
   // regra de primeiro-toque: `estamparAtribuicaoDoContato` só grava se o
   // contato ainda não tem `ad_platform`.
   const atribuicao = extrairAtribuicaoMeta(msg.referral);
-  if (atribuicao) await estamparAtribuicaoDoContato(admin, input.organizationId, contactId, atribuicao);
+  if (atribuicao)
+    await estamparAtribuicaoDoContato(admin, input.organizationId, contactId, atribuicao);
 
   // Irmão do bloco acima, para o Google: o dado não vem no `referral` (que é
   // exclusivo da Meta), vem no PRÓPRIO texto da mensagem — ver o cabeçalho de
@@ -334,7 +340,7 @@ async function efeitosDaEntrada(
     texto: msg.text,
     nomeDoContato: msg.identity.displayName,
     requestId: input.requestId,
-    origem: "zernio_webhook",
+    origem: `${input.source ?? "zernio"}_webhook`,
   });
 }
 
@@ -372,6 +378,7 @@ async function marcarConversa(
   organizationId: string,
   conversationId: string,
   msg: ZernioInboundMessage,
+  source: string,
 ): Promise<void> {
   await marcarConversaComMensagem(admin, {
     organizationId,
@@ -382,9 +389,8 @@ async function marcarConversa(
     // têm que usar a hora em que o cliente ESCREVEU, não a hora em que o webhook
     // chegou — numa reentrega atrasada as duas diferem por horas.
     at: msg.sentAt ?? new Date().toISOString(),
-    canal: "zernio",
+    canal: source,
   });
-
 }
 
 /**
@@ -505,6 +511,7 @@ async function upsertConversation(
     contactId: string;
     channelSessionId: string;
     providerConversationId: string;
+    strict?: boolean;
   },
 ): Promise<string | null> {
   const { data, error } = await admin.rpc("fn_upsert_wa_conversation", {
@@ -512,7 +519,10 @@ async function upsertConversation(
     p_contact: input.contactId,
     p_session: input.channelSessionId,
   });
-  if (error || !data) return null;
+  if (error || !data) {
+    if (input.strict) throw new Error("channel_conversation_upsert_failed");
+    return null;
+  }
   const conversationId = data as string;
 
   // A thread do provider, que é o motivo deste módulo existir.
@@ -532,11 +542,12 @@ async function upsertConversation(
   // afirmava que o `update` foi CHAMADO com o payload certo, que era verdade, e
   // não que ele tivesse casado alguma linha. Escrever sempre é uma escrita a
   // mais por mensagem e zero condições sutis para errar.
-  await admin
+  const { error: threadError } = await admin
     .from("conversations")
     .update({ provider_conversation_id: input.providerConversationId })
+    .eq("organization_id", input.organizationId)
     .eq("id", conversationId);
-
+  if (threadError && input.strict) throw new Error("channel_thread_update_failed");
   return conversationId;
 }
 
@@ -741,3 +752,6 @@ async function upsertSocialContact(
   if (error || !data) throw new Error("social_contact_create_failed");
   return data.id as string;
 }
+
+/** Backward-compatible transport entrypoint. Native events pass their own source. */
+export const ingestZernioInbound = ingestChannelInbound;

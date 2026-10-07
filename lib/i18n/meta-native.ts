@@ -351,4 +351,39 @@ export const META_NATIVE_ES: Record<string, { es: string }> = {
   "Como excluir os dados da conexão Meta": {
     es: "Cómo eliminar los datos de la conexión con Meta",
   },
+  "Mensagens no atendimento": { es: "Mensajes en atención" },
+  "Receba mensagens do Instagram e do Facebook no Inbox e responda dentro da janela permitida pela Meta.":
+    {
+      es: "Recibe mensajes de Instagram y Facebook en el Inbox y responde dentro del plazo permitido por Meta.",
+    },
+  "Consultando canais de atendimento…": { es: "Consultando canales de atención…" },
+  "Consultar atendimento novamente": { es: "Consultar atención de nuevo" },
+  "Recebimento habilitado. A primeira mensagem recebida aparecerá no Inbox.": {
+    es: "Recepción habilitada. El primer mensaje recibido aparecerá en el Inbox.",
+  },
+  "Recebimento pausado. O histórico permanece no Inbox.": {
+    es: "Recepción pausada. El historial permanece en el Inbox.",
+  },
+  "O recebimento precisa de atenção. Consulte o erro e tente habilitar novamente.": {
+    es: "La recepción necesita atención. Consulta el error e intenta habilitarla de nuevo.",
+  },
+  "Permissão de mensagens não concedida para esta conta. Reconecte e autorize o atendimento.": {
+    es: "No se concedió el permiso de mensajes para esta cuenta. Conecta de nuevo y autoriza la atención.",
+  },
+  "Pausar recebimento": { es: "Pausar recepción" },
+  "Receber no atendimento": { es: "Recibir en atención" },
+  "Reconectar para autorizar mensagens": { es: "Conectar de nuevo para autorizar mensajes" },
+  "Abrir Inbox": { es: "Abrir Inbox" },
+  "Escolha uma Página ou um Instagram para configurar o atendimento.": {
+    es: "Elige una Página o una cuenta de Instagram para configurar la atención.",
+  },
+  "Não foi possível confirmar o recebimento. Atualize o estado antes de tentar novamente.": {
+    es: "No se pudo confirmar la recepción. Actualiza el estado antes de volver a intentarlo.",
+  },
+  "Não foi possível consultar os canais de atendimento.": {
+    es: "No se pudieron consultar los canales de atención.",
+  },
+  "Receber mensagens no atendimento": { es: "Recibir mensajes en atención" },
+  "Pausando recebimento…": { es: "Pausando recepción…" },
+  "Habilitando atendimento…": { es: "Habilitando atención…" },
 };

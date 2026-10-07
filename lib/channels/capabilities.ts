@@ -24,6 +24,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     requiresTemplates: false,
     // Não há WABA por trás: não existe definição aprovada para gerir.
     canManageTemplates: false,
+    canSendAttachments: true,
     banRisk: true,
     minIntervalMs: null,
     voiceNote: "server-convert",
@@ -37,6 +38,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     // A Graph API cria e edita definições; o repo hoje só ESPELHA, e é essa
     // lacuna que a capability torna visível em vez de deixar implícita.
     canManageTemplates: true,
+    canSendAttachments: true,
     banRisk: false,
     minIntervalMs: 6000,
     voiceNote: "opus-only",
@@ -66,10 +68,22 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
   //
   // O detalhe que engana: mandar um template NÃO abre a janela. Só o cliente
   // abre, respondendo. Quem ler o 200 como "enviado" acha que funciona.
+  meta_social: {
+    freeformOutsideWindow: false,
+    requiresTemplates: false,
+    canManageTemplates: false,
+    canSendAttachments: false,
+    banRisk: false,
+    minIntervalMs: 1000,
+    voiceNote: "server-convert",
+    groups: "none",
+    costPerMessage: false,
+  },
   zernio_social: {
     freeformOutsideWindow: false,
     requiresTemplates: false,
     canManageTemplates: false,
+    canSendAttachments: true,
     banRisk: false,
     minIntervalMs: 1000,
     voiceNote: "server-convert",
@@ -80,6 +94,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     freeformOutsideWindow: false,
     requiresTemplates: true,
     canManageTemplates: true,
+    canSendAttachments: true,
     banRisk: false,
     minIntervalMs: 6000,
     voiceNote: "opus-only",
@@ -99,6 +114,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     freeformOutsideWindow: false,
     requiresTemplates: true,
     canManageTemplates: true,
+    canSendAttachments: true,
     banRisk: false,
     minIntervalMs: 6000,
     voiceNote: "opus-only",
@@ -152,6 +168,7 @@ export const PROVIDERS_DE_MENSAGEM = [
   "meta_cloud",
   "zernio",
   "zernio_social",
+  "meta_social",
   "datafy",
 ] as const satisfies readonly ProviderDeMensagem[];
 

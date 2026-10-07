@@ -1,7 +1,7 @@
 # Meta própria: login, anúncios e publicações no escreve.ai
 
-Status: **núcleo nativo publicado; callbacks de revogação/exclusão em QA. OAuth, publicação e anúncios reais ainda não comprovados**.
-Verificação de produção em 2026-10-06: app e worker executam `99792f820c8ec8929cbf34a11a5da2ca9f613acb`, com health `healthy`; deploy `37524021957`. A liberação para clientes externos depende das permissões da Meta e da demonstração real.
+Status: **núcleo nativo e privacidade publicados; mensageria manual em QA, sem deploy ou prova externa. Revisão Meta não enviada**.
+Verificação de produção em 2026-10-06: app e worker executam `1a79bbc1b82d016a1f7de1775e280d81255e2155`, com health `healthy`. Publicação real autorizada em [@saraiva.ai](https://www.instagram.com/p/DeLK7aclLGy/) confirmada. Campanha e conjunto pausados e criativo existem; anúncio não criado por erro 1359188, sem forma de pagamento. A liberação para clientes externos depende das permissões da Meta e da demonstração real.
 
 ## Resultado e limite da primeira entrega
 
@@ -9,7 +9,7 @@ O cliente conecta suas contas pelo app da instalação, escolhe os ativos da sua
 
 Hipótese comercial: reduzir o abandono entre produzir conteúdo/anúncio e iniciar atendimento rastreável. A régua deve separar conexão concluída, publicação confirmada, campanha pausada, campanha veiculada, conversa qualificada e venda. Não atribuir receita a uma conexão ou a um clique. A integração reutiliza a atribuição e o transporte de conversões existentes; não constrói outro CRM.
 
-A primeira entrega cobre Facebook Login for Business, seleção de Página/Instagram profissional associado/conta de anúncios, leitura de resultados, imagem/carrossel/Story Instagram conforme elegibilidade e uma campanha de tráfego com imagem e destino URL. Campanha, conjunto e anúncio começam pausados. A próxima onda cobre publicação em Página do Facebook, Reels e agendamento. Catálogos, Advantage+, públicos avançados, formulários instantâneos e atendimento/DM nativo não são dependências da primeira entrega.
+A primeira entrega cobre Facebook Login for Business, seleção de Página/Instagram profissional associado/conta de anúncios, leitura de resultados, imagem/carrossel/Story Instagram conforme elegibilidade e uma campanha de tráfego com imagem e destino URL. Campanha, conjunto e anúncio começam pausados. A próxima onda cobre publicação em Página do Facebook, Reels e agendamento. Catálogos, Advantage+, públicos avançados, formulários instantâneos e atendimento/DM nativo eram extensões do primeiro marco; a extensão manual descrita abaixo está em QA.
 
 Instagram Login independente é uma extensão do mesmo modelo de conexões: permite publicação profissional sem Página, mas não autoriza anúncios. A primeira entrega usa o login empresarial comum; não se anuncia suporte a conta pessoal ou a funções que a API não oferece.
 
@@ -21,7 +21,7 @@ Instagram Login independente é uma extensão do mesmo modelo de conexões: perm
 | Marketing API Access Tier                      | Acesso limitado; `ads_management` e `ads_read` aparecem como prontos para teste                                                                                            |
 | Instagram Login, análise anterior              | Permissões básicas, mensagens, publicação e comentários reprovadas; feedback pede demonstração completa de login, consentimento e resultado                                |
 | Facebook Login for Business                    | Configuração criada `2499860483845536`, token de usuário e sete permissões; callback `https://os.escreve.ai/api/v1/integrations/meta/callback` salvo e validado no console |
-| Código publicado na revisão base               | Conexão Facebook/Instagram e publicação Instagram passam pelo Zernio; caminho nativo implementado neste branch, ainda sem deploy                                           |
+| Código publicado na revisão base               | Conexão Facebook/Instagram e publicação Instagram passam pelo Zernio; retrato histórico anterior ao deploy nativo; núcleo agora publicado na revisão acima                                           |
 | Código Meta Ads                                | Token manual com `ads_read`; leitura de contas, campanhas e insights, sem criação/gestão                                                                                   |
 
 Os estados acima são um retrato desta data. Ser provedor verificado, ter app ativo, ter permissão aprovada, ter token válido e funcionar para um cliente externo são provas distintas.
@@ -186,11 +186,11 @@ Pacote Meta: ambiente acessível, conta de revisão restrita, instruções repro
 
 **Produção do vídeo em M4:** usar Computador para conduzir a jornada real e a captura da tela, Remotion para montagem e anotações, e ElevenLabs para narração sincronizada. Preservar a gravação original e o projeto editável; a edição mantém visíveis todos os passos de login, consentimento, seleção, ação e resultado. O roteiro descreve somente o comportamento gravado. Não fabricar telas ou resultados para substituir a implementação. Revisar imagem/áudio, legibilidade, sincronização e dados expostos antes da entrega; submissão à Meta é uma ação separada.
 
-Prontidão verificada em 2026-10-05: Remotion/ffmpeg disponíveis; captura de tela pelo Computador comprovada nas configurações Meta. Chave ElevenLabs dedicada restrita a TTS/vozes/modelos, 20.000 créditos e sete dias, com acesso a modelos/vozes confirmado e demais dados da conta negados. Em 2026-10-06, a narração de abertura foi gerada pela API ElevenLabs (MP3 de 24,75 s). O screencast da jornada e a montagem final ainda não foram produzidos. Nenhuma credencial está neste repositório.
+Prontidão verificada em 2026-10-05: Remotion/ffmpeg disponíveis; captura de tela pelo Computador comprovada nas configurações Meta. Chave ElevenLabs dedicada restrita a TTS/vozes/modelos, 20.000 créditos e sete dias, com acesso a modelos/vozes confirmado e demais dados da conta negados. Em 2026-10-06, a narração de abertura foi gerada pela API ElevenLabs (MP3 de 24,75 s). A captura contínua da jornada real tem 49,6 s e a montagem narrada está em QA; revisão Meta ainda não enviada. Nenhuma credencial está neste repositório.
 
 Rollout: capacidades da instalação desligadas por padrão → organização técnica elegível → piloto externo → expansão. Publicação e Ads têm habilitação independente. Rollback desliga novos caminhos e preserva registros; não reenvia operação por outro provedor nem apaga recibos/IDs. Desconectar não promete apagar publicações ou pausar anúncios na Meta.
 
-**Gate de deploy concreto:** a rotina IRB neste branch extrai 0415/0416 e contrato Meta da imagem worker da mesma revisão/digest. Rejeita schema parcial, dependências ausentes ou ACL/RLS incompatíveis antes de parar serviços; drena worker, aplica somente schema ausente em transação e preserva funções compatíveis já instaladas. Fixtures do deploy passaram 31 casos. Script revisado instalado no servidor em 2026-10-06, com hash conferido e cópia anterior preservada; aplicação real da 0416 ainda pendente. Entrega em produção exige CI da revisão, schema compatível, health/SHA, front autenticado e resultado externo aplicável.
+**Gate de deploy concreto:** a rotina IRB neste branch extrai 0415/0416 e contrato Meta da imagem worker da mesma revisão/digest. Rejeita schema parcial, dependências ausentes ou ACL/RLS incompatíveis antes de parar serviços; drena worker, aplica somente schema ausente em transação e preserva funções compatíveis já instaladas. Fixtures do deploy passaram 31 casos. Script revisado instalado no servidor em 2026-10-06, com hash conferido e cópia anterior preservada; núcleo e contrato de privacidade 0416/0417 aplicados em produção; contrato 0418 de mensageria permanece em QA. Entrega em produção exige CI da revisão, schema compatível, health/SHA, front autenticado e resultado externo aplicável.
 
 A execução/configuração/deploy e vídeo foram autorizados pelo usuário. A criação da credencial ElevenLabs recebeu confirmação específica. OAuth que amplia acesso exige o consentimento na tela oficial da Meta. Não há autorização para ativar anúncios ou gastar orçamento: esta entrega cria a hierarquia pausada. App Review externo ainda depende da decisão da Meta.
 
@@ -219,3 +219,59 @@ Evidência local atualizada em 2026-10-06: build completo aprovado e E2E de Cone
 - [Feedback observado da nossa análise](https://developers.facebook.com/apps/4407041089531183/app-review/submissions/feedback/?submission_id=4410034945898464) — demonstração incompleta do caso de uso.
 
 As referências são dependências a conferir novamente em M1/M4; a condição do nosso app foi observada no console nesta data, e nenhum número de chamada, prazo ou permissão futura é tratado como aprovação recebida.
+
+## Atendimento nativo — Direct e Messenger
+
+Destino: núcleo opcional; a operação comum permanece inteira sem ativação. O transporte
+`meta_social` reutiliza concessões selecionadas de `meta_connections`/`meta_asset_grants`;
+`channel_sessions` guarda referências, nunca cópias dos tokens. Não altera WhatsApp nem Zernio.
+
+`GET /api/v1/integrations/meta/messaging` devolve `channels` (id, asset_id, platform,
+status, last_error) e webhook_url, sem segredos. `POST` aceita somente
+`{action: "enable" | "disable", asset_id: UUID}` de admin, mesma origem e sessão atual.
+Instagram exige `instagram_basic`, `instagram_manage_messages`, `pages_manage_metadata`
+e tarefa `MODERATE`/`MESSAGING`/`MANAGE`; Messenger exige `pages_messaging`,
+`pages_manage_metadata` e tarefa MODERATE/MSG/MANAGE. Permissões granulares, concessão selecionada,
+expiração e app vigente são revalidados antes de toda resposta.
+
+Nesta modalidade Facebook Login, a ativação usa PageToken e `/{PAGE_ID}/subscribed_apps`, inclusive a Página vinculada ao Instagram. Faz consulta, assinatura idempotente e nova consulta de `subscribed_apps`, conforme [webhooks oficiais Messenger/Instagram](https://developers.facebook.com/documentation/business-messaging/messenger-platform/webhooks).
+`WORKING` significa assinatura confirmada; mensagem recebida real continua sendo prova
+externa separada. Instagram usa messages, messaging_postbacks e messaging_seen;
+Messenger usa messages, message_echoes, messaging_postbacks, message_deliveries e message_reads.
+Campos existentes são preservados. Desativar interrompe entrada/saída local sem excluir
+a assinatura da Página, que pode servir outro ativo autorizado no mesmo app.
+
+O callback `/api/v1/webhooks/meta-social` responde ao desafio com texto literal e verifica
+HMAC SHA256 do corpo antes de resolver `entry.id`. A única resolução global é uma RPC
+service-role que cruza ativo, organização, plataforma, concessão e conexão. A tabela
+recusa alterações nativas pelo browser; a chave global única impede destinos ambíguos.
+Mensagens, ecos e desfechos usam IDs `meta:<ativo>:<mid>` e o ledger da Inbox; ecos não
+abrem demanda nem disparam o agente. Instagram seen atualiza o mid; Messenger read
+atualiza por watermark somente os envios da conversa conhecida. Mensagem removida fica
+revogada e sem corpo. Postbacks, reações e admin_text não disparam atendimento automaticamente.
+
+A resposta passa pelo handler canônico de saída. O adapter exige uma conversa existente,
+texto e last_inbound_at válido dentro de 24 horas, além do corte beforeSend. Não há
+início de conversa, mídia de saída, tags de extensão humana ou reenvio automático de
+POST incerto. Anexo recebido aparece como indicação textual; persistência dos bytes não
+faz parte deste recorte e a ferramenta não promete a mídia.
+
+A migração 0418 interrompe canais quando concessões/conexões são revogadas. Ao remover
+uma conexão na cascata de privacidade, limpa os IDs/textos das mensagens e conversas
+nativas e as identidades opacas dos contatos/tombstones de fusões. O CRM independente
+permanece preservado, inclusive quando uma fusão tem somente uma conversa nativa. Há dívida de proveniência nos contextos derivados desses contatos fundidos:
+sem uma origem por fragmento, não é possível apagar somente o contexto derivado da Meta.
+Por isso a entrada nativa fica no Inbox manual: não dispara aplicarEfeitosPosEntrada,
+não cria leads derivados e não aciona agentes de IA.
+
+Sistema Vivo: entrada = webhook assinado; saída = messages/conversations → Inbox e
+atendimento manual do operador. Auditoria channel.messaging_enabled/disabled e
+metadata de falha aparecem em Conexões; mensagens/desfechos aparecem na timeline Inbox.
+Portas existentes Conexões e Inbox. Anti-morte é a conversa aberta/não lida no Inbox;
+roteamento e handoff humano permanecem; a janela fechada dá orientação humana para aguardar inbound.
+Retorno: delivered/read/falha alteram o ledger visível; autorização revogada interrompe
+operações futuras. Nenhuma decisão de responder foi acrescentada ao agente neste recorte.
+
+A fila privada de `channel.messaging_received` é restrita ao servidor: membros autenticados não leem o corpo pelo event log nem forjam entradas pelo emissor público. A entrada assinada persiste cada lote em `event_log` antes de confirmar HTTP; o dispatcher existente executa `native_messaging_v1`. O consumidor SQL transacional revalida concessão, alvos granulares e canal, deduplica mensagens e preserva a conversa após fusão manual de contatos. A limpeza da conexão apaga os payloads da fila e cópias derivadas, anonimiza somente mensagens/conversas dessa origem e preserva o CRM independente. O primeiro marco mantém atendimento manual: eventos nativos não disparam consumidores genéricos de IA ou criação de leads.
+
+Validação da mensageria em 2026-10-06: 13/13 invariantes aprovados em PostgreSQL 15 e 17, com instalação e reaplicação reais do baseline em ambas as versões. A prova inclui isolamento de proveniência, aceite durável e locks, idempotência sem duplicar não lidas, reapuração granular na fila, preservação do contato fundido, limpeza de payloads privados, ACL restritiva da fila, recusa de emissão pública forjada e rejeição de instalação parcial/ACL ou corpo de função incompatível. Testes não comprovam recepção/assinatura/resposta reais na Meta; mensageria permanece em QA até deploy e comprovação externa.

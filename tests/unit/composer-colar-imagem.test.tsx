@@ -30,6 +30,7 @@ vi.mock("@/hooks/inbox/useSendMessage", () => ({
 
 import { Composer } from "@/components/inbox/Composer";
 import { imagemDoClipboard } from "@/lib/inbox/clipboard-image";
+import { capabilitiesOf } from "@/lib/channels/capabilities";
 
 const CARIMBO = new Date("2026-08-07T19:26:03.000Z");
 
@@ -43,7 +44,9 @@ function clipboard(opts: { files?: File[]; items?: unknown[]; texto?: string }) 
     files: opts.files ?? [],
     items:
       opts.items ??
-      (opts.texto !== undefined ? [{ kind: "string", type: "text/plain", getAsFile: () => null }] : []),
+      (opts.texto !== undefined
+        ? [{ kind: "string", type: "text/plain", getAsFile: () => null }]
+        : []),
     getData: () => opts.texto ?? "",
   } as unknown as DataTransfer;
 }
@@ -99,7 +102,10 @@ describe("imagemDoClipboard", () => {
   });
 
   it("entende mime com parâmetro (image/png;charset=binary)", () => {
-    const r = imagemDoClipboard(clipboard({ files: [png("image.png", [1], "image/png;charset=binary")] }), CARIMBO);
+    const r = imagemDoClipboard(
+      clipboard({ files: [png("image.png", [1], "image/png;charset=binary")] }),
+      CARIMBO,
+    );
     expect(r).not.toBeNull();
   });
 });
@@ -148,7 +154,9 @@ describe("Composer — colar imagem", () => {
     renderComposer();
     fireEvent.click(screen.getByRole("button", { name: /anexar/i }));
     const inputDoc = document.querySelector('input[accept^=".pdf"]') as HTMLInputElement;
-    const doc = new File([new Uint8Array([1])], "contrato-assinado.pdf", { type: "application/pdf" });
+    const doc = new File([new Uint8Array([1])], "contrato-assinado.pdf", {
+      type: "application/pdf",
+    });
     fireEvent.change(inputDoc, { target: { files: [doc] } });
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
@@ -164,6 +172,53 @@ describe("Composer — colar imagem", () => {
     fireEvent.paste(campo(), { clipboardData: clipboard({ files: [png()] }) });
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("canal de texto não oferece anexo, contato ou áudio e ignora imagem colada", () => {
+    renderComposer({ canSendAttachments: capabilitiesOf("meta_social").canSendAttachments });
+    expect(screen.queryByRole("button", { name: /anexar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /gravar áudio/i })).not.toBeInTheDocument();
+    const seguiu = fireEvent.paste(campo(), { clipboardData: clipboard({ files: [png()] }) });
+    expect(seguiu).toBe(true);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  it("canal de texto preserva a resposta manual e o modo nota", () => {
+    renderComposer({ canSendAttachments: capabilitiesOf("meta_social").canSendAttachments });
+    fireEvent.change(campo(), { target: { value: "Resposta escrita pelo atendente" } });
+    fireEvent.click(screen.getByRole("button", { name: /^enviar$/i }));
+    expect(sendMock).toHaveBeenCalledWith(
+      { conversation_id: "conv-1", body: "Resposta escrita pelo atendente", type: "text" },
+      expect.anything(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /nota interna/i }));
+    expect(campo()).toBeEnabled();
+    expect(campo()).toHaveAttribute("placeholder", "Escreva uma nota interna… (só o time vê)");
+  });
+
+  it.each(["waha", "meta_cloud", "zernio", "zernio_social", "datafy"] as const)(
+    "%s conserva os controles de anexo e áudio pela capability canônica",
+    (provider) => {
+      renderComposer({ canSendAttachments: capabilitiesOf(provider).canSendAttachments });
+      expect(screen.getByRole("button", { name: /anexar/i })).toBeVisible();
+      expect(screen.getByRole("button", { name: /gravar áudio/i })).toBeVisible();
+    },
+  );
+
+  it("trocar para canal de texto fecha um preview anterior sem enviar o arquivo", async () => {
+    const view = renderComposer({ canSendAttachments: true });
+    fireEvent.paste(campo(), { clipboardData: clipboard({ files: [png()] }) });
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <Composer conversationId="conv-text" canSendAttachments={false} />
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(sendMock).not.toHaveBeenCalled();
   });
 });
 
