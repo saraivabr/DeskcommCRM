@@ -105,6 +105,7 @@ describe("native transport health", () => {
     mocks.request
       .mockResolvedValueOnce({
         data: [
+          { object: "user", active: true, callback_url: "https://legacy.example/user" },
           {
             object: "instagram",
             active: true,
@@ -144,6 +145,7 @@ describe("native transport health", () => {
   it("fails health on a live legacy callback without reading or mutating Page subscriptions", async () => {
     mocks.request.mockResolvedValue({
       data: [
+        { object: "user", active: true, callback_url: "https://legacy.example/user" },
         {
           object: "instagram",
           active: true,

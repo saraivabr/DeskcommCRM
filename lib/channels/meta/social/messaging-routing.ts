@@ -20,7 +20,7 @@ const routingSchema = z.object({
         object: z.string(),
         active: z.boolean(),
         callback_url: z.string(),
-        fields: z.array(z.object({ name: z.string() })),
+        fields: z.array(z.object({ name: z.string() })).default([]),
       }),
     )
     .max(200),
