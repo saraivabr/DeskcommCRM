@@ -55,6 +55,22 @@ const fields = [
   "message_deliveries",
   "message_reads",
 ];
+// Graph legitimately omits fields for unrelated subscriptions such as user.
+const unrelatedSubscriptions = [
+  { object: "user", active: true, callback_url: "https://legacy.example/user" },
+  {
+    object: "instagram",
+    active: true,
+    callback_url: "https://legacy.example/instagram",
+    fields: [{ name: "messages", version: "v24.0" }],
+  },
+  {
+    object: "whatsapp_business_account",
+    active: true,
+    callback_url: "https://legacy.example/whatsapp",
+    fields: [{ name: "messages", version: "v24.0" }],
+  },
+];
 function appSubscription(overrides: Record<string, unknown> = {}) {
   return {
     object: "page",
@@ -85,6 +101,13 @@ describe("native activation verifies the global callback before any channel or P
     { data: [] },
     { data: [appSubscription({ active: false })] },
     { data: [appSubscription({ fields: [{ name: "messages" }] })] },
+    {
+      data: [
+        ...unrelatedSubscriptions,
+        appSubscription({ callback_url: "https://legacy.example/page" }),
+      ],
+    },
+    { data: [...unrelatedSubscriptions, appSubscription({ fields: undefined })] },
   ])("fails closed for wrong, absent, inactive or incomplete destinations", async (response) => {
     mocks.request.mockResolvedValue(response);
     await expect(
@@ -106,7 +129,7 @@ describe("native activation verifies the global callback before any channel or P
   });
   it("only subscribes the Page after a current active canonical app callback and verifies the readback", async () => {
     mocks.request
-      .mockResolvedValueOnce({ data: [appSubscription()] })
+      .mockResolvedValueOnce({ data: [...unrelatedSubscriptions, appSubscription()] })
       .mockResolvedValueOnce({ data: [] })
       .mockResolvedValueOnce({ success: true })
       .mockResolvedValueOnce({ data: [{ id: "1", subscribed_fields: fields }] });
