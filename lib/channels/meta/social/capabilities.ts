@@ -7,6 +7,8 @@ export function capabilityFlags(app: MetaNativeApp): MetaCapabilities {
         ads_read: app.adsEnabled,
         ads_manage: app.adsEnabled,
         instagram_publish: app.instagramEnabled,
+        instagram_message: app.instagramEnabled,
+        facebook_message: true,
       }
     : { ...NONE };
 }
@@ -62,7 +64,24 @@ export function assetCapabilities(input: {
   const posts = input.tasks.some((task) =>
     ["CREATE_CONTENT", "MANAGE", "PROFILE_PLUS_CREATE_CONTENT"].includes(task),
   );
+  const messages = input.tasks.some((task) =>
+    ["MESSAGING", "MANAGE", "PROFILE_PLUS_MESSAGING"].includes(task),
+  );
   const capabilities = {
+    instagram_message:
+      input.kind === "instagram" &&
+      enabled.instagram_message === true &&
+      Boolean(input.parentPageExternalId) &&
+      (messages || input.tasks.includes("MODERATE")) &&
+      hasScope("instagram_basic") &&
+      hasScope("instagram_manage_messages") &&
+      hasScope("pages_manage_metadata"),
+    facebook_message:
+      input.kind === "page" &&
+      enabled.facebook_message === true &&
+      (messages || input.tasks.includes("MODERATE")) &&
+      hasScope("pages_messaging") &&
+      hasScope("pages_manage_metadata"),
     ads_read:
       input.kind === "ad_account" &&
       enabled.ads_read &&

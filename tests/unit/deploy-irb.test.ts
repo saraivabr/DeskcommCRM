@@ -80,6 +80,7 @@ if (args[0] === 'cp') {
   const source = args[1].split(':/app/')[1];
   if (source.includes('0416_meta_native_platform')) fail('native-migration');
   if (source.includes('0417_meta_privacy_lifecycle')) fail('privacy-migration');
+  if (source.includes('0418_meta_social_messaging')) fail('messaging-migration');
   fs.copyFileSync(path.join(process.env.IRB_REPO, source), args[2]);
   process.exit(0);
 }
@@ -105,16 +106,16 @@ if (args[0] === 'exec') {
     const sql = fs.readFileSync(0, 'utf8');
     fs.appendFileSync(path.join(dir, 'sql.txt'), sql);
     if (sql.startsWith('-- 0415 contract')) {
-      process.stdout.write(failure === 'incompatible' ? 'incompatible' : (failure === 'existing' || state.migration ? 'ready' : 'missing'));
+      process.stdout.write(failure === 'incompatible' ? 'incompatible' : (failure === 'existing' || failure.startsWith('messaging-') || state.migration ? 'ready' : 'missing'));
       process.exit(0);
     }
     if (sql.startsWith('-- 0416 contract:')) {
-      process.stdout.write(failure === 'native-incompatible' ? 'incompatible' : failure === 'native-dependencies' ? 'dependencies_missing' : (failure === 'existing' || failure === 'native-existing' || state.nativeMigration ? 'ready' : 'missing'));
+      process.stdout.write(failure === 'native-incompatible' ? 'incompatible' : failure === 'native-dependencies' ? 'dependencies_missing' : (failure === 'existing' || failure.startsWith('messaging-') || failure === 'native-existing' || state.nativeMigration ? 'ready' : 'missing'));
       process.exit(0);
     }
     if (sql.startsWith('-- 0417 contract:')) {
       const nativeReady = failure === 'existing' || failure === 'native-existing' || state.nativeMigration;
-      let result = failure === 'existing' || state.privacyMigration ? 'ready' : nativeReady ? 'missing' : 'dependencies_missing';
+      let result = failure === 'existing' || failure.startsWith('messaging-') || state.privacyMigration ? 'ready' : nativeReady ? 'missing' : 'dependencies_missing';
       if (failure === 'privacy-incompatible') result = 'incompatible';
       if (failure === 'privacy-partial') result = 'partial';
       if (failure === 'privacy-dependencies' && nativeReady) result = 'dependencies_missing';
@@ -122,11 +123,25 @@ if (args[0] === 'exec') {
       state.privacyChecks = [...(state.privacyChecks || []), {nativeReady, result}]; save();
       process.stdout.write(result); process.exit(0);
     }
+    if (sql.startsWith('-- 0418 deploy gate.')) {
+      const dependenciesReady = failure === 'existing' || failure.startsWith('messaging-') || state.privacyMigration;
+      let result = failure === 'existing' || failure === 'messaging-ready' || state.messagingMigration ? 'ready' : dependenciesReady ? 'missing' : 'dependencies_missing';
+      if (failure === 'messaging-partial') result = 'partial';
+      if (['messaging-incompatible', 'messaging-unsafe-acl', 'messaging-unknown-core-preflight'].includes(failure)) result = 'incompatible';
+      if (failure === 'messaging-dependencies') result = 'dependencies_missing';
+      if (failure === 'messaging-concurrent' && state.messagingChecks?.length) result = 'ready';
+      if (failure === 'messaging-recheck' && state.messagingMigration) result = 'incompatible';
+      state.messagingChecks = [...(state.messagingChecks || []), {dependenciesReady, result}]; save();
+      process.stdout.write(result); process.exit(0);
+    }
     if (sql.includes('create function public.fn_meta_app_configure')) {
       fail('native-sql'); state.nativeMigration = true; save();
     }
     if (sql.includes('create function public.fn_meta_privacy_request')) {
       fail('privacy-sql'); state.privacyMigration = true; save();
+    }
+    if (sql.includes('create function public.fn_meta_messaging_accept')) {
+      fail('messaging-sql'); fail('messaging-unknown-core'); state.messagingMigration = true; save();
     }
     if (sql.includes('create function public.automatico_da_prospeccao')) {
       fail('sql'); state.migration = true; save();
@@ -219,6 +234,12 @@ describe("IRB deploy executes the approved app and worker together", () => {
     "migration",
     "native-migration",
     "privacy-migration",
+    "messaging-migration",
+    "messaging-partial",
+    "messaging-incompatible",
+    "messaging-unsafe-acl",
+    "messaging-unknown-core-preflight",
+    "messaging-dependencies",
     "privacy-incompatible",
     "privacy-partial",
     "native-incompatible",
@@ -239,6 +260,10 @@ describe("IRB deploy executes the approved app and worker together", () => {
     "sql",
     "native-sql",
     "privacy-sql",
+    "messaging-sql",
+    "messaging-concurrent",
+    "messaging-unknown-core",
+    "messaging-recheck",
     "privacy-dependencies",
     "privacy-concurrent",
     "signal",
@@ -263,7 +288,7 @@ describe("IRB deploy executes the approved app and worker together", () => {
     if (["forced-stop", "graceful-timeout"].includes(failure))
       expect(proof.sql).not.toContain("create function public.automatico_da_prospeccao");
   });
-  it("extracts reviewed 0415, 0416 and 0417 without starting the container, drains the worker and preserves unrelated configuration", () => {
+  it("extracts reviewed 0415–0418 without starting the container, drains the worker and preserves unrelated configuration", () => {
     const proof = deployment();
     expect(proof.result.status, proof.result.stdout + proof.result.stderr).toBe(0);
     const expected = structuredClone(previous);
@@ -284,10 +309,17 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expect(proof.sql).toContain("create table public.meta_connections");
     expect(proof.state.nativeMigration).toBe(true);
     expect(proof.state.privacyMigration).toBe(true);
+    expect(proof.state.messagingMigration).toBe(true);
     expect(proof.sql).toContain("create function public.fn_meta_privacy_request");
     expect(proof.sql).toContain("create table public.meta_privacy_subjects");
     expect(proof.sql).not.toContain("create or replace function public.fn_meta_privacy_");
     expect(proof.sql).toContain("meta_privacy_known_core");
+    expect(proof.sql).toContain("create function public.fn_meta_messaging_accept");
+    expect(proof.sql).not.toContain("create or replace function public.fn_meta_messaging_");
+    expect(proof.sql).toContain("add column meta_social_asset_id");
+    expect(proof.sql).toContain(
+      "create unique index channel_sessions_meta_social_external_active_unique",
+    );
     expect(proof.sql).not.toContain("CREATE TABLE");
     expect(proof.calls.flat().some((arg) => /voice|scheduler/.test(arg))).toBe(false);
     expect(proof.state.worker).toBe(true);
@@ -313,6 +345,33 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expect(proof.sql).not.toContain("create function public.fn_meta_app_configure");
     expect(proof.sql).not.toContain("create table public.meta_connections");
     expect(proof.sql).toContain("create function public.fn_meta_privacy_request");
+  });
+  it("installs only missing messaging on a recovered database after draining, then checks ready before app handoff", () => {
+    const proof = deployment("messaging-missing");
+    expect(proof.result.status, proof.result.stdout + proof.result.stderr).toBe(0);
+    expect(proof.sql).toContain("create function public.fn_meta_messaging_accept");
+    expect(proof.sql).not.toContain("create function public.fn_meta_privacy_request");
+    expect(proof.sql).not.toContain("create function public.fn_meta_app_configure");
+    expect(proof.sql).not.toContain("create function public.automatico_da_prospeccao");
+    expect(proof.state.messagingChecks.map((check: { result: string }) => check.result)).toEqual([
+      "missing",
+      "missing",
+      "ready",
+    ]);
+    const stopped = proof.calls.findIndex((call) => call[0] === "stop");
+    const applied = proof.calls.findIndex((call) => call.includes("psql") && call.includes("-1"));
+    const appUp = proof.calls.findIndex((call) => call.includes("up") && call.includes("app"));
+    expect(stopped).toBeLessThan(applied);
+    expect(applied).toBeLessThan(appUp);
+    expect(proof.calls.filter((call) => call.includes("psql") && call.includes("-1"))).toHaveLength(
+      1,
+    );
+  });
+  it("preserves a ready messaging contract while installing no recovered schema", () => {
+    const proof = deployment("messaging-ready");
+    expect(proof.result.status, proof.result.stdout + proof.result.stderr).toBe(0);
+    expect(proof.sql).not.toContain("create or replace function");
+    expect(proof.calls.some((call) => call.includes("psql") && call.includes("-1"))).toBe(false);
   });
   it("reports a rollback failure instead of claiming services were restored", () => {
     const proof = deployment("rollback");

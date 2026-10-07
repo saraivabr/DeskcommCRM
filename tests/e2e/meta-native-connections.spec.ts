@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 // Auth e organização reais no Supabase local; somente o contrato Meta é
 // dublado. Este teste não demonstra OAuth, publicação ou anúncio na Meta.
 test.use({ channel: process.env.PLAYWRIGHT_CHANNEL });
-test("escolhe contas Meta explicitamente, comunica acesso parcial e reconexão", async ({
+test("escolhe contas Meta, habilita atendimento e comunica acesso parcial e reconexão", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -23,6 +23,7 @@ test("escolhe contas Meta explicitamente, comunica acesso parcial e reconexão",
   if (user.error) throw user.error;
   const actorId = user.data.user.id;
   let selected: string[] = [];
+  let receiving = false;
   let status = "selection_pending",
     checkedAt: string | null = null;
   const connection = () => ({
@@ -30,7 +31,13 @@ test("escolhe contas Meta explicitamente, comunica acesso parcial e reconexão",
     actor_name: "Empresa de teste",
     status,
     expires_at: "2030-01-01T00:00:00Z",
-    scopes: ["instagram_basic", "instagram_content_publish", "ads_read"],
+    scopes: [
+      "instagram_basic",
+      "instagram_content_publish",
+      "instagram_manage_messages",
+      "pages_manage_metadata",
+      "ads_read",
+    ],
     selected_asset_count: selected.length,
     reconnect_required: status === "revoked",
     checked_at: checkedAt,
@@ -50,7 +57,12 @@ test("escolhe contas Meta explicitamente, comunica acesso parcial e reconexão",
       currency: null,
       timezone: null,
       selected: selected.includes(instagramId),
-      capabilities: { ads_read: false, ads_manage: false, instagram_publish: true },
+      capabilities: {
+        ads_read: false,
+        ads_manage: false,
+        instagram_publish: true,
+        instagram_message: true,
+      },
       unavailable_reason: null,
     },
     {
@@ -66,10 +78,29 @@ test("escolhe contas Meta explicitamente, comunica acesso parcial e reconexão",
       unavailable_reason: "Criação de anúncios ainda não autorizada.",
     },
   ];
+  const messaging = () => ({
+    channels: receiving
+      ? [
+          {
+            id: "messaging-fixture",
+            asset_id: instagramId,
+            platform: "instagram",
+            status: "WORKING",
+            last_error: null,
+          },
+        ]
+      : [],
+  });
   await page.route("**/api/v1/integrations/meta**", async (route) => {
     const request = route.request(),
       path = new URL(request.url()).pathname;
-    if (request.method() === "POST" && path.endsWith("/assets")) {
+    if (path.endsWith("/messaging")) {
+      if (request.method() === "POST") {
+        expect(request.postDataJSON()).toEqual({ action: "enable", asset_id: instagramId });
+        receiving = true;
+      }
+      await route.fulfill({ json: { data: messaging() } });
+    } else if (request.method() === "POST" && path.endsWith("/assets")) {
       const body = request.postDataJSON();
       expect(body.connection_id).toBe(connectionId);
       expect(
@@ -144,6 +175,18 @@ test("escolhe contas Meta explicitamente, comunica acesso parcial e reconexão",
     await page.getByRole("button", { name: "Salvar contas escolhidas", exact: true }).click();
     await expect(page.getByText("2 contas escolhidas", { exact: true })).toBeVisible();
     await expect(page.getByText("Autorização válida", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Receber no atendimento Café da empresa" }).click();
+    await expect(page.getByRole("status", { name: "Resultado da conexão" })).toHaveText(
+      "Recebimento habilitado. A primeira mensagem recebida aparecerá no Inbox.",
+    );
+    await expect(page.getByRole("link", { name: "Abrir Inbox", exact: true })).toHaveAttribute(
+      "href",
+      "/app/inbox",
+    );
+    await page.screenshot({
+      path: ".superpowers/evidence/meta-native/e2e-messaging-enabled.png",
+      fullPage: true,
+    });
     await page.getByRole("button", { name: "Verificar conexão Empresa de teste" }).click();
     await expect(page.getByText("Autorização retirada", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Reconectar Empresa de teste" })).toBeVisible();

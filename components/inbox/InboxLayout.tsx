@@ -4,6 +4,11 @@ import { useT } from "@/hooks/i18n/useT";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { fonteDeTemplates } from "@/lib/channels/templates-fonte";
+import {
+  capabilitiesOf,
+  transportaMensagem,
+  type ChannelProvider,
+} from "@/lib/channels/capabilities";
 import { estadoDaJanela, formatarDecorrido } from "@/lib/channels/janela";
 import { JanelaFechadaAviso } from "@/components/inbox/JanelaFechadaAviso";
 import { NumeroForaDoAr } from "@/components/inbox/NumeroForaDoAr";
@@ -334,6 +339,9 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
     : selectedConversation?.contacts?.is_anonymized
       ? t("Contato anonimizado — não é possível enviar mensagens.")
       : null;
+  const provider = selectedConversation?.channel_sessions?.provider;
+  const canSendAttachments =
+    transportaMensagem(provider) && capabilitiesOf(provider as ChannelProvider).canSendAttachments;
 
   // Altura da grade: a conta desconta TUDO que fica acima e abaixo dela.
   //   3.5rem            TopBar (`h-14`, em components/shell/TopBar.tsx)
@@ -531,6 +539,7 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
                 respondendo={respondendo}
                 onCancelarResposta={() => setRespondendo(null)}
                 currentContactId={selectedConversation.contact_id}
+                canSendAttachments={canSendAttachments}
               />
             </>
           ) : selectionNotFound ? (

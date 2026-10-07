@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,176 @@ function availableActions(capabilities: MetaCapabilities): string[] {
     ...(capabilities.instagram_publish ? ["Publicar no Instagram"] : []),
     ...(capabilities.ads_read ? ["Consultar anúncios"] : []),
     ...(capabilities.ads_manage ? ["Gerenciar anúncios"] : []),
+    ...(capabilities.instagram_message || capabilities.facebook_message
+      ? ["Receber mensagens no atendimento"]
+      : []),
   ];
+}
+
+interface MessagingState {
+  channels: {
+    id: string;
+    asset_id: string;
+    platform: "instagram" | "facebook";
+    status: string;
+    last_error: string | null;
+  }[];
+}
+
+function MetaMessaging({
+  connectionId,
+  orgId,
+  readonly,
+  busy,
+  processingAssetId,
+  onChange,
+  onReconnect,
+}: {
+  connectionId: string;
+  orgId: string | undefined;
+  readonly: boolean;
+  busy: boolean;
+  processingAssetId: string | null;
+  onChange: (assetId: string, action: "enable" | "disable") => void;
+  onReconnect: () => void;
+}) {
+  const t = useT();
+  const assets = useQuery({
+    queryKey: ["meta-native-assets", orgId, connectionId],
+    queryFn: async () =>
+      (
+        await apiClient.get<{ data: { assets: MetaNativeAsset[] } }>(
+          `${API}/assets?connection_id=${encodeURIComponent(connectionId)}`,
+        )
+      ).data,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const messaging = useQuery({
+    queryKey: ["meta-native-messaging", orgId],
+    queryFn: async () => {
+      const response = await apiClient.get<{ data: MessagingState }>(`${API}/messaging`);
+      if (!Array.isArray(response.data.channels))
+        throw new Error("Não foi possível consultar os canais de atendimento.");
+      return { channels: response.data.channels };
+    },
+    retry: false,
+  });
+  const selected = assets.data?.assets.filter(
+    (asset) => asset.selected && (asset.kind === "page" || asset.kind === "instagram"),
+  );
+  return (
+    <div className="mt-4 space-y-3 border-t pt-4">
+      <h4 className="font-medium">{t("Mensagens no atendimento")}</h4>
+      <p className="text-sm leading-6 text-muted-foreground">
+        {t(
+          "Receba mensagens do Instagram e do Facebook no Inbox e responda dentro da janela permitida pela Meta.",
+        )}
+      </p>
+      {(assets.isPending || messaging.isPending) && (
+        <p role="status">{t("Consultando canais de atendimento…")}</p>
+      )}
+      {(assets.error || messaging.error) && (
+        <div className="space-y-2">
+          <p role="alert" className="text-sm text-destructive">
+            {t(errorMessage(assets.error ?? messaging.error))}
+          </p>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => {
+              void assets.refetch();
+              void messaging.refetch();
+            }}
+          >
+            {t("Consultar atendimento novamente")}
+          </Button>
+        </div>
+      )}
+      {assets.isSuccess &&
+        messaging.isSuccess &&
+        selected?.map((asset) => {
+          const channel = messaging.data.channels.find((item) => item.asset_id === asset.id);
+          const active = channel?.status === "WORKING";
+          const permitted =
+            asset.kind === "instagram"
+              ? asset.capabilities.instagram_message === true
+              : asset.capabilities.facebook_message === true;
+          return (
+            <div key={asset.id} className="space-y-2 rounded-lg border p-3">
+              <p className="font-medium break-words">
+                {t(assetLabel(asset.kind))} · {asset.name}
+              </p>
+              {active ? (
+                <p className="text-sm text-muted-foreground">
+                  {t("Recebimento habilitado. A primeira mensagem recebida aparecerá no Inbox.")}
+                </p>
+              ) : channel?.status === "STOPPED" ? (
+                <p className="text-sm text-muted-foreground">
+                  {t("Recebimento pausado. O histórico permanece no Inbox.")}
+                </p>
+              ) : channel ? (
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "O recebimento precisa de atenção. Consulte o erro e tente habilitar novamente.",
+                  )}
+                </p>
+              ) : null}
+              {channel?.last_error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {t(channel.last_error)}
+                </p>
+              )}
+              {!permitted && (
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "Permissão de mensagens não concedida para esta conta. Reconecte e autorize o atendimento.",
+                  )}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={
+                    t(active ? "Pausar recebimento" : "Receber no atendimento") + " " + asset.name
+                  }
+                  disabled={busy || readonly || (!active && !permitted)}
+                  onClick={() => onChange(asset.id, active ? "disable" : "enable")}
+                >
+                  {t(active ? "Pausar recebimento" : "Receber no atendimento")}
+                </Button>
+                {!permitted && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy || readonly}
+                    onClick={onReconnect}
+                  >
+                    {t("Reconectar para autorizar mensagens")}
+                  </Button>
+                )}
+                {channel && (
+                  <Button asChild size="sm" variant="ghost">
+                    <Link href="/app/inbox">{t("Abrir Inbox")}</Link>
+                  </Button>
+                )}
+              </div>
+              {processingAssetId === asset.id && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {t(active ? "Pausando recebimento…" : "Habilitando atendimento…")}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      {assets.isSuccess && selected?.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          {t("Escolha uma Página ou um Instagram para configurar o atendimento.")}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function AssetSelectionForm({
@@ -354,6 +524,28 @@ export function MetaNativeClient() {
           : "Verificação concluída. Esta autorização precisa de atenção; confira o estado e reconecte quando solicitado.",
       );
     });
+  const changeMessaging = (assetId: string, action: "enable" | "disable") =>
+    perform(`messaging:${assetId}`, async () => {
+      if (readonly) return;
+      const response = await apiClient.post<{ data: MessagingState }>(`${API}/messaging`, {
+        action,
+        asset_id: assetId,
+      });
+      const channel = response.data.channels?.find((item) => item.asset_id === assetId);
+      if (!channel || channel.status !== (action === "enable" ? "WORKING" : "STOPPED")) {
+        await client.invalidateQueries({ queryKey: ["meta-native-messaging", orgId] });
+        throw new Error(
+          "Não foi possível confirmar o recebimento. Atualize o estado antes de tentar novamente.",
+        );
+      }
+      client.setQueryData(["meta-native-messaging", orgId], { channels: response.data.channels });
+      await client.invalidateQueries({ queryKey: ["channel-sessions"] });
+      setNotice(
+        action === "enable"
+          ? "Recebimento habilitado. A primeira mensagem recebida aparecerá no Inbox."
+          : "Recebimento pausado. O histórico permanece no Inbox.",
+      );
+    });
 
   return (
     <section aria-labelledby="meta-native-heading" className="flex flex-col gap-4">
@@ -518,6 +710,19 @@ export function MetaNativeClient() {
                 busy={working}
                 onSave={(ids) => void saveAssets(connection.id, ids)}
                 onClose={() => setEditing(null)}
+              />
+            )}
+            {!reconnect && connection.selected_asset_count > 0 && (
+              <MetaMessaging
+                connectionId={connection.id}
+                orgId={orgId}
+                readonly={readonly}
+                busy={working}
+                processingAssetId={
+                  busy?.startsWith("messaging:") ? busy.slice("messaging:".length) : null
+                }
+                onChange={(assetId, action) => void changeMessaging(assetId, action)}
+                onReconnect={() => void start()}
               />
             )}
           </Card>

@@ -30,7 +30,8 @@ const grantSchema = z.object({
   permissions: z.array(z.string()),
   page_access_token_encrypted: z.string().nullable(),
 });
-export type MetaAssetCapability = "ads_read" | "ads_manage" | "instagram_publish";
+export type MetaAssetCapability =
+  "ads_read" | "ads_manage" | "instagram_publish" | "instagram_message" | "facebook_message";
 export interface ResolvedMetaAsset {
   app: Awaited<ReturnType<typeof getPlatformMetaAppNative>>;
   connectionId: string;
@@ -133,7 +134,7 @@ export async function resolveSelectedMetaAsset(
   });
   if (!capabilities.capabilities[capability]) throw unavailable();
   let token: string;
-  if (capability === "instagram_publish") {
+  if (capability === "instagram_publish" || capability === "instagram_message") {
     // Facebook Login publishing uses the Page token for this Instagram account's parent Page.
     const { data: parentGrant, error } = await db
       .from("meta_asset_grants")
@@ -146,6 +147,11 @@ export async function resolveSelectedMetaAsset(
     if (error) throw dbFailure();
     if (!parentGrant?.page_access_token_encrypted) throw unavailable();
     const clear = await decryptWebhookSecret(db, parentGrant.page_access_token_encrypted);
+    if (!clear) throw unavailable();
+    token = clear;
+  } else if (capability === "facebook_message") {
+    if (!grant.page_access_token_encrypted) throw unavailable();
+    const clear = await decryptWebhookSecret(db, grant.page_access_token_encrypted);
     if (!clear) throw unavailable();
     token = clear;
   } else token = await store.token(connection);

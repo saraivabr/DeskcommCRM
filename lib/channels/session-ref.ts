@@ -15,6 +15,7 @@ export type ChannelSessionRef =
   | { provider: "waha"; waha_session_name: string }
   | { provider: "meta_cloud"; meta_phone_number_id: string }
   | { provider: "zernio" | "zernio_social"; zernio_account_id: string }
+  | { provider: "meta_social"; meta_social_external_id: string }
   | { provider: "datafy"; datafy_phone_number_id: string };
 
 /**
@@ -23,10 +24,12 @@ export type ChannelSessionRef =
  * nomeia coluna de provider, e ela some da feature junto com a decisão.
  */
 export const CHANNEL_SESSION_REF_COLUMNS =
-  "provider, waha_session_name, meta_phone_number_id, zernio_account_id, datafy_phone_number_id";
+  "provider, waha_session_name, meta_phone_number_id, zernio_account_id, datafy_phone_number_id, meta_social_external_id";
 
 export function resolveSessionRef(session: ChannelSessionRef): string {
   switch (session.provider) {
+    case "meta_social":
+      return session.meta_social_external_id;
     case "meta_cloud":
       return session.meta_phone_number_id;
     // O `phone_number_id` da WABA, como no canal oficial — mas pela coluna do

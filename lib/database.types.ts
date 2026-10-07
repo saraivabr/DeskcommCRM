@@ -3992,6 +3992,9 @@ export type Database = {
           is_warmup_complete: boolean | null
           last_health_check_at: string | null
           last_status_change_at: string
+          meta_social_asset_id: string | null
+          meta_social_connection_id: string | null
+          meta_social_external_id: string | null
           meta_phone_number_id: string | null
           meta_token_encrypted: string | null
           meta_waba_id: string | null
@@ -4028,6 +4031,9 @@ export type Database = {
           is_warmup_complete?: boolean | null
           last_health_check_at?: string | null
           last_status_change_at?: string
+          meta_social_asset_id?: string | null
+          meta_social_connection_id?: string | null
+          meta_social_external_id?: string | null
           meta_phone_number_id?: string | null
           meta_token_encrypted?: string | null
           meta_waba_id?: string | null
@@ -4064,6 +4070,9 @@ export type Database = {
           is_warmup_complete?: boolean | null
           last_health_check_at?: string | null
           last_status_change_at?: string
+          meta_social_asset_id?: string | null
+          meta_social_connection_id?: string | null
+          meta_social_external_id?: string | null
           meta_phone_number_id?: string | null
           meta_token_encrypted?: string | null
           meta_waba_id?: string | null
@@ -10024,6 +10033,9 @@ export type Database = {
       }
     }
     Functions: {
+      fn_meta_messaging_resolve_entry: { Args: {p_external_id:string;p_platform:string}; Returns: Json }
+      fn_meta_messaging_accept: {Args:{p_envelope:Json};Returns:number}
+      fn_meta_messaging_ingest: {Args:{p_event_id:string};Returns:boolean}
       fn_meta_privacy_subject_hash: {
         Args: { p_app_id: string; p_remote_actor_id: string }
         Returns: string

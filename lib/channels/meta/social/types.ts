@@ -4,6 +4,8 @@ export const metaCapabilitiesSchema = z.object({
   ads_read: z.boolean(),
   ads_manage: z.boolean(),
   instagram_publish: z.boolean(),
+  instagram_message: z.boolean().optional(),
+  facebook_message: z.boolean().optional(),
 });
 export type MetaCapabilities = z.infer<typeof metaCapabilitiesSchema>;
 export const metaAssetKindSchema = z.enum(["page", "instagram", "ad_account"]);
@@ -110,4 +112,16 @@ export class MetaIntegrationError extends Error {
     super(message);
     this.name = "MetaIntegrationError";
   }
+}
+
+export interface MetaMessagingChannelDTO {
+  id: string;
+  asset_id: string;
+  platform: "instagram" | "facebook";
+  status: string;
+  last_error: string | null;
+}
+export interface MetaMessagingStatusDTO {
+  channels: MetaMessagingChannelDTO[];
+  webhook_url: string;
 }

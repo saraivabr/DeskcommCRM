@@ -17,7 +17,14 @@ import {
   type ProviderDeMensagem,
 } from "@/lib/channels/capabilities";
 
-const PROVIDERS = ["waha", "meta_cloud", "zernio", "zernio_social", "datafy"] as const satisfies readonly ProviderDeMensagem[];
+const PROVIDERS = [
+  "waha",
+  "meta_cloud",
+  "zernio",
+  "zernio_social",
+  "meta_social",
+  "datafy",
+] as const satisfies readonly ProviderDeMensagem[];
 
 /**
  * Esquecer um provider aqui passa a ser erro de COMPILAÇÃO.
@@ -34,6 +41,7 @@ const CAPABILITIES = [
   "freeformOutsideWindow",
   "requiresTemplates",
   "canManageTemplates",
+  "canSendAttachments",
   "banRisk",
   "minIntervalMs",
   "voiceNote",
@@ -55,6 +63,13 @@ describe("matriz capability × provider é exaustiva", () => {
       for (const key of Object.keys(CHANNEL_CAPABILITIES[p])) {
         expect(CAPABILITIES as readonly string[]).toContain(key);
       }
+    }
+  });
+
+  it("native manual Inbox is text-only while existing messaging channels retain attachments", () => {
+    expect(capabilitiesOf("meta_social").canSendAttachments).toBe(false);
+    for (const provider of PROVIDERS.filter((item) => item !== "meta_social")) {
+      expect(capabilitiesOf(provider).canSendAttachments).toBe(true);
     }
   });
 

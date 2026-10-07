@@ -9,7 +9,8 @@ import type { OutboundMedia } from "@/lib/waha/media-send";
 
 export type { OutboundMedia };
 
-export type ChannelProvider = "waha" | "meta_cloud" | "zernio" | "zernio_social" | "wacalls" | "datafy";
+export type ChannelProvider =
+  "waha" | "meta_cloud" | "zernio" | "zernio_social" | "meta_social" | "wacalls" | "datafy";
 
 /**
  * Os providers que transportam MENSAGEM — o subconjunto sobre o qual a matriz
@@ -45,6 +46,8 @@ export interface ChannelCapabilities {
    * teria que perguntar QUAL canal é — que é o que o invariante 1 proíbe.
    */
   canManageTemplates: boolean;
+  /** Transporte implementa envio de arquivos, áudio e contatos; false mantém composer só texto. */
+  canSendAttachments: boolean;
   /** Há risco de banimento por volume/padrão → arma throttle, warm-up e cap. */
   banRisk: boolean;
   /** Intervalo mínimo imposto PELA PLATAFORMA entre msgs ao mesmo destinatário (ms). */
@@ -196,10 +199,12 @@ export interface ChannelAdapter {
    * A URL devolvida costuma ser ASSINADA E TEMPORÁRIA (no WhatsApp, ~9 dias
    * medidos). Quem chama deve BAIXAR e persistir, nunca guardar a URL.
    */
-  fetchProfilePictureUrl?(input: ChannelTenantScope & {
-    sessionRef: string;
-    recipient: string;
-  }): Promise<string | null>;
+  fetchProfilePictureUrl?(
+    input: ChannelTenantScope & {
+      sessionRef: string;
+      recipient: string;
+    },
+  ): Promise<string | null>;
 
   /**
    * Todas as formas sob as quais ESTE canal pode ter registrado a MESMA mensagem
@@ -282,10 +287,12 @@ export interface ChannelAdapter {
    * de quem chama (o indicador é decoração; a mensagem é o produto), e engolir
    * aqui esconderia de todo chamador futuro que a chamada nem chega.
    */
-  signalTyping?(input: ChannelTenantScope & {
-    sessionRef: string;
-    recipient: string;
-  }): Promise<void>;
+  signalTyping?(
+    input: ChannelTenantScope & {
+      sessionRef: string;
+      recipient: string;
+    },
+  ): Promise<void>;
 
   /**
    * A conexão está de pé AGORA? Pergunta feita ao transporte, não ao banco.
@@ -343,6 +350,7 @@ export interface ChannelAdapter {
    * OPCIONAL: canal sem mídia de entrada não implementa, e quem chama testa a
    * presença em vez de perguntar quem é.
    */
+  // prettier-ignore
   fetchInboundMedia?(input: ChannelTenantScope & {
     sessionRef: string;
     /** A URL como o provider a anunciou. Cada canal sabe o que fazer com ela. */
@@ -351,16 +359,18 @@ export interface ChannelAdapter {
     hintMime?: string | null;
   }): Promise<FetchedMedia>;
 
-  sendTemplate?(input: ChannelTenantScope & {
-    beforeSend?: () => Promise<void>;
-    sessionRef: string;
-    to: string;
-    providerConversationId?: string | null;
-    name: string;
-    language: string;
-    /** Valores dos `{{n}}`, na ordem em que a definição os declara. */
-    values: Record<string, string>;
-  }): Promise<{ externalId: string | null }>;
+  sendTemplate?(
+    input: ChannelTenantScope & {
+      beforeSend?: () => Promise<void>;
+      sessionRef: string;
+      to: string;
+      providerConversationId?: string | null;
+      name: string;
+      language: string;
+      /** Valores dos `{{n}}`, na ordem em que a definição os declara. */
+      values: Record<string, string>;
+    },
+  ): Promise<{ externalId: string | null }>;
 }
 
 /** O que o transporte respondeu quando perguntamos se está de pé. */
@@ -405,11 +415,13 @@ export interface ChannelTemplateOps {
    * edição joga o template de volta para revisão. Quem chama não precisa saber
    * disso; a plataforma recusa e o erro sobe com o código dela.
    */
-  update(input: ChannelTenantScope & {
-    sessionRef: string;
-    name: string;
-    patch: Partial<Pick<ChannelTemplateDraft, "components" | "category">>;
-  }): Promise<ChannelTemplate>;
+  update(
+    input: ChannelTenantScope & {
+      sessionRef: string;
+      name: string;
+      patch: Partial<Pick<ChannelTemplateDraft, "components" | "category">>;
+    },
+  ): Promise<ChannelTemplate>;
   remove(
     input: ChannelTenantScope & { sessionRef: string; name: string; language?: string },
   ): Promise<void>;

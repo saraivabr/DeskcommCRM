@@ -118,6 +118,10 @@ privacy_migration="$workdir/0417.sql"
 privacy_contract="$workdir/0417-contract.sql"
 docker cp "$extract_container:/app/supabase/migrations/20261006193000_0417_meta_privacy_lifecycle.sql" "$privacy_migration"
 docker cp "$extract_container:/app/scripts/deploy-meta-privacy-contract.sql" "$privacy_contract"
+messaging_migration="$workdir/0418.sql"
+messaging_contract="$workdir/0418-contract.sql"
+docker cp "$extract_container:/app/supabase/migrations/20261006223000_0418_meta_social_messaging.sql" "$messaging_migration"
+docker cp "$extract_container:/app/scripts/deploy-meta-messaging-contract.sql" "$messaging_contract"
 docker rm "$extract_container" >/dev/null
 extract_container=''
 [[ -s "$migration" ]] || exit 1
@@ -129,6 +133,11 @@ grep -q '^-- 0416 contract:' "$native_contract"
 [[ -s "$privacy_migration" && -s "$privacy_contract" ]] || exit 1
 grep -q '^create or replace function public.fn_meta_privacy_request(' "$privacy_migration"
 grep -q '^-- 0417 contract:' "$privacy_contract"
+[[ -s "$messaging_migration" && -s "$messaging_contract" ]] || exit 1
+grep -q '^-- 0418 ' "$messaging_migration"
+grep -q '^do \$meta_messaging_known_core\$$' "$messaging_migration"
+grep -q '^create or replace function public.fn_meta_messaging_accept(' "$messaging_migration"
+grep -q '^-- 0418 deploy gate\.' "$messaging_contract"
 
 migration_state() {
   docker exec -i escreveai-db psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres <<'CONTRACT'
@@ -175,6 +184,16 @@ privacy_schema_state=$(privacy_migration_state)
   echo 'Meta privacy schema is partial, incompatible or missing prerequisites; live services preserved' >&2
   exit 1
 }
+messaging_migration_state() {
+  docker exec -i escreveai-db psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres < "$messaging_contract"
+}
+messaging_schema_state=$(messaging_migration_state)
+[[ "$messaging_schema_state" = missing || "$messaging_schema_state" = ready ||
+  ( "$messaging_schema_state" = dependencies_missing &&
+    ( "$native_schema_state" = missing || "$privacy_schema_state" = missing || "$privacy_schema_state" = dependencies_missing ) ) ]] || {
+  echo 'Meta messaging schema is partial, incompatible or missing prerequisites; live services preserved' >&2
+  exit 1
+}
 
 # All failures from this point, including a signal during stop/SQL/up/health,
 # restore BOTH images and the worker's original running state.
@@ -213,6 +232,19 @@ if [[ "$privacy_schema_state" != ready ]]; then
   docker exec -i escreveai-db psql -X -1 -v ON_ERROR_STOP=1 -U postgres -d postgres < "$workdir/install-0417.sql"
 fi
 [[ "$(privacy_migration_state)" = ready ]] || exit 1
+if [[ "$messaging_schema_state" != ready ]]; then
+  # Dependencies may have just been installed. Reject any concurrent adoption
+  # or partial schema before touching the shared Inbox contracts.
+  [[ "$(messaging_migration_state)" = missing ]] || exit 1
+  # NEW helpers/columns/indexes must fail on a concurrent installation. The
+  # existing event emitter is upgraded only by the migration's known-body gate.
+  sed -e 's/^create or replace function public.fn_meta_messaging_/create function public.fn_meta_messaging_/' \
+      -e 's/add column if not exists meta_social_/add column meta_social_/' \
+      -e 's/^create unique index if not exists channel_sessions_meta_social_/create unique index channel_sessions_meta_social_/' \
+    "$messaging_migration" > "$workdir/install-0418.sql"
+  docker exec -i escreveai-db psql -X -1 -v ON_ERROR_STOP=1 -U postgres -d postgres < "$workdir/install-0418.sql"
+fi
+[[ "$(messaging_migration_state)" = ready ]] || exit 1
 docker exec escreveai-db psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "notify pgrst, 'reload schema';"
 python3 - "$compose" "$tag" "$app_ref" "$worker_ref" <<'CONFIG'
 import json, os, sys

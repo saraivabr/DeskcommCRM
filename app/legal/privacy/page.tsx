@@ -126,7 +126,7 @@ export default async function PrivacyPage() {
         <h2 className="text-base font-semibold">{t("Dados da conexão Meta")}</h2>
         <p>
           {t(
-            "Ao conectar Facebook ou Instagram, esta instalação recebe a identificação da autorização, as contas permitidas e os dados necessários para publicar e acompanhar campanhas. Você pode solicitar a exclusão dos dados locais recebidos por essa autorização.",
+            "Ao conectar Facebook ou Instagram, esta instalação recebe a identificação da autorização, as contas permitidas e os dados necessários para publicar e acompanhar campanhas. Se você habilitar o atendimento, também recebe os identificadores e o conteúdo das mensagens necessárias para receber e responder às conversas autorizadas na caixa de atendimento. Você pode solicitar a exclusão dos dados locais recebidos por essa autorização.",
           )}
         </p>
         <Link
