@@ -6,6 +6,7 @@ import { resolveSelectedMetaAsset } from "./operations";
 import { messagingSession, META_SOCIAL_PROVIDER } from "./messaging-store";
 import { MetaIntegrationError } from "./types";
 import { metaMessageId } from "./messaging-events";
+import { assertNativeMessagingRouting, messagingRequiredFields } from "./messaging-routing";
 
 export const metaSocialAdapter: ChannelAdapter = {
   provider: META_SOCIAL_PROVIDER,
@@ -82,6 +83,9 @@ export const metaSocialAdapter: ChannelAdapter = {
         session.metadata.social_platform === "instagram" ? "instagram_message" : "facebook_message",
         session.meta_social_connection_id,
       );
+      const platform = session.metadata.social_platform === "instagram" ? "instagram" : "facebook";
+      const graph = new MetaGraphClient(resolved.app);
+      await assertNativeMessagingRouting(graph, resolved.app, platform);
       const target =
         resolved.asset.kind === "instagram"
           ? resolved.asset.parent_page_external_id!
@@ -92,14 +96,13 @@ export const metaSocialAdapter: ChannelAdapter = {
             z.object({ id: z.string(), subscribed_fields: z.array(z.string()).optional() }),
           ),
         })
-        .parse(
-          await new MetaGraphClient(resolved.app).request(
-            `${target}/subscribed_apps`,
-            resolved.token,
-          ),
-        );
+        .parse(await graph.request(`${target}/subscribed_apps`, resolved.token));
       const active = response.data.some(
-        (item) => item.id === resolved.app.appId && item.subscribed_fields?.includes("messages"),
+        (item) =>
+          item.id === resolved.app.appId &&
+          messagingRequiredFields(platform).every((field) =>
+            item.subscribed_fields?.includes(field),
+          ),
       );
       return {
         reachable: true,
@@ -107,6 +110,11 @@ export const metaSocialAdapter: ChannelAdapter = {
         detail: active ? null : "recebimento_nao_configurado",
       };
     } catch (error) {
+      if (
+        error instanceof MetaIntegrationError &&
+        error.code === "meta_messaging_callback_mismatch"
+      )
+        return { reachable: true, status: "FAILED", detail: "callback_nao_configurado" };
       if (
         error instanceof MetaIntegrationError &&
         [

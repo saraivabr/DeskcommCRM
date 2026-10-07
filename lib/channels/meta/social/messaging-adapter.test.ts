@@ -22,6 +22,7 @@ vi.mock("./messaging-store", () => ({
   META_SOCIAL_PROVIDER: "meta_social",
   messagingSession: mocks.session,
 }));
+vi.mock("./api", () => ({ metaPublicOrigin: () => "https://produto.example" }));
 vi.mock("./operations", () => ({ resolveSelectedMetaAsset: mocks.resolve }));
 vi.mock("./graph", () => ({
   MetaGraphClient: class {
@@ -48,7 +49,7 @@ beforeEach(() => {
     metadata: { social_platform: "instagram" },
   });
   mocks.resolve.mockResolvedValue({
-    app: { appId: "1" },
+    app: { appId: "1", appSecret: "app-secret" },
     asset: { external_id: "10" },
     token: "private-token",
   });
@@ -99,13 +100,78 @@ describe("native replies through canonical outbound envelope", () => {
 });
 
 describe("native transport health", () => {
+  it("reports WORKING only with the active canonical Instagram callback and all Page fields", async () => {
+    const fields = ["messages", "messaging_postbacks", "messaging_seen"];
+    mocks.request
+      .mockResolvedValueOnce({
+        data: [
+          {
+            object: "instagram",
+            active: true,
+            callback_url: "https://produto.example/api/v1/webhooks/meta-social",
+            fields: fields.map((name) => ({ name })),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ data: [{ id: "1", subscribed_fields: fields }] });
+    await expect(
+      metaSocialAdapter.checkHealth!({ organizationId: "org", sessionRef: "10" }),
+    ).resolves.toMatchObject({ reachable: true, status: "WORKING" });
+    expect(mocks.request).toHaveBeenCalledTimes(2);
+  });
   it("detects a remotely removed subscription", async () => {
-    mocks.request.mockResolvedValue({ data: [] });
-    await expect(metaSocialAdapter.checkHealth!({ organizationId: "org", sessionRef: "10" })).resolves.toMatchObject({ reachable: true, status: "FAILED" });
+    mocks.request
+      .mockResolvedValueOnce({
+        data: [
+          {
+            object: "instagram",
+            active: true,
+            callback_url: "https://produto.example/api/v1/webhooks/meta-social",
+            fields: [
+              { name: "messages" },
+              { name: "messaging_postbacks" },
+              { name: "messaging_seen" },
+            ],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ data: [] });
+    await expect(
+      metaSocialAdapter.checkHealth!({ organizationId: "org", sessionRef: "10" }),
+    ).resolves.toMatchObject({ reachable: true, status: "FAILED" });
     expect(mocks.request).toHaveBeenCalledWith("10/subscribed_apps", "private-token");
+  });
+  it("fails health on a live legacy callback without reading or mutating Page subscriptions", async () => {
+    mocks.request.mockResolvedValue({
+      data: [
+        {
+          object: "instagram",
+          active: true,
+          callback_url: "https://base.saraiva.ai/webhooks/meta/instagram",
+          fields: [
+            { name: "messages" },
+            { name: "messaging_postbacks" },
+            { name: "messaging_seen" },
+          ],
+        },
+      ],
+    });
+    await expect(
+      metaSocialAdapter.checkHealth!({ organizationId: "org", sessionRef: "10" }),
+    ).resolves.toMatchObject({
+      reachable: true,
+      status: "FAILED",
+      detail: "callback_nao_configurado",
+    });
+    expect(mocks.request).toHaveBeenCalledOnce();
+    expect(mocks.request).toHaveBeenCalledWith("1/subscriptions", "1|app-secret", {
+      appToken: true,
+    });
   });
   it("reports an inconclusive transport failure without claiming remote reachability", async () => {
     mocks.request.mockRejectedValue(new Error("network failure"));
-    await expect(metaSocialAdapter.checkHealth!({ organizationId: "org", sessionRef: "10" })).resolves.toMatchObject({ reachable: false, status: null });
+    await expect(
+      metaSocialAdapter.checkHealth!({ organizationId: "org", sessionRef: "10" }),
+    ).resolves.toMatchObject({ reachable: false, status: null });
   });
 });

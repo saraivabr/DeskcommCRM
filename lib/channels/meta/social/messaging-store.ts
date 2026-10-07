@@ -8,9 +8,14 @@ import { MetaGraphClient } from "./graph";
 import { resolveSelectedMetaAsset } from "./operations";
 import { MetaIntegrationError, type MetaMessagingStatusDTO } from "./types";
 import type { MetaActorContext } from "./store";
+import {
+  assertNativeMessagingRouting,
+  messagingRequiredFields,
+  META_SOCIAL_WEBHOOK_PATH,
+} from "./messaging-routing";
+export { META_SOCIAL_WEBHOOK_PATH } from "./messaging-routing";
 
 export const META_SOCIAL_PROVIDER = "meta_social" as const;
-export const META_SOCIAL_WEBHOOK_PATH = "/api/v1/webhooks/meta-social";
 const subscriptionSchema = z.object({
   data: z
     .array(z.object({ id: z.string(), subscribed_fields: z.array(z.string()).optional() }))
@@ -169,6 +174,8 @@ export async function configureMetaMessaging(
     undefined,
     db,
   );
+  const graph = new MetaGraphClient(resolved.app);
+  await assertNativeMessagingRouting(graph, resolved.app, platform);
   const metadata = {
     ...((existing?.metadata as Record<string, unknown>) ?? metadataInicialDoCanal()),
     social_platform: platform,
@@ -232,7 +239,6 @@ export async function configureMetaMessaging(
     channelId = data.id;
   }
   try {
-    const graph = new MetaGraphClient(resolved.app);
     const target =
       platform === "instagram"
         ? resolved.asset.parent_page_external_id!
@@ -241,13 +247,7 @@ export async function configureMetaMessaging(
       await graph.request(`${target}/subscribed_apps`, resolved.token),
     );
     const found = subscribed.data.find((item) => item.id === resolved.app.appId);
-    const requiredFields = [
-      "messages",
-      "messaging_postbacks",
-      ...(platform === "instagram"
-        ? ["messaging_seen"]
-        : ["message_echoes", "message_deliveries", "message_reads"]),
-    ];
+    const requiredFields = messagingRequiredFields(platform);
     if (!requiredFields.every((field) => found?.subscribed_fields?.includes(field)))
       await graph.request(`${target}/subscribed_apps`, resolved.token, {
         method: "POST",
