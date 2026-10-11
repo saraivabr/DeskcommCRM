@@ -7,14 +7,32 @@ import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/auth/schem
 import { audit, hashEmail } from "@/lib/audit";
 import { authRateLimited, AUTH_LIMITS } from "@/lib/auth/rate-limit";
 import { env } from "@/lib/env";
+import { getSmtpConfig } from "@/lib/email/config";
 
 export type RequestPasswordResetResult =
   | { ok: true }
   | {
       ok: false;
-      error: "validation_error" | "rate_limited" | "request_failed";
+      error: "validation_error" | "rate_limited" | "smtp_not_configured" | "request_failed";
       details?: Record<string, unknown>;
     };
+
+/**
+ * A instalação tem o suficiente pra mandar e-mail? Mesma régua do kit
+ * (`sincronizar_smtp_do_gotrue`, em `_common.sh`): host E remetente — host sem
+ * remetente é SMTP incompleto do mesmo jeito lá.
+ *
+ * A consulta falhando NÃO vira "sem SMTP": não dá pra afirmar o que não se
+ * mediu, e o desfecho de um motivo desconhecido é o erro genérico de sempre.
+ */
+async function smtpConfigurado(): Promise<boolean> {
+  try {
+    const smtp = await getSmtpConfig();
+    return Boolean(smtp.host) && Boolean(smtp.fromEmail);
+  } catch {
+    return true;
+  }
+}
 
 /**
  * Pede o e-mail de redefinição de senha. Resposta neutra quanto à existência
@@ -66,6 +84,10 @@ export async function requestPasswordReset(
       ip,
       userAgent,
     });
+    // #2755 — o GoTrue falhou, e a instalação nem tem SMTP: o motivo É esse, e
+    // o genérico ("tente novamente") mentiria, porque não vai funcionar nunca.
+    // Quem tem SMTP e falhou por outro motivo continua ouvindo o de sempre.
+    if (!(await smtpConfigurado())) return { ok: false, error: "smtp_not_configured" };
     return { ok: false, error: "request_failed" };
   }
 

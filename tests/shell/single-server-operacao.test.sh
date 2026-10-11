@@ -334,5 +334,18 @@ for l in "$l_guarda" "$l_atualiza"; do
     bash -c 'awk -v l="$2" "NR<l && /^if \\[ \"\\$\\{SINGLE_SERVER:-0\\}\" = \"1\" \\]; then\$/{a=NR} NR<l && /^fi\$/{f=NR} END{exit !(a>f)}" "$1"' _ "$U" "$l"
 done
 
+# #2755 — o aviso do kit não manda fazer coisa sem motivo: configurar SMTP não
+# tem nada a ver com atualização, e "rode o update.sh de novo" mandava quem
+# estava resolvendo rodar um script que não muda o e-mail. O bloco é medido
+# ISOLADO (awk até o `fi` dele): o update.sh inteiro tem outras ordens legítimas
+# de "rode de novo", e cobrir o arquivo todo mediria a frase errada.
+echo "o aviso de SMTP do update.sh só manda configurar (#2755):"
+AVISO_SMTP="$WORK/aviso-smtp.txt"
+awk '/^  if sincronizar_smtp_do_gotrue; then$/{f=1} f{print} f&&/^  fi$/{exit}' "$U" > "$AVISO_SMTP"
+check "achei o bloco do aviso — sem ele os casos abaixo medem nada" test -s "$AVISO_SMTP"
+check "o aviso diz para configurar em /admin/email" contem "$AVISO_SMTP" "Configure em /admin/email."
+check "e não manda mais rodar o update.sh de novo" nao_contem "$AVISO_SMTP" "rode o update.sh de novo"
+check "a frase velha sumiu do update.sh inteiro" nao_contem "$U" "rode o update.sh de novo"
+
 [ "$FAILS" -eq 0 ] || { echo "✖ $FAILS falha(s)" >&2; exit 1; }
 echo 'ok: single-server não colide, faz backup dos anexos, manda e-mail e atualiza o Supabase'
