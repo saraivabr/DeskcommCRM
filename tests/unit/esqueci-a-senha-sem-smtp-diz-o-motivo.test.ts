@@ -3,78 +3,100 @@
  *
  * ─── O defeito (#2755) ─────────────────────────────────────────────────────
  *
- * A instalação SEM SMTP faz o GoTrue falhar no `resetPasswordForEmail`, e a
- * action devolvia `{ ok: false, error: "request_failed" }` — o mesmo código de
- * QUALQUER outra falha de infra. A tela traduzia: "Não foi possível enviar o
- * e-mail. Tente novamente." Quem esqueceu a senha tentava de novo, e de novo,
- * e de novo: o gesto nunca funcionaria, porque o problema não é a tentativa, é
- * que AQUELA instalação não envia e-mail nenhum. O motivo nem era segredo — o
- * kit já escreve no log ("Sem SMTP no CRM: ..."), só que em outro lugar, onde
- * quem está na tela não vai ler.
+ * Numa instalação single-server sem SMTP no CRM, o GoTrue não tem por onde
+ * mandar e-mail (é o kit, `sincronizar_smtp_do_gotrue`, que leva o SMTP do CRM
+ * até ele). A action devolvia `request_failed`, o mesmo código de QUALQUER
+ * falha de infra, e a tela dizia "Tente novamente" — um gesto que nunca
+ * funcionaria.
  *
  * ─── O que se guarda ───────────────────────────────────────────────────────
  *
- * O PAR é o que prende o comportamento. Só o caso "sem SMTP" passaria com um
- * `if` que devolvesse `smtp_not_configured` sempre, trocando um erro anônimo
- * por outro mentiroso (instalação com SMTP que caiu por outra causa diria que
- * falta SMTP). Daí o caso de controle: com SMTP configurado e o GoTrue falhando
- * por motivo qualquer, o código continua sendo o genérico de antes.
+ *   - single-server sem SMTP responde `smtp_not_configured` SEM chamar o
+ *     GoTrue, e a resposta é a mesma qualquer que seja a resposta dele (200 ou
+ *     500): depende da instalação, nunca do e-mail digitado;
+ *   - host sem remetente não é SMTP usável (mesma régua do kit);
+ *   - a catraca continua vencendo;
+ *   - o banco que FALHA não vira "sem SMTP": segue o caminho de sempre;
+ *   - fora do single-server (Supabase na nuvem ou separado) nada muda: o login
+ *     tem e-mail próprio e "configure em /admin/email" não resolveria;
+ *   - CONTROLE: com SMTP, o genérico de antes fica.
  *
- * Os limites da régua, um a um, porque os três são fáceis de errar:
- *
- *   - host SEM remetente não é SMTP usável — é a mesma régua de
- *     `sincronizar_smtp_do_gotrue` (`_common.sh`), que recusa com rc=1;
- *   - o 429 da catraca continua vencendo: quem bateu no teto ouve a catraca,
- *     não a conversa sobre SMTP;
- *   - a consulta de estado que FALHA não vira "sem SMTP": não se afirma o que
- *     não se mediu, e o desfecho de um motivo desconhecido é o erro genérico
- *     de sempre (que é honesto: de fato não sabemos por que falhou).
+ * O `lerSmtp` roda DE VERDADE: o dublê está no cliente do banco, na forma que
+ * ele responde (`{ data, error }`, ou lançando), não na função que decide.
  *
  * Confira com: pnpm vitest run tests/unit/esqueci-a-senha-sem-smtp-diz-o-motivo.test.ts
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type RespostaGoTrue = { error: { message: string; status?: number } | null };
-type Smtp = {
-  host: string;
-  port: number;
-  security: "starttls" | "tls" | "none";
-  username: string;
-  password: string;
-  fromEmail: string;
-  fromName: string;
-  source: "database" | "environment" | "none";
+type LinhaSmtp = {
+  smtp_host: string | null;
+  smtp_port: number;
+  smtp_security: "starttls";
+  smtp_username: string | null;
+  smtp_password_encrypted: string | null;
+  from_email: string | null;
+  from_name: string | null;
 };
+type RespostaBanco =
+  | { data: LinhaSmtp | null; error: null }
+  | { data: null; error: { message: string } }
+  | "lanca";
 
-const SEM_SMTP: Smtp = {
-  host: "",
-  port: 587,
-  security: "starttls",
-  username: "",
-  password: "",
-  fromEmail: "",
-  fromName: "",
-  source: "none",
-};
-
-const COM_SMTP: Smtp = {
-  ...SEM_SMTP,
-  host: "smtp.revenda.com.br",
-  username: "nao-responda@revenda.com.br",
-  password: "segredo",
-  fromEmail: "nao-responda@revenda.com.br",
-  fromName: "Revenda",
-  source: "database",
+const LINHA_COM_SMTP: LinhaSmtp = {
+  smtp_host: "smtp.revenda.com.br",
+  smtp_port: 587,
+  smtp_security: "starttls",
+  smtp_username: "nao-responda@revenda.com.br",
+  smtp_password_encrypted: null,
+  from_email: "nao-responda@revenda.com.br",
+  from_name: "Revenda",
 };
 
 const estado = {
-  smtp: SEM_SMTP as Smtp,
-  smtpResponde: true as boolean,
+  banco: { data: null, error: null } as RespostaBanco,
+  envSmtpHost: "",
+  envSmtpFrom: "",
+  limitado: false,
   resposta: { error: null } as RespostaGoTrue,
   chamouGoTrue: 0,
 };
 
 vi.mock("next/headers", () => ({ headers: async () => ({ get: () => null }) }));
+vi.mock("@/lib/env", () => ({
+  env: {
+    NEXT_PUBLIC_APP_URL: "https://crm.revenda.test",
+    get SMTP_HOST() {
+      return estado.envSmtpHost;
+    },
+    SMTP_PORT: 587,
+    SMTP_SECURITY: "starttls",
+    SMTP_USERNAME: "",
+    SMTP_PASSWORD: "",
+    get SMTP_FROM_EMAIL() {
+      return estado.envSmtpFrom;
+    },
+    SMTP_FROM_NAME: "",
+  },
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => {
+            if (estado.banco === "lanca") throw new Error("conexão recusada");
+            return estado.banco;
+          },
+        }),
+      }),
+    }),
+  }),
+}));
+vi.mock("@/lib/webhooks/secrets", () => ({
+  decryptWebhookSecret: async () => "",
+  encryptWebhookSecret: async () => "",
+}));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: {
@@ -90,14 +112,8 @@ vi.mock("@/lib/audit", () => ({
   hashEmail: (email: string) => `hash:${email}`,
 }));
 vi.mock("@/lib/auth/rate-limit", () => ({
-  authRateLimited: async () => false,
+  authRateLimited: async () => estado.limitado,
   AUTH_LIMITS: { reset: { ip: 30, id: 3, windowSec: 3600 } },
-}));
-vi.mock("@/lib/email/config", () => ({
-  getSmtpConfig: async () => {
-    if (!estado.smtpResponde) throw new Error("banco fora do ar");
-    return estado.smtp;
-  },
 }));
 
 const { requestPasswordReset } = await import("@/app/actions/auth/requestPasswordReset");
@@ -108,61 +124,104 @@ const falhaDoGoTrue = (status?: number) => ({
 });
 
 beforeEach(() => {
-  estado.smtp = SEM_SMTP;
-  estado.smtpResponde = true;
+  estado.banco = { data: null, error: null };
+  estado.envSmtpHost = "";
+  estado.envSmtpFrom = "";
+  estado.limitado = false;
   estado.resposta = { error: null };
   estado.chamouGoTrue = 0;
+  vi.stubEnv("SINGLE_SERVER", "1");
 });
 
-describe("esqueci a senha numa instalação SEM SMTP", () => {
-  it("⭐ o erro do GoTrue vira smtp_not_configured — não o genérico", async () => {
-    estado.resposta = falhaDoGoTrue(500);
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
-    const r = await requestPasswordReset({ email: EMAIL });
+describe("single-server SEM SMTP no CRM", () => {
+  it.each([
+    ["200 (e-mail sem conta)", { error: null }],
+    ["500 (e-mail com conta)", falhaDoGoTrue(500)],
+  ] as const)(
+    "⭐ responde smtp_not_configured sem chamar o GoTrue — GoTrue responderia %s",
+    async (_, resposta) => {
+      estado.resposta = resposta;
 
-    expect(r).toEqual({ ok: false, error: "smtp_not_configured" });
-  });
+      const r = await requestPasswordReset({ email: EMAIL });
+
+      expect(r).toEqual({ ok: false, error: "smtp_not_configured" });
+      expect(estado.chamouGoTrue).toBe(0);
+    },
+  );
 
   it("host SEM remetente não conta como SMTP (mesma régua do kit)", async () => {
-    estado.smtp = { ...COM_SMTP, fromEmail: "" };
-    estado.resposta = falhaDoGoTrue(500);
+    estado.banco = { data: { ...LINHA_COM_SMTP, from_email: null }, error: null };
 
     const r = await requestPasswordReset({ email: EMAIL });
 
     expect(r).toEqual({ ok: false, error: "smtp_not_configured" });
+    expect(estado.chamouGoTrue).toBe(0);
   });
 
-  it("a catraca (429) continua vencendo a mensagem nova", async () => {
-    estado.resposta = falhaDoGoTrue(429);
+  it("a catraca continua vencendo a mensagem nova", async () => {
+    estado.limitado = true;
 
     const r = await requestPasswordReset({ email: EMAIL });
 
     expect(r).toEqual({ ok: false, error: "rate_limited" });
   });
 
-  it("a consulta de SMTP que falha NÃO vira 'sem SMTP' — cai no genérico", async () => {
-    estado.smtpResponde = false;
-    estado.resposta = falhaDoGoTrue(500);
+  it.each([
+    ["devolve erro", { data: null, error: { message: "relation does not exist" } }],
+    ["lança", "lanca"],
+  ] as const)(
+    "o banco que %s NÃO vira 'sem SMTP' — segue para o GoTrue, como antes",
+    async (_, banco) => {
+      estado.banco = banco;
+      estado.resposta = falhaDoGoTrue(500);
+
+      const r = await requestPasswordReset({ email: EMAIL });
+
+      expect(r).toEqual({ ok: false, error: "request_failed" });
+      expect(estado.chamouGoTrue).toBe(1);
+    },
+  );
+});
+
+describe("Supabase fora do single-server (nuvem ou separado)", () => {
+  it("sem SMTP no CRM, o comportamento é o de antes: o login tem e-mail próprio", async () => {
+    vi.stubEnv("SINGLE_SERVER", "");
+    estado.resposta = { error: null };
 
     const r = await requestPasswordReset({ email: EMAIL });
 
-    expect(r).toEqual({ ok: false, error: "request_failed" });
+    expect(r).toEqual({ ok: true });
+    expect(estado.chamouGoTrue).toBe(1);
   });
 });
 
-describe("esqueci a senha numa instalação COM SMTP", () => {
+describe("single-server COM SMTP", () => {
   it("⭐ CONTROLE — o genérico preservado: falha por outro motivo", async () => {
-    estado.smtp = COM_SMTP;
+    estado.banco = { data: LINHA_COM_SMTP, error: null };
     estado.resposta = falhaDoGoTrue(500);
 
     const r = await requestPasswordReset({ email: EMAIL });
 
     expect(r).toEqual({ ok: false, error: "request_failed" });
+    expect(estado.chamouGoTrue).toBe(1);
+  });
+
+  it("SMTP só no .env do CRM (sem linha da tela) também conta", async () => {
+    estado.envSmtpHost = "smtp.revenda.com.br";
+    estado.envSmtpFrom = "nao-responda@revenda.com.br";
+
+    const r = await requestPasswordReset({ email: EMAIL });
+
+    expect(r).toEqual({ ok: true });
+    expect(estado.chamouGoTrue).toBe(1);
   });
 
   it("o caminho de sucesso continua como estava", async () => {
-    estado.smtp = COM_SMTP;
-    estado.resposta = { error: null };
+    estado.banco = { data: LINHA_COM_SMTP, error: null };
 
     const r = await requestPasswordReset({ email: EMAIL });
 

@@ -7,7 +7,8 @@ import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/auth/schem
 import { audit, hashEmail } from "@/lib/audit";
 import { authRateLimited, AUTH_LIMITS } from "@/lib/auth/rate-limit";
 import { env } from "@/lib/env";
-import { getSmtpConfig } from "@/lib/email/config";
+import { lerSmtp } from "@/lib/email/config";
+import { isSmtpConfigured } from "@/lib/email/smtp";
 
 export type RequestPasswordResetResult =
   | { ok: true }
@@ -18,20 +19,25 @@ export type RequestPasswordResetResult =
     };
 
 /**
- * A instalação tem o suficiente pra mandar e-mail? Mesma régua do kit
- * (`sincronizar_smtp_do_gotrue`, em `_common.sh`): host E remetente — host sem
- * remetente é SMTP incompleto do mesmo jeito lá.
+ * Single-server sem SMTP no CRM: o GoTrue desta VPS não tem por onde mandar
+ * e-mail, porque é o kit (`sincronizar_smtp_do_gotrue`, em `_common.sh`) que
+ * leva o SMTP do CRM até ele. Mesma régua do kit: host E remetente.
  *
- * A consulta falhando NÃO vira "sem SMTP": não dá pra afirmar o que não se
- * mediu, e o desfecho de um motivo desconhecido é o erro genérico de sempre.
+ * Só afirma "sem SMTP" quando o banco RESPONDEU — um soluço dele não é falta de
+ * configuração, e aí segue o caminho de sempre.
+ *
+ * Fora do single-server o login tem e-mail próprio (Supabase na nuvem ou
+ * separado), e "configure em /admin/email" não resolveria: nada muda lá.
+ *
+ * Limite aceito: o operador single-server que pôs SMTP direto no `.env` do
+ * Supabase, sem passar pela tela, ouve "sem SMTP" com um e-mail que sairia. O
+ * app não enxerga aquele arquivo, e o remédio é o caminho documentado:
+ * configurar o mesmo SMTP em /admin/email (que o kit passa a sincronizar).
  */
-async function smtpConfigurado(): Promise<boolean> {
-  try {
-    const smtp = await getSmtpConfig();
-    return Boolean(smtp.host) && Boolean(smtp.fromEmail);
-  } catch {
-    return true;
-  }
+async function semSmtpNoSingleServer(): Promise<boolean> {
+  if (process.env.SINGLE_SERVER !== "1") return false;
+  const { config, bancoRespondeu } = await lerSmtp();
+  return bancoRespondeu && !isSmtpConfigured(config);
 }
 
 /**
@@ -63,6 +69,10 @@ export async function requestPasswordReset(
     return { ok: false, error: "rate_limited" };
   }
 
+  // #2755 — decidido ANTES de chamar o GoTrue, sem olhar o que ele responde:
+  // assim a resposta depende só da instalação, nunca do e-mail digitado.
+  if (await semSmtpNoSingleServer()) return { ok: false, error: "smtp_not_configured" };
+
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     // ?type=recovery sobrevive ao redirect do GoTrue (preserva query string
@@ -84,10 +94,6 @@ export async function requestPasswordReset(
       ip,
       userAgent,
     });
-    // #2755 — o GoTrue falhou, e a instalação nem tem SMTP: o motivo É esse, e
-    // o genérico ("tente novamente") mentiria, porque não vai funcionar nunca.
-    // Quem tem SMTP e falhou por outro motivo continua ouvindo o de sempre.
-    if (!(await smtpConfigurado())) return { ok: false, error: "smtp_not_configured" };
     return { ok: false, error: "request_failed" };
   }
 
