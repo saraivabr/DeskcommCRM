@@ -147,11 +147,16 @@ if [[ "$integration" = true ]]; then
   # Mesma instalação descartável e produção Next; nenhuma chamada à VPS.
   # Limite ampliado apenas no runner local: várias pessoas sintéticas compartilham IP.
   export AUTH_RATE_LIMIT_LOGIN_IP=1000
+  # Alguns specs leem credenciais/TOTP durante a coleta, antes de beforeAll.
+  # A fixture nasce somente após o runner validar o Supabase local descartável.
+  pnpm exec tsx scripts/seed-e2e-credentials.ts
   pnpm exec playwright test --workers=1 --reporter=list \
     tests/e2e/password-recovery.spec.ts \
     tests/e2e/reset-password-mfa.spec.ts \
     tests/e2e/signup-journey.spec.ts \
     tests/e2e/mfa-opcional.spec.ts \
     tests/e2e/instagram-social.spec.ts \
-    tests/e2e/integracao-dados-fontes-liberadas.spec.ts
+    tests/e2e/integracao-dados-fontes-liberadas.spec.ts \
+    tests/e2e/designer-de-automacoes.spec.ts \
+    tests/e2e/crm-visual-upstream.spec.ts
 fi
