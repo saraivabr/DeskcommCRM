@@ -35,7 +35,7 @@ vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => undefined) }));
 vi.mock("@/lib/auth/provision", () => ({ ensureTenantForUser: vi.fn(async () => undefined) }));
 vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_URL: "https://crm.exemplo.com.br" } }));
 
-import { GET } from "@/app/auth/confirm/route";
+import { GET, POST } from "@/app/auth/confirm/route";
 
 type Resultado = { data: { user: unknown }; error: { message: string } | null };
 
@@ -58,8 +58,18 @@ function supabaseQue(resposta: Resultado, jaLogado: unknown = null) {
   return { verifyOtp, exchangeCodeForSession, getUser };
 }
 
-const chamar = (query: string) =>
-  GET(new NextRequest(`https://crm.exemplo.com.br/auth/confirm${query}`));
+const chamar = async (query: string) => {
+  const url = new URL(`https://crm.exemplo.com.br/auth/confirm${query}`);
+  const preview = await GET(new NextRequest(url));
+  if (!url.searchParams.has("token_hash") || !url.searchParams.has("type")) return preview;
+  expect(new URL(preview.headers.get("location")!).pathname).toBe("/login/continuar");
+  expect(createClient).not.toHaveBeenCalled();
+  const response = await POST(new NextRequest(url.origin + "/auth/confirm", {
+    method: "POST", body: url.searchParams,
+  }));
+  expect(response.status).toBe(303);
+  return response;
+};
 
 /** O `Location` do redirect, sem o host. */
 async function destino(query: string): Promise<string> {

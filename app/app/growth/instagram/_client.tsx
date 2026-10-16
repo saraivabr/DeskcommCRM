@@ -11,6 +11,7 @@ import type {
 } from "@/lib/channels/social/instagram-management";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import { useT } from "@/hooks/i18n/useT";
+import { studioRequest } from "@/lib/instagram/client";
 import { randomId } from "@/lib/random-id";
 
 type State = {
@@ -18,21 +19,11 @@ type State = {
   accounts: { id: string; username: string; active: boolean }[];
   can_edit: boolean;
 };
-async function api<T>(query = "", body?: unknown): Promise<T> {
-  const response = await fetch(
+async function api<T>(query = "", body?: unknown, signal?: AbortSignal): Promise<T> {
+  return studioRequest<T>(
     `/api/v1/growth/instagram${query}`,
-    body
-      ? {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      : { cache: "no-store" },
+    body ? { method: "POST", body: JSON.stringify(body), signal } : { signal },
   );
-  const result = await response.json();
-  if (!response.ok)
-    throw new Error(result.error?.message ?? "Não foi possível concluir. Tente novamente.");
-  return result.data;
 }
 const field = "w-full rounded-xl border bg-background p-3";
 export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
@@ -64,9 +55,15 @@ export function InstagramGrowthClient({ orgId: _orgId }: { orgId: string }) {
     setState(await api<State>());
   }
   useEffect(() => {
-    void api<State>()
-      .then(setState)
-      .catch((e) => setError(e.message));
+    const controller = new AbortController();
+    void api<State>("", undefined, controller.signal)
+      .then((value) => {
+        if (!controller.signal.aborted) setState(value);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
   }, []);
   useEffect(() => {
     if (!account || !editing) return;

@@ -210,3 +210,20 @@ it("exibe a fonte indisponível sem selecionar outra conexão automaticamente", 
   expect(screen.getByRole("combobox")).toHaveValue("");
   expect(screen.getByRole("button", { name: "Revisar publicação" })).toBeDisabled();
 });
+
+it("a Story awaiting provider validation is explicit and only dispatches after confirmation", async () => {
+  state.accounts = [
+    { ...native, story_eligibility: "provider_validation_required" } as typeof native,
+  ];
+  const story = {
+    ...item,
+    input: { ...item.input, kind: "post" as const, format: "story" as const },
+  } as StudioItem;
+  render(<PublishPost item={story} caption="" />);
+  await screen.findByRole("combobox");
+  chooseNative();
+  expect(screen.getByText(/A Meta verificará se esta conta pode publicar Stories/)).toBeVisible();
+  expect(sent()).toHaveLength(0);
+  await confirm();
+  expect(sent()[0]).toMatchObject({ provider: "meta", format: "story", meta_asset_id: native.id });
+});

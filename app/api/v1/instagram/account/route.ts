@@ -1,40 +1,33 @@
 import { randomUUID } from "node:crypto";
 import { requireRole } from "@/lib/auth/require-role";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { ok, fail } from "@/lib/api/wrappers";
-import { readSocialIntegration } from "@/lib/channels/social/store";
-import { listSocialAccounts } from "@/lib/channels/social/client";
+import { ok } from "@/lib/api/wrappers";
+import { instagramReadAccounts } from "@/lib/instagram/accounts";
+import { instagramAPIError } from "@/lib/instagram/api-error";
 
 export const dynamic = "force-dynamic";
-export async function GET() {
+export async function GET(req: Request) {
   const requestId = randomUUID();
   const headers = { "Cache-Control": "no-store" };
   const auth = await requireRole("viewer", { requestId });
   if (!auth.ok) return auth.response;
   try {
-    const config = await readSocialIntegration(createAdminClient(), auth.org.orgId);
-    const accounts = config ? await listSocialAccounts(config.key, config.profileId) : [];
-    const account =
-      accounts.find((a) => a.platform === "instagram" && a.isActive) ??
-      accounts.find((a) => a.platform === "instagram");
+    const { accounts, provider_errors } = await instagramReadAccounts(auth.org.orgId, req.signal);
+    const account = accounts.find((a) => a.active) ?? accounts[0];
     return ok(
       {
         account: account
           ? {
-              username: (account.username ?? account.displayName ?? "Instagram").replace(/^@/, ""),
-              avatar_url: account.profilePicture?.startsWith("https://")
-                ? account.profilePicture
-                : null,
-              active: account.isActive,
+              username: account.name.replace(/^@/, ""),
+              avatar_url: account.avatar_url ?? null,
+              active: account.active,
+              provider: account.provider,
             }
           : null,
+        provider_errors,
       },
       { requestId, headers },
     );
-  } catch {
-    return fail("instagram_unavailable", "Não foi possível consultar sua conta.", 502, {
-      requestId,
-      headers,
-    });
+  } catch (error) {
+    return instagramAPIError(error, requestId);
   }
 }

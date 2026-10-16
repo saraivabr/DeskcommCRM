@@ -90,6 +90,7 @@ export class MetaGraphClient {
       body?: Record<string, string>;
       method?: "GET" | "POST" | "DELETE";
       appToken?: boolean;
+      signal?: AbortSignal;
     } = {},
   ): Promise<unknown> {
     const method = options.method ?? "GET";
@@ -103,7 +104,9 @@ export class MetaGraphClient {
         method,
         redirect: "error",
         cache: "no-store",
-        signal: AbortSignal.timeout(15_000),
+        signal: options.signal
+          ? AbortSignal.any([options.signal, AbortSignal.timeout(15_000)])
+          : AbortSignal.timeout(15_000),
         headers: {
           authorization: `Bearer ${token}`,
           accept: "application/json",

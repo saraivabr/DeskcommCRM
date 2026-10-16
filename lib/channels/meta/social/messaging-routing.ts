@@ -13,6 +13,18 @@ export function messagingRequiredFields(platform: "instagram" | "facebook"): str
       : ["message_echoes", "message_deliveries", "message_reads"]),
   ];
 }
+/**
+ * Facebook Login subscribes the parent Page separately from the app's Instagram
+ * object. `messaging_seen` belongs to that Instagram object, not Page's
+ * subscribed_fields enum; requiring it on the Page rejects a valid subscription.
+ * Keep read receipts in the app routing guard, while preserving all
+ * existing Page fields when activation adds these delivery fields.
+ */
+export function messagingPageRequiredFields(platform: "instagram" | "facebook"): string[] {
+  return platform === "instagram"
+    ? ["messages", "messaging_postbacks"]
+    : messagingRequiredFields(platform);
+}
 const routingSchema = z.object({
   data: z
     .array(

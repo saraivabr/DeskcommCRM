@@ -1,4 +1,5 @@
 "use client";
+import { LEGACY_INSTAGRAM_PUBLICATION_PROVIDER } from "@/lib/channels/social/instagram-publishing";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import { useT } from "@/hooks/i18n/useT";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -6,13 +7,22 @@ import { Button } from "@/components/ui/button";
 import { StudioShell, Intro, Notice, Loading, Empty, studioApi } from "./_shared";
 type Result = {
   connected: boolean;
-  accounts: { id: string; name: string }[];
+  accounts: {
+    id: string;
+    name: string;
+    provider?: "meta" | typeof LEGACY_INSTAGRAM_PUBLICATION_PROVIDER;
+    connection_id?: string;
+    insights_available?: boolean;
+  }[];
+  provider_errors?: Record<string, { message: string } | null>;
   insights?: {
     dateRange: { since: string; until: string };
     metrics: Record<string, { total: number }>;
   };
   checked_at?: string;
 };
+const accountKey = (a: Result["accounts"][number]) =>
+  `${a.provider ?? LEGACY_INSTAGRAM_PUBLICATION_PROVIDER}:${a.connection_id ?? ""}:${a.id}`;
 const metrics = [
   { key: "reach", title: "Pessoas alcançadas", description: "Quantas contas viram seu conteúdo." },
   { key: "views", title: "Visualizações", description: "Quantas vezes seu conteúdo foi visto." },
@@ -35,20 +45,43 @@ export function Insights() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const requestSequence = useRef(0);
-  const load = useCallback(async (id?: string) => {
+  const currentRequest = useRef<AbortController | null>(null);
+  const accountList = useRef<Result["accounts"]>([]);
+  const load = useCallback(async (key?: string) => {
+    currentRequest.current?.abort();
+    const controller = new AbortController();
+    currentRequest.current = controller;
     const sequence = ++requestSequence.current;
     setLoading(true);
     setError("");
     try {
-      const result = await studioApi<Result>(
-        `/insights${id ? `?account_id=${encodeURIComponent(id)}` : ""}`,
-      );
+      const selected = accountList.current.find((a) => accountKey(a) === key);
+      const query = selected
+        ? new URLSearchParams({
+            provider: selected.provider ?? LEGACY_INSTAGRAM_PUBLICATION_PROVIDER,
+            account_id: selected.id,
+            ...(selected.connection_id ? { connection_id: selected.connection_id } : {}),
+          })
+        : null;
+      const result = await studioApi<Result>(`/insights${query ? `?${query}` : ""}`, {
+        signal: controller.signal,
+      });
       if (sequence !== requestSequence.current) return;
-      setData(result);
-      if (!id && result.accounts.length === 1 && result.accounts[0])
-        setAccount(result.accounts[0].id);
+      if (!key) {
+        accountList.current = result.accounts;
+        setData(result);
+        if (result.accounts.length === 1 && result.accounts[0]?.insights_available !== false)
+          setAccount(accountKey(result.accounts[0]!));
+      } else
+        setData((old) =>
+          old ? { ...old, insights: result.insights, checked_at: result.checked_at } : null,
+        );
     } catch (e) {
-      if (sequence !== requestSequence.current) return;
+      if (
+        sequence !== requestSequence.current ||
+        (controller.signal.aborted && controller.signal.reason?.name !== "TimeoutError")
+      )
+        return;
       setError(e instanceof Error ? e.message : "Não foi possível consultar.");
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
@@ -56,7 +89,11 @@ export function Insights() {
   }, []);
   useEffect(() => {
     const timer = setTimeout(() => void load(), 0);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      ++requestSequence.current;
+      currentRequest.current?.abort();
+    };
   }, [load]);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -79,6 +116,14 @@ export function Insights() {
           </button>
         </Notice>
       )}
+      {data?.provider_errors &&
+        Object.entries(data.provider_errors).map(([source, problem]) =>
+          problem ? (
+            <Notice key={source} error>
+              {problem.message}
+            </Notice>
+          ) : null,
+        )}
       {loading ? (
         <Loading />
       ) : data && !data.connected ? (
@@ -109,8 +154,13 @@ export function Insights() {
               >
                 <option value="">{t("Escolha a conta")}</option>
                 {data.accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    @{a.name}
+                  <option
+                    key={accountKey(a)}
+                    value={accountKey(a)}
+                    disabled={a.insights_available === false}
+                  >
+                    @{a.name} · {a.provider === "meta" ? "Meta" : t("Conexão social")}
+                    {a.insights_available === false ? t(" — sem acesso aos resultados") : ""}
                   </option>
                 ))}
               </select>

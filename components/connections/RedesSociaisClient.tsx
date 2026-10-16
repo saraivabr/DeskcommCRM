@@ -9,6 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { apiClient } from "@/lib/api/client";
 import { useT } from "@/hooks/i18n/useT";
 import { ChannelAiAccess } from "./ChannelAiAccess";
@@ -19,7 +29,28 @@ type Account = {
   username: string;
   active: boolean;
   inbox_supported: boolean;
-  channel: { id: string; status: string } | null;
+  channel: {
+    id: string;
+    status: string;
+    display_name: string | null;
+    metadata?: Record<string, unknown> | null;
+  } | null;
+};
+/**
+ * O nome que alguém DIGITOU em Renomear, ou nada. A conexão nasce com
+ * `${rede} · ${usuario}` (lib/channels/social/store.ts), e esse nome de nascença
+ * não vira título: os cartões que ninguém renomeou seguem mostrando o usuário.
+ */
+function nomeInterno(account: Account): string | null {
+  const rotulo = account.channel?.display_name;
+  return rotulo && rotulo !== `${account.platform} · ${account.username}` ? rotulo : null;
+}
+
+type Orphaned = {
+  channel_id: string;
+  account_id: string;
+  display_name: string | null;
+  status: string;
 };
 type State = {
   label: string;
@@ -27,13 +58,15 @@ type State = {
   central_available: boolean;
   networks: { id: string; label: string; inbox: boolean }[];
   accounts: Account[];
+  orphaned_channels: Orphaned[];
 };
 export function RedesSociaisClient() {
   const t = useT();
   const params = useSearchParams();
   const query = useQuery({
     queryKey: ["social-connections"],
-    queryFn: async () => (await apiClient.get<{ data: State }>("/api/v1/channels/social")).data,
+    queryFn: async ({ signal }) =>
+      (await apiClient.get<{ data: State }>("/api/v1/channels/social", { signal })).data,
   });
   const state = query.data;
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +77,47 @@ export function RedesSociaisClient() {
   const [platform, setPlatform] = useState("instagram");
   const [editing, setEditing] = useState(false);
   const [health, setHealth] = useState<Record<string, string>>({});
+  const [removing, setRemoving] = useState<{ account: Account; removeAccount: boolean } | null>(
+    null,
+  );
+  const [excluding, setExcluding] = useState<Orphaned | null>(null);
+  const [confirmandoDesvincular, setConfirmandoDesvincular] = useState(false);
   const load = () => query.refetch();
+  async function excluirOrfao(orfao: Orphaned) {
+    setBusy(orfao.channel_id);
+    setError(null);
+    try {
+      // A ação dedicada só arquiva depois da limpeza remota confirmada.
+      // O DELETE da Central admite melhor esforço; aqui a falha mantém
+      // a linha disponível para tentar a mesma desconexão novamente.
+      await apiClient.post("/api/v1/channels/social", {
+        action: "disconnect",
+        account_id: orfao.account_id,
+        remove_account: false,
+      });
+      toast.success(t("Canal excluído. A lista atualiza sem a linha órfã."));
+      setExcluding(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível excluir o canal.");
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function desvincularPerfil() {
+    setBusy("unlink");
+    setError(null);
+    try {
+      await apiClient.post("/api/v1/channels/social", { action: "unlink" });
+      toast.success(t("Perfil desvinculado. Dá para vincular outro perfil."));
+      setConfirmandoDesvincular(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível desvincular o perfil.");
+    } finally {
+      setBusy(null);
+    }
+  }
   async function perform(id: string, body: Record<string, unknown>) {
     setBusy(id);
     setError(null);
@@ -67,6 +140,20 @@ export function RedesSociaisClient() {
               ? "Conexão verificada"
               : "A conexão precisa de atenção",
         }));
+      } else if (body.action === "resync") {
+        toast.success(
+          t(
+            result.data.resynced
+              ? "Webhook ressincronizado com o endereço atual."
+              : "O webhook já apontava para este endereço.",
+          ),
+        );
+        await load();
+      } else if (body.action === "disconnect") {
+        toast.success(
+          t(body.remove_account ? "Conta desconectada." : "Conta removida do atendimento."),
+        );
+        await load();
       } else {
         setKey("");
         setEditing(false);
@@ -114,7 +201,7 @@ export function RedesSociaisClient() {
           {t(error ?? query.error?.message ?? "Não foi possível carregar as redes sociais.")}
         </p>
       )}
-      {!state && !error && <p role="status">{t("Carregando…")}</p>}
+      {!state && !error && !query.error && <p role="status">{t("Carregando…")}</p>}
       {(error || query.error) && (
         <Button variant="outline" onClick={() => setEditing(true)}>
           {t("Reconfigurar integração")}
@@ -231,7 +318,10 @@ export function RedesSociaisClient() {
                       {state.networks.find((n) => n.id === account.platform)?.label ??
                         account.platform}
                     </p>
-                    <h3 className="font-semibold">{account.username}</h3>
+                    <h3 className="font-semibold">{nomeInterno(account) || account.username}</h3>
+                    {nomeInterno(account) && nomeInterno(account) !== account.username && (
+                      <p className="text-xs text-muted-foreground">{account.username}</p>
+                    )}
                   </div>
                   <Badge variant={account.active ? "secondary" : "outline"}>
                     {account.active ? t("Vinculada") : t("Reconectar")}
@@ -263,6 +353,33 @@ export function RedesSociaisClient() {
                       <Link href="/app/inbox">{t("Abrir atendimento")}</Link>
                     </Button>
                   )}
+                  {account.channel && (
+                    <Button
+                      variant="outline"
+                      disabled={!!busy}
+                      onClick={() =>
+                        void perform(account.id, { action: "resync", account_id: account.id })
+                      }
+                    >
+                      {t("Ressincronizar webhook")}
+                    </Button>
+                  )}
+                  {account.channel && (
+                    <Button
+                      variant="outline"
+                      disabled={!!busy}
+                      onClick={() => setRemoving({ account, removeAccount: false })}
+                    >
+                      {t("Remover do atendimento")}
+                    </Button>
+                  )}
+                  <Button
+                    variant="destructive"
+                    disabled={!!busy}
+                    onClick={() => setRemoving({ account, removeAccount: true })}
+                  >
+                    {t("Desconectar conta")}
+                  </Button>
                 </div>
                 {health[account.id] && (
                   <p role="status" className="text-sm">
@@ -297,9 +414,124 @@ export function RedesSociaisClient() {
           {state.accounts.length === 0 && (
             <p>{t("Nenhuma conta conectada neste perfil. Autorize uma rede para começar.")}</p>
           )}
-          <Button variant="ghost" className="self-start" onClick={() => setEditing(!editing)}>
-            {t("Alterar credencial")}
-          </Button>
+          {(state.orphaned_channels ?? []).length > 0 && (
+            <Card className="space-y-3 border-destructive p-4">
+              <h3 className="font-semibold">{t("Canais sem conta no perfil")}</h3>
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "Estas conexões apontam para contas que saíram do perfil no provedor (por exemplo, conta removida e recriada por lá). Exclua a linha órfã para fechar o aviso.",
+                )}
+              </p>
+              {(state.orphaned_channels ?? []).map((orfao) => (
+                <div
+                  key={orfao.channel_id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
+                >
+                  <div>
+                    <p className="font-medium">{orfao.display_name ?? orfao.account_id}</p>
+                    <p className="text-xs text-muted-foreground">{orfao.status}</p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    disabled={!!busy}
+                    onClick={() => setExcluding(orfao)}
+                  >
+                    {t("Excluir")}
+                  </Button>
+                </div>
+              ))}
+            </Card>
+          )}
+          <AlertDialog open={!!excluding} onOpenChange={(open) => !open && setExcluding(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("Excluir o canal órfão?")} · {excluding?.display_name ?? excluding?.account_id}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t(
+                    "A linha sai da lista e os avisos dela são fechados. As conversas já recebidas continuam no CRM.",
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => excluding && void excluirOrfao(excluding)}>
+                  {t("Excluir canal")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <div className="flex flex-wrap gap-2 self-start">
+            <Button variant="ghost" onClick={() => setEditing(!editing)}>
+              {t("Alterar credencial")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!!busy}
+              onClick={() => setConfirmandoDesvincular(true)}
+            >
+              {t("Desvincular perfil")}
+            </Button>
+          </div>
+          <AlertDialog
+            open={confirmandoDesvincular}
+            onOpenChange={(open) => !open && setConfirmandoDesvincular(false)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("Desvincular o perfil?")}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t(
+                    "O perfil sai do CRM. Só funciona sem canais sociais ativos: arquive ou exclua os canais antes. Dá para vincular outro perfil depois.",
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void desvincularPerfil()}>
+                  {t("Desvincular")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <AlertDialog open={!!removing} onOpenChange={(open) => !open && setRemoving(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {removing?.removeAccount
+                    ? t("Desconectar esta conta?")
+                    : t("Remover do atendimento?")}
+                  {" · "}
+                  {removing?.account.username}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {removing?.removeAccount
+                    ? t(
+                        "As mensagens param de chegar e a conta sai do provedor. Para usar de novo, será preciso autorizar a conta outra vez. As conversas já recebidas continuam no CRM.",
+                      )
+                    : t(
+                        "As mensagens desta conta param de chegar no atendimento. A conta continua vinculada e pode voltar a receber depois. As conversas já recebidas continuam no CRM.",
+                      )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() =>
+                    removing &&
+                    void perform(removing.account.id, {
+                      action: "disconnect",
+                      account_id: removing.account.id,
+                      remove_account: removing.removeAccount,
+                    })
+                  }
+                >
+                  {removing?.removeAccount ? t("Desconectar") : t("Remover")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>

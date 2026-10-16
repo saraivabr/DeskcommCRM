@@ -62,6 +62,7 @@ Detalham schema SQL e payloads exatos. **Consulte antes de modelar qualquer cois
 
 | Spec | Domínio |
 |---|---|
+| [Redes sociais: recuperação e desconexão](features/redes-sociais.md) | Ciclo de vida de contas, webhooks e perfis com histórico preservado |
 | [Meta própria](specs/meta-native-platform.md) | Arquitetura proposta e plano: OAuth por organização, ativos, anúncios/publicações, App Review e rollout |
 | [`specs/01`](specs/01-spec-platform-base.md) | Plataforma base — tenancy, RLS, RBAC, API, audit |
 | [`specs/02`](specs/02-spec-customer-360.md) | Customer 360 |

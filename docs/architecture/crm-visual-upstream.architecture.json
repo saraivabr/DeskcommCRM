@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "titulo": "CRM visual",
+  "descricao": "Port seletivo v1.82.0 preservando superfícies desta edição.",
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Operação"
+    },
+    {
+      "id": "api",
+      "label": "Contratos existentes"
+    }
+  ],
+  "mainPath": [
+    "inbox",
+    "conversas",
+    "retorno"
+  ],
+  "nodes": [
+    {
+      "id": "inbox",
+      "label": "Iniciar conversa",
+      "lane": "ui",
+      "type": "component",
+      "dot": "sky"
+    },
+    {
+      "id": "dossie",
+      "label": "Ficha e tarefas",
+      "lane": "ui",
+      "type": "component",
+      "dot": "sky"
+    },
+    {
+      "id": "calendario",
+      "label": "Calendário do funil",
+      "lane": "ui",
+      "type": "component",
+      "dot": "sky"
+    },
+    {
+      "id": "campos",
+      "label": "Editor condicional",
+      "lane": "ui",
+      "type": "component",
+      "dot": "sky"
+    },
+    {
+      "id": "conversas",
+      "label": "open-with-contact → claim → messages",
+      "lane": "api",
+      "type": "component",
+      "dot": "sky"
+    },
+    {
+      "id": "tarefas",
+      "label": "API de tarefas e auditoria",
+      "lane": "api",
+      "type": "component",
+      "dot": "sky"
+    },
+    {
+      "id": "funil",
+      "label": "Quadro filtrado e ficha existente",
+      "lane": "api",
+      "type": "component",
+      "dot": "sky"
+    },
+    {
+      "id": "schema",
+      "label": "Schema mostrar_quando",
+      "lane": "api",
+      "type": "component",
+      "dot": "sky"
+    },
+    {
+      "id": "retorno",
+      "label": "Erro visível, tentativa e cache atualizado",
+      "lane": "ui",
+      "type": "component",
+      "dot": "sky"
+    }
+  ],
+  "edges": [
+    {
+      "from": "inbox",
+      "to": "conversas",
+      "label": "abre e atribui"
+    },
+    {
+      "from": "conversas",
+      "to": "retorno",
+      "label": "erro sem reenvio"
+    },
+    {
+      "from": "dossie",
+      "to": "tarefas",
+      "label": "cria e conclui"
+    },
+    {
+      "from": "tarefas",
+      "to": "retorno",
+      "label": "audita e invalida quadro"
+    },
+    {
+      "from": "calendario",
+      "to": "funil",
+      "label": "mesmos negócios filtrados"
+    },
+    {
+      "from": "funil",
+      "to": "dossie",
+      "label": "abre ficha"
+    },
+    {
+      "from": "campos",
+      "to": "schema",
+      "label": "grava condição"
+    },
+    {
+      "from": "schema",
+      "to": "dossie",
+      "label": "renderiza sem apagar valor"
+    }
+  ]
+}

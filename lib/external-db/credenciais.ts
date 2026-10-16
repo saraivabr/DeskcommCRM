@@ -15,7 +15,8 @@ import { bufToBytea, byteaToBuffer, decryptKey, encryptKey } from "@/lib/crypto/
 import { logger } from "@/lib/logger";
 
 import { LIMITE_FILTROS, LIMITE_LINHAS, LIMITE_RESPOSTA_BYTES } from "./limites";
-import type { ConexaoExterna, ModoTls } from "./types";
+import { lerFontesDoBanco, type Fonte } from "./fontes";
+import type { ConexaoExterna, ModoDeFontes, ModoTls } from "./types";
 
 /** Um valor de limite ausente/ inválido cai no padrão — nunca em "sem limite". */
 function limiteOuPadrao(valor: number | null, padrao: number): number {
@@ -66,7 +67,28 @@ interface LinhaConexao {
   max_rows: number | null;
   max_filters: number | null;
   max_response_bytes: number | null;
+  source_mode: string;
+  sources: unknown;
   updated_at: string;
+}
+
+/**
+ * O que o banco guardou sobre as fontes liberadas, FALHANDO FECHADO: o modo
+ * desconhecido vale `list`, e uma lista corrompida vale lista VAZIA. Nenhum caminho
+ * de erro aqui pode virar "o assistente vê tudo".
+ */
+function regraDeFontesDaLinha(linha: LinhaConexao): { sourceMode: ModoDeFontes; fontes: Fonte[] } {
+  if (linha.source_mode === "all") return { sourceMode: "all", fontes: [] };
+
+  const lido = lerFontesDoBanco(linha.sources);
+  if (!lido.ok) {
+    logger.warn("[external-db.fontes] lista de fontes inválida no banco — tratando como vazia", {
+      organizationId: linha.organization_id,
+      connectionId: linha.id,
+    });
+    return { sourceMode: "list", fontes: [] };
+  }
+  return { sourceMode: "list", fontes: lido.fontes };
 }
 
 export async function carregarConexao(
@@ -77,7 +99,7 @@ export async function carregarConexao(
   const { data, error } = await admin
     .from("external_db_connections")
     .select(
-      "id, organization_id, label, host, port, database_name, username, password_encrypted, password_iv, password_tag, ssl_mode, enabled, max_rows, max_filters, max_response_bytes, updated_at",
+      "id, organization_id, label, host, port, database_name, username, password_encrypted, password_iv, password_tag, ssl_mode, enabled, max_rows, max_filters, max_response_bytes, source_mode, sources, updated_at",
     )
     .eq("organization_id", organizationId)
     .eq("id", connectionId)
@@ -123,6 +145,7 @@ export async function carregarConexao(
       maxRows: limiteOuPadrao(data.max_rows, LIMITE_LINHAS.padrao),
       maxFilters: limiteOuPadrao(data.max_filters, LIMITE_FILTROS.padrao),
       maxResponseBytes: limiteOuPadrao(data.max_response_bytes, LIMITE_RESPOSTA_BYTES.padrao),
+      ...regraDeFontesDaLinha(data),
       versao: data.updated_at,
     },
   };

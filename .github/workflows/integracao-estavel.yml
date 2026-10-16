@@ -1,0 +1,31 @@
+name: Integração estável escreve.ai
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    concurrency:
+      group: integracao-estavel-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar-node
+        timeout-minutes: 3
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.117.0
+      - name: Preparar Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Fluxos integrados com banco, Auth e navegador reais
+        run: bash scripts/ci-smoke.sh --integracao-estavel
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integracao-estavel-evidence
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

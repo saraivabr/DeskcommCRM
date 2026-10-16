@@ -203,7 +203,52 @@ const DIVIDA_RBAC_CONHECIDA = new Set([
   "user_recovery_codes",
 ]);
 
+// Favorito é preferência pessoal, não configuração compartilhada. O caso abaixo
+// prova os dois eixos (titular e organização) antes de distingui-lo da dívida.
+const POLITICAS_PESSOAIS_PROVADAS = new Set(["knowledge_page_favorites"]);
+
 describe("0150 — a dívida de RBAC não cresce", () => {
+  it("favorito pessoal permite viewer, mas recusa outro titular e outra organização", () => {
+    const otherOrg = "eeeeeeee-3333-4000-8000-000000000001";
+    const ownPage = "eeeeeeee-4444-4000-8000-000000000001";
+    const secondPage = "eeeeeeee-4444-4000-8000-000000000002";
+    const otherPage = "eeeeeeee-4444-4000-8000-000000000003";
+    sql(`
+      insert into public.organizations(id,slug,legal_name,display_name)
+        values ('${otherOrg}','rbac-favoritos-outra','Outra','Outra');
+      insert into public.user_organizations(user_id,organization_id,role)
+        values ('${GOV_ADMIN}','${otherOrg}','admin');
+    `);
+    for (const [org, page] of [[GOV_ORG, ownPage], [GOV_ORG, secondPage], [otherOrg, otherPage]]) {
+      sql(`set role service_role;
+        select public.fn_save_knowledge_page('${org}','${GOV_ADMIN}',
+          '{"id":"${page}","title":"Página para favoritos","markdown":"Conteúdo de teste.",
+            "parent_id":null,"archived":false,"expected_revision":0,"operation_id":"${page}"}'::jsonb);`);
+    }
+    const insert = (org: string, page: string, user: string) =>
+      `insert into public.knowledge_page_favorites(organization_id,page_id,user_id) values ('${org}','${page}','${user}')`;
+    const own = `page_id='${ownPage}' and user_id='${GOV_VIEWER}'`;
+    const another = `page_id='${ownPage}' and user_id='${GOV_ADMIN}'`;
+    expect(writeCountAs(GOV_VIEWER, insert(GOV_ORG, ownPage, GOV_VIEWER))).toBe(1);
+    expect(writeCountAs(GOV_ADMIN, insert(GOV_ORG, ownPage, GOV_ADMIN))).toBe(1);
+    expect(countAs(GOV_VIEWER, `select count(*) from public.knowledge_page_favorites where ${own};`)).toBe(1);
+    expect(countAs(GOV_VIEWER, `select count(*) from public.knowledge_page_favorites where ${another};`)).toBe(0);
+    expect(countAs(GOV_ADMIN, `select count(*) from public.knowledge_page_favorites where ${own};`)).toBe(0);
+    expect(writeCountAs(GOV_VIEWER, insert(GOV_ORG, secondPage, GOV_ADMIN))).toBe(0);
+    expect(writeCountAs(GOV_VIEWER, insert(otherOrg, otherPage, GOV_VIEWER))).toBe(0);
+    // Even a row written by the privileged server must remain invisible if the
+    // user no longer belongs to its organization; ownership alone is insufficient.
+    sql(`${insert(otherOrg, otherPage, GOV_VIEWER)};`);
+    const outside = `page_id='${otherPage}' and user_id='${GOV_VIEWER}'`;
+    expect(countAs(GOV_VIEWER, `select count(*) from public.knowledge_page_favorites where ${outside};`)).toBe(0);
+    expect(writeCountAs(GOV_VIEWER, `delete from public.knowledge_page_favorites where ${outside}`)).toBe(0);
+    expect(writeCountAs(GOV_VIEWER, `delete from public.knowledge_page_favorites where ${another}`)).toBe(0);
+    expect(countAs(GOV_ADMIN, `select count(*) from public.knowledge_page_favorites where ${another};`)).toBe(1);
+    expect(writeCountAs(GOV_VIEWER, `delete from public.knowledge_page_favorites where ${own}`)).toBe(1);
+    expect(countAs(GOV_VIEWER, `select count(*) from public.knowledge_page_favorites where ${own};`)).toBe(0);
+    expect(sql("select has_table_privilege('authenticated','public.knowledge_page_favorites','UPDATE');").trim()).toBe("f");
+  });
+
   it("as tabelas já corrigidas têm policy de escrita com fn_role_at_least", () => {
     const corrigidas = [
       "channel_sessions", "ai_agents", "ai_agent_versions", "ai_budgets",
@@ -223,7 +268,7 @@ describe("0150 — a dívida de RBAC não cresce", () => {
     expect(semRole.trim()).toBe("");
   });
 
-  it("nenhuma tabela NOVA entra com policy ALL só-tenancy", () => {
+  it("nenhuma tabela NOVA entra com policy ALL sem papel ou titular provado", () => {
     const atuais = sql(`
       select coalesce(string_agg(distinct tablename, ',' order by tablename), '') from pg_policies
        where schemaname = 'public'
@@ -234,7 +279,7 @@ describe("0150 — a dívida de RBAC não cresce", () => {
       .split(",")
       .filter(Boolean);
 
-    const novas = atuais.filter((t) => !DIVIDA_RBAC_CONHECIDA.has(t));
+    const novas = atuais.filter((t) => !DIVIDA_RBAC_CONHECIDA.has(t) && !POLITICAS_PESSOAIS_PROVADAS.has(t));
     expect(novas).toEqual([]);
   });
 

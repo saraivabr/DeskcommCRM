@@ -383,9 +383,12 @@ describe("os dois canais usam o mesmo passo", () => {
     expect(chamadas.length, "faltou o passo em um dos caminhos").toBe(2);
   });
 
-  it("o canal intermediado só aplica os efeitos na ENTRADA", () => {
+  it("o canal intermediado só aplica os efeitos na ENTRADA e preserva o Direct nativo manual", () => {
     // O eco de um envio nosso não pede para sair nem abre demanda.
-    expect(ZERNIO).toMatch(/if \(msg\.direction !== "inbound"\) return;/);
+    // O OR também mantém o canal nativo fora dos efeitos automáticos de CRM/IA.
+    expect(ZERNIO).toMatch(
+      /if\s*\(msg\.direction\s*!==\s*"inbound"\s*\|\|\s*input\.source\s*===\s*"meta_social"\)\s*return;/,
+    );
   });
 
   it("o canal por QR delega no compartilhado em vez de reimplementar", () => {

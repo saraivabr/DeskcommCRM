@@ -15,6 +15,7 @@ describe("createDefaultRegistry", () => {
       "deepseek",
       "google",
       "openai",
+      "openai-assinatura",
       "openrouter",
     ]);
   });
@@ -22,6 +23,7 @@ describe("createDefaultRegistry", () => {
     const reg = createDefaultRegistry();
     expect(() => reg.anthropic!("k", "claude-sonnet-4-6")).not.toThrow();
     expect(() => reg.openai!("k", "gpt-5")).not.toThrow();
+    expect(() => reg["openai-assinatura"]!("token-sintetico", "gpt-5")).not.toThrow();
     expect(() => reg.google!("k", "gemini-2.5-pro")).not.toThrow();
     expect(() => reg.openrouter!("k", "meta-llama/llama-3.3-70b-instruct")).not.toThrow();
     expect(() => reg.deepseek!("k", "deepseek-flash")).not.toThrow();

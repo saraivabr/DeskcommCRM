@@ -1,9 +1,11 @@
 import type { TokenUsage } from "./pricing";
 
-// First-party global endpoint only. USD per million tokens, verified 2026-09-20:
+// First-party global endpoint only. USD per million tokens, verified 2026-10-16:
 // https://developers.openai.com/api/docs/pricing
 // Model pages define >272k input tokens as long context for the whole request.
 const RATES = new Map([
+  ["gpt-6-luna", { input: 0.1, output: 0.5 }],
+  ["gpt-6.1-sol", { input: 2, output: 10 }],
   ["gpt-6-astra", { input: 10, output: 50 }],
   ["gpt-5.6-sol", { input: 4, output: 20 }],
   ["gpt-5.6-terra", { input: 2, output: 12 }],
@@ -38,7 +40,7 @@ export function openAiCostCents(
   const long = usage.inputTokens > 272_000;
   const ordinary = usage.inputTokens - usage.cacheReadTokens - usage.cacheWriteTokens;
   const input =
-    (ordinary + usage.cacheReadTokens * 0.1 + usage.cacheWriteTokens * 1.25) *
+    (ordinary + usage.cacheReadTokens * (model === "gpt-6.1-sol" ? 0.05 : 0.1) + usage.cacheWriteTokens * 1.25) *
     price.input *
     (long ? 2 : 1);
   const output = usage.outputTokens * price.output * (long ? 1.5 : 1);

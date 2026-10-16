@@ -129,7 +129,9 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # A VPS apresentou pull/extração de imagens acima de 15 minutos. O prazo
+    # inclui download, backup, drain e boot, sem interromper o SSH no meio.
+    timeout-minutes: 45
     permissions:
       contents: read
       actions: read

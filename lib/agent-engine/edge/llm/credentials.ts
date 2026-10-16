@@ -16,9 +16,15 @@
  * provider/teto é UPDATE na config, sem restart nem deploy.
  */
 import type pg from 'pg';
+
+import { lerLoginCodexRenovandoSeProxima } from '@/lib/ai/credenciais/login-codex';
+import { PROVEDOR_POR_ASSINATURA } from '@/lib/ai/pontos/provedores';
+import { PROVEDOR_DE_RESERVA_DA_ASSINATURA } from '@/lib/ai/pontos/reserva-da-assinatura';
+import type { TokensDoCodex } from '@/lib/ai/pontos/pkce-da-assinatura';
 import { z } from 'zod';
 
 import { byteaToBuffer, decryptKey } from '@/lib/crypto/aes_gcm';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   LIMIAR_PADRAO_PCT,
   normalizarChaveDeOrcamento,
@@ -26,7 +32,7 @@ import {
   type ChaveDeOrcamento,
   type ModoDeOrcamento,
 } from './orcamento';
-import type { RaciocinioDeepseek } from './providers';
+import { esforcoDeRaciocinioOpenAI, type EsforcoDeRaciocinioOpenAI, type RaciocinioDeepseek } from './providers';
 import type { CacheTtl } from './stable-prefix';
 
 /** Config da camada LLM montada do env validado (padrão crmEdgeConfigFromEnv). */
@@ -61,6 +67,7 @@ export interface LlmEdgeConfig {
    * DeepSeek lê este valor; os outros provedores não passam por essa fábrica.
    */
   deepseekThinking?: RaciocinioDeepseek;
+  openaiReasoningEffort?: EsforcoDeRaciocinioOpenAI | null;
   /**
    * `AI_BUDGET_ENFORCEMENT` já normalizado — o kill switch do operador da
    * instalação. Ausente = `'on'`, e `'on'` NÃO LIGA NADA: significa apenas
@@ -93,6 +100,7 @@ export function llmEdgeConfigFromEnv(env: {
   LLM_CACHE_TTL?: string;
   AI_BUDGET_ENFORCEMENT?: string;
   DEEPSEEK_THINKING?: string;
+  OPENAI_REASONING_EFFORT?: string;
 }): LlmEdgeConfig {
   const ttl = env.LLM_CACHE_TTL ?? '1h';
   if (ttl !== '5m' && ttl !== '1h') {
@@ -108,6 +116,7 @@ export function llmEdgeConfigFromEnv(env: {
     ...(env.OPENROUTER_API_KEY ? { openrouterApiKey: env.OPENROUTER_API_KEY } : {}),
     cacheTtl: ttl,
     deepseekThinking: raciocinio,
+    openaiReasoningEffort: esforcoDeRaciocinioOpenAI(env.OPENAI_REASONING_EFFORT),
     // Sem `if` de valor vazio, ao contrário das chaves acima: aqui o ausente
     // TEM um significado ('on'), e o normalizador é quem o dá. Um campo
     // opcional que some faria o seam ter de repetir o default, e dois defaults
@@ -322,6 +331,50 @@ export async function resolveOrgLlmConfig(
           limiarPct: Number(linha?.limiar_pct ?? LIMIAR_PADRAO_PCT),
         };
 
+  // ═══ A ASSINATURA NÃO TEM CHAVE — E CAI SOZINHA NA QUE TEM (#1639) ═══
+  //
+  // Este provedor lê o par de tokens da empresa pelo leitor próprio
+  // (`lerLoginCodexRenovandoSeProxima`), que ainda renova antes de devolver
+  // quando a janela de 8 dias abriu — com `userId: null`, porque ninguém pediu
+  // aquela renovação. Sem linha utilizável (módulo da instalação fora, login
+  // desconectado, envelope que não abre), a chamada NÃO morre: a RESERVA
+  // assume, resolvendo o provedor `openai` pela escada de sempre (credencial
+  // da organização, senão o `.env` da instalação). Sem nenhuma das duas a
+  // escada termina em `LlmNotConfiguredError` — o erro de sempre, sem inventar
+  // outro.
+  if (provider === PROVEDOR_POR_ASSINATURA) {
+    let tokens: TokensDoCodex | null = null;
+    try {
+      tokens = await lerLoginCodexRenovandoSeProxima({ admin: createAdminClient(), orgId: organizationId });
+    } catch {
+      // "Resolvedor nunca lança": se o Supabase não responder, a assinatura
+      // está indisponível — e indisponível é justamente o caso que a reserva
+      // existe para atender.
+      tokens = null;
+    }
+    if (tokens !== null) {
+      return {
+        provider,
+        apiKey: tokens.access_token,
+        origemDaChave: 'credencial_da_organizacao',
+        defaultModel: settings.default_model ?? null,
+        params: settings.params,
+        enabledModels: settings.enabled_models,
+        orcamento,
+        orcamentoIndisponivelPorque,
+      };
+    }
+    return resolveOrgLlmConfig(db, cfg, organizationId, {
+      ...override,
+      provider: PROVEDOR_DE_RESERVA_DA_ASSINATURA,
+      // A reserva é a chave da EMPRESA (ou a da instalação), nunca a linha do
+      // login: `credentialId` apontando para ela tentaria decifrar o JSON dos
+      // tokens como chave de API — a recusa que a 04x/1672 já tem por outra
+      // porta, repetida aqui por não haver porta única.
+      credentialId: null,
+    });
+  }
+
   // Credencial: a ESCOLHIDA na versão publicada quando houver (ainda exigindo
   // ativa+validada — publish valida, mas a credencial pode ser revogada depois);
   // senão a mais recente ativa/validada do provider. Sempre escopada pela org.
@@ -331,9 +384,10 @@ export async function resolveOrgLlmConfig(
         api_key_iv: unknown;
         api_key_tag: unknown;
       }>(
-        `select api_key_encrypted, api_key_iv, api_key_tag
+        `select id, api_key_encrypted, api_key_iv, api_key_tag
          from ai_provider_credentials
          where organization_id = $1 and id = $2
+           and provider <> '${PROVEDOR_POR_ASSINATURA}'
            and is_active and validated_at is not null
          limit 1`,
         [organizationId, override.credentialId],
@@ -343,9 +397,10 @@ export async function resolveOrgLlmConfig(
         api_key_iv: unknown;
         api_key_tag: unknown;
       }>(
-        `select api_key_encrypted, api_key_iv, api_key_tag
+        `select id, api_key_encrypted, api_key_iv, api_key_tag
          from ai_provider_credentials
          where organization_id = $1 and provider = $2
+           and provider <> '${PROVEDOR_POR_ASSINATURA}'
            and is_active and validated_at is not null
          order by created_at desc
          limit 1`,
@@ -388,3 +443,33 @@ export async function resolveOrgLlmConfig(
     orcamentoIndisponivelPorque,
   };
 }
+
+/**
+ * A EMPRESA TEM CHAVE DE RESERVA? — o `temChaveDeReserva` da política da queda
+ * (`decidirQuedaDoProvedor`), respondido pela própria escada de resolução em
+ * vez de por um SELECT solto.
+ *
+ * `true` = resolve o provedor `openai` desta organização (credencial da
+ * empresa, e senão o `.env` da instalação). `false` = `LlmNotConfiguredError`,
+ * o mesmo erro que a chamada encontraria sem a reserva.
+ *
+ * É a pergunta de quem está prestes a perder a assinatura: se ela for `false`,
+ * não há para onde cair e a conversa passa para um humano (item 3 da issue) —
+ * decisão tomada a partir do motivo, nunca aqui.
+ */
+export async function temChaveDeReserva(
+  db: pg.Pool,
+  cfg: LlmEdgeConfig,
+  organizationId: string,
+): Promise<boolean> {
+  try {
+    const reserva = await resolveOrgLlmConfig(db, cfg, organizationId, {
+      provider: PROVEDOR_DE_RESERVA_DA_ASSINATURA,
+      credentialId: null,
+    });
+    return reserva.apiKey.length > 0;
+  } catch {
+    return false;
+  }
+}
+

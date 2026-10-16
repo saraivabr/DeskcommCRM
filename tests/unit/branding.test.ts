@@ -789,6 +789,9 @@ type CategoriaDeHost =
 type EntradaDeHost = { categoria: CategoriaDeHost; motivo: string };
 
 const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
+  "auth.openai.com": { categoria: "FORNECEDOR", motivo: "Autorização SIWC por OAuth/PKCE, troca de tokens e JWKS do provedor OpenAI." },
+  "chatgpt.com": { categoria: "FORNECEDOR", motivo: "Serviço ChatGPT cuja assinatura é conectada por consentimento OAuth." },
+  "developers.openai.com": { categoria: "FORNECEDOR", motivo: "Documentação oficial SIWC para elegibilidade de aplicativos e assinatura." },
   // Marca e domínios desta edição. O primeiro também aparece como nome padrão,
   // embora a régua de hosts o leia como domínio por conter um ponto.
   "escreve.ai": {

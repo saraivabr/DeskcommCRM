@@ -1,3 +1,4 @@
+import { executarStreamDaAssinatura } from "@/lib/ai/pontos/stream-da-assinatura";
 /**
  * @deprecated Fase 0 da convergência (spec 2026-07-23): fora do caminho quente.
  * O runtime canônico é lib/agent-engine (workers/agent-worker). Remoção física
@@ -33,9 +34,13 @@ import { generateText, stepCountIs, type LanguageModel, type StopCondition, type
 import {
   cabecalhosDeAtribuicaoOpenRouter,
   DEEPSEEK_ENDPOINT,
+  OPENAI_CODEX_ENDPOINT,
   OPENROUTER_ENDPOINT,
 } from "@/lib/agent-engine/edge/llm/providers";
 import { CredentialUnavailableError, loadCredential } from "@/lib/ai/credentials";
+import { lerLoginCodexRenovandoSeProxima } from "@/lib/ai/credenciais/login-codex";
+import { PROVEDOR_POR_ASSINATURA } from "@/lib/ai/pontos/provedores";
+import { PROVEDOR_DE_RESERVA_DA_ASSINATURA } from "@/lib/ai/pontos/reserva-da-assinatura";
 import { decidirElegibilidadeDaConversaViaSupabase } from "@/lib/ai/elegibilidade/consulta-supabase";
 import { ttlDaAutorizacaoMs } from "@/lib/ai/elegibilidade/gate";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -172,6 +177,15 @@ export function buildModel(provider: string, apiKey: string, modelId: string): L
       return createAnthropic({ apiKey })(modelId);
     case "openai":
       return createOpenAI({ apiKey })(modelId);
+    // A ASSINATURA (#1639): mesma fábrica da OpenAI, API pública de Responses. O
+    // `apiKey` que chega por aqui é o `access_token` do login por PKCE — quem
+    // o monta é o leitor próprio (`lerLoginCodexRenovandoSeProxima`), nunca a
+    // tela de chave. Sem este caso o ensaio responderia `unsupported_provider`
+    // enquanto o worker atenderia a mensagem real.
+    // A lista da conta vem de GET /v1/models, conforme o contrato oficial
+    // Sign in with ChatGPT; a inferência usa a API pública de Responses abaixo.
+    case PROVEDOR_POR_ASSINATURA:
+      return createOpenAI({ apiKey, baseURL: OPENAI_CODEX_ENDPOINT })(modelId);
     case "google":
       return createGoogleGenerativeAI({ apiKey })(modelId);
     // O ensaio precisa alcançar o mesmo provedor que o turno real alcança.
@@ -311,7 +325,66 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     // Ensaio mais rígido que a produção não é cautela: é dizer que está
     // quebrado o que está funcionando.
     let credentialApiKey: string;
-    if (version.credential_id) {
+    let providerDoTurno = version.provider;
+    /** O endereço do provedor personalizado (#1642) — nasce junto da credencial. */
+    /**
+     * A RESERVA DA ASSINATURA (#1639), na MESMA escada que o resolvedor do
+     * turno usa: a chave `openai` mais recente, ativa e validada da EMPRESA,
+     * e na falta dela a chave de plataforma da instalação. Sem nenhuma, `null`
+     * — e quem chama responde com o `failRun` de sempre.
+     */
+    const reservaDaAssinatura = async () => {
+      try {
+        const { data } = await createAdminClient()
+          .from("ai_provider_credentials")
+          .select("id")
+          .eq("organization_id", run.organization_id)
+          .eq("provider", PROVEDOR_DE_RESERVA_DA_ASSINATURA)
+          .eq("is_active", true)
+          .not("validated_at", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data?.id) {
+          const credential = await loadCredential(data.id, run.organization_id);
+          return { apiKey: credential.apiKey };
+        }
+      } catch {
+        // Sem linha utilizável (ou `loadCredential` recusou): a escada cai no
+        // `.env`, exatamente como o turno de produção cai.
+      }
+      const daInstalacao = chaveDePlataforma(PROVEDOR_DE_RESERVA_DA_ASSINATURA);
+      return { apiKey: daInstalacao };
+    }
+
+    if (version.provider === PROVEDOR_POR_ASSINATURA) {
+      // A ASSINATURA NÃO É CHAVE: o par de tokens mora na linha de login da
+      // empresa e é lido pelo leitor próprio, que ainda renova antes de
+      // devolver (janela de 8 dias, `userId: null`). `loadCredential` recusa
+      // este provider de propósito — mandaria o JSON dos tokens como chave.
+      //
+      // Sem linha utilizável → a RESERVA, e sem ela o `failRun` de sempre:
+      // nenhum erro novo, só o caminho que já existia.
+      const tokens = await lerLoginCodexRenovandoSeProxima({
+        admin: createAdminClient(),
+        orgId: run.organization_id,
+      });
+      if (tokens) {
+        credentialApiKey = tokens.access_token;
+      } else {
+        const reserva = await reservaDaAssinatura();
+        if (!reserva.apiKey) {
+          return await failRun(
+            run,
+            "credential_invalid",
+            `sem linha de login nem chave de reserva para ${version.provider}: conecte a assinatura do ChatGPT em IA › Credenciais`,
+            startedAt,
+          );
+        }
+        credentialApiKey = reserva.apiKey;
+        providerDoTurno = PROVEDOR_DE_RESERVA_DA_ASSINATURA;
+      }
+    } else if (version.credential_id) {
       try {
         const credential = await loadCredential(version.credential_id, run.organization_id);
         credentialApiKey = credential.apiKey;
@@ -502,7 +575,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
       : [];
 
     // 9) Build LM directly against the provider (BYOK credential — see buildModel doc).
-    const model = buildModel(version.provider, credentialApiKey, version.model);
+    const model = buildModel(providerDoTurno, credentialApiKey, version.model);
 
     // 10) Cost/token guard. Fires BEFORE the next step is taken.
     let abortReason: string | null = null;
@@ -537,14 +610,22 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     ];
 
     const result = await runMeteredOperation(
-      { organizationId: run.organization_id, provider: version.provider, model: version.model },
-      () => generateText({
-        model,
-        system: version.system_prompt,
-        messages,
-        tools,
-        stopWhen: [stepCountIs(version.max_steps), budgetGuard],
-      }),
+      { organizationId: run.organization_id, provider: providerDoTurno, model: version.model },
+      async () =>       providerDoTurno === PROVEDOR_POR_ASSINATURA
+        ? await executarStreamDaAssinatura({
+            model,
+            system: version.system_prompt,
+            messages,
+            tools,
+            stopWhen: [stepCountIs(version.max_steps), budgetGuard],
+          })
+        : await generateText({
+            model,
+            system: version.system_prompt,
+            messages,
+            tools,
+            stopWhen: [stepCountIs(version.max_steps), budgetGuard],
+          }),
       (response) => measuredGeneration(response),
     );
 

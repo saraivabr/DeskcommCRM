@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ok } from "@/lib/api/wrappers";
+import { requireSupportWrite } from "@/lib/impersonate/support";
 import {
   metaAuthorize,
   metaAPIError,
@@ -27,6 +28,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const requestId = request.headers.get("x-request-id") ?? undefined;
   try {
+    const supportDenied = await requireSupportWrite();
+    if (supportDenied) return supportDenied;
     const auth = await metaAuthorize(request, true);
     if (!auth.ok) return auth.response;
     const body = await metaReadBody(

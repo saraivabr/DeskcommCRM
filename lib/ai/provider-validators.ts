@@ -8,7 +8,7 @@
  *
  * Timeout 5s, sem retry. Erros 401 são distintos de erros de rede.
  */
-import { PROVEDORES } from "@/lib/ai/pontos/provedores";
+import { type PROVEDORES, PROVEDOR_POR_ASSINATURA } from "@/lib/ai/pontos/provedores";
 import { env } from "@/lib/env";
 
 /**
@@ -274,6 +274,17 @@ export function validateProviderKey(
       return validateOpenRouterKey(apiKey);
     case "deepseek":
       return validateDeepSeekKey(apiKey);
+    case PROVEDOR_POR_ASSINATURA:
+      // NÃO É CHAVE. Este provedor nasce do login por PKCE no painel de
+      // Credenciais, e a linha que ele grava em `ai_provider_credentials` guarda
+      // um par de tokens. Dizer "ok" aqui mandaria alguém colar o JSON dos
+      // tokens no campo de chave — e dizer "chave inválida" faria a pessoa
+      // tentar de novo. O erro nomeia o caminho certo.
+      return Promise.resolve({
+        ok: false,
+        error:
+          'assinatura_pelo_login: esta credencial não é uma chave — conecte a conta do ChatGPT no painel de Credenciais desta empresa.',
+      });
     default: {
       // Sem `never` aqui: `Provider` agora é derivado de PROVEDORES, e a lista
       // cresce sem que este arquivo saiba. Provedor novo cadastrado antes de

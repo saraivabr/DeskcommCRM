@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };
 function failure(error: unknown, requestId: string) {
   return fail(
-    "instagram_unavailable",
+    error instanceof SocialError ? error.code : "instagram_unavailable",
     error instanceof SocialError
       ? error.message
       : "Não foi possível consultar ou salvar a automação. Atualize a lista antes de tentar novamente.",

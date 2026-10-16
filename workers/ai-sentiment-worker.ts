@@ -1,7 +1,8 @@
 /**
  * ai-sentiment-worker — classifies the sentiment of inbound messages.
  *
- * Consumes `message.received` events (parallel to ai-response-worker).
+ * Consumes `message.received` events. O dreno roda os handlers EM SÉRIE
+ * (`lib/event-log/dispatcher.ts`): a latência daqui atrasa os seguintes.
  * Uses `anthropic/claude-haiku-4-5` via Vercel AI Gateway with generateObject
  * and a strict Zod schema so the result is always typed.
  *
@@ -16,11 +17,12 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 
+import { agenteAtende, precisaRecuperarLegado } from "@/lib/ai/agents/no-ar";
 import { resolverAgenteDaConversa } from "@/lib/ai/agents/agente-da-conversa";
 import { computeCost } from "@/lib/ai/cost";
 import { decidirElegibilidadeDaConversaViaSupabase } from "@/lib/ai/elegibilidade/consulta-supabase";
 import { ttlDaAutorizacaoMs } from "@/lib/ai/elegibilidade/gate";
-import { DEFAULT_CLASSIFIER_MODEL, isAiGatewayConfigured } from "@/lib/ai/gateway";
+import { DEFAULT_CLASSIFIER_MODEL } from "@/lib/ai/gateway";
 import { resolverModeloDoPonto } from "@/lib/ai/gateway-binding";
 import { logInvocation } from "@/lib/ai/log-invocation";
 import { SENTIMENT_SYSTEM_PROMPT } from "@/lib/ai/prompts/sentiment";
@@ -64,29 +66,6 @@ export interface SentimentResult {
 
 export async function processSentiment(event: EventRow): Promise<SentimentResult> {
   try {
-    // ── Guard: AI Gateway configured ────────────────────────────────────────
-    if (!isAiGatewayConfigured()) {
-      return { skipped: true, reason: "ai_gateway_key_missing" };
-    }
-
-    // Passar SENTIMENT_MODEL como string cai no gateway da Vercel mesmo sem
-    // chave (plano anônimo) e devolve "Unauthenticated ... Configure
-    // AI_GATEWAY_API_KEY" — o que quebrava este worker em toda instalação que
-    // só tem ANTHROPIC_API_KEY, ou seja, o padrão do install.sh. O resolver
-    // devolve o provider certo para a chave que existir.
-    // O painel de provedores manda AQUI também. Sem esta linha, a tela
-    // oferecia "Medir o clima da conversa", aceitava a escolha e dizia
-    // "salvo" — e este worker seguia usando o modelo padrão. Botão que não
-    // controla nada é pior que botão ausente: gasta a confiança de quem clicou.
-    const resolvido = await resolverModeloDoPonto(
-      "sentiment_classify",
-      event.organization_id,
-      SENTIMENT_MODEL,
-    );
-    if (!resolvido) {
-      return { skipped: true, reason: "ai_gateway_key_missing" };
-    }
-    const sentimentModel = resolvido.model;
 
     const messageId =
       (event.payload?.["message_id"] as string | undefined) ?? event.entity_id ?? null;
@@ -96,6 +75,7 @@ export async function processSentiment(event: EventRow): Promise<SentimentResult
     }
 
     const admin = createAdminClient();
+
 
     // ── Load message (programmatic org filter) ────────────────────────────
     const { data: message, error: msgErr } = await admin
@@ -121,11 +101,13 @@ export async function processSentiment(event: EventRow): Promise<SentimentResult
     }
 
     // ── Guard: elegibilidade da IA ────────────────────────────────────────
-    // O único efeito deste worker é alimentar o handoff por sentimento
-    // (`ai.sentiment_alert` → `triggerHandoff`). Numa conversa que o gate
-    // `allowlist` barra, `triggerHandoff` já se recusa — então classificar aqui
-    // seria só queimar um Haiku à toa. Pula cedo. `open` (o default) segue.
-    // Fail-closed: erro de leitura → pula (sem custo, sem efeito).
+    // Os efeitos deste worker são o handoff por sentimento (`ai.sentiment_alert`
+    // → `triggerHandoff`) e os pedidos do cliente. Com `!permite` os dois são
+    // nada: `triggerHandoff` recusa pela MESMA régua (orchestrator.ts, "GATE DE
+    // ELEGIBILIDADE") e `perguntarOsPedidosDoCliente` devolve `null` sem
+    // `iaPodeResponder`. Classificar seria pagar o modelo por um alerta que
+    // ninguém consome — conversa com uma pessoa, silenciada, contato passado a
+    // humano, trava da lista. Fail-closed: erro de leitura → pula.
     const convIdParaGate = conversationId ?? (message.conversation_id as string | null);
     if (convIdParaGate) {
       try {
@@ -135,8 +117,8 @@ export async function processSentiment(event: EventRow): Promise<SentimentResult
           agora: new Date(),
           ttlMs: ttlDaAutorizacaoMs(process.env),
         });
-        if (elegib !== null && elegib.bloqueioPorAllowlist) {
-          return { skipped: true, reason: "nao_elegivel_para_ia" };
+        if (elegib !== null && !elegib.permite) {
+          return { skipped: true, reason: `nao_elegivel_para_ia:${elegib.motivo}` };
         }
       } catch {
         return { skipped: true, reason: "elegibilidade_indeterminada" };
@@ -183,6 +165,15 @@ export async function processSentiment(event: EventRow): Promise<SentimentResult
       )
       .eq("organization_id", event.organization_id)
       .is("archived_at", null);
+
+    // O alerta só tem efeito quando existe atendimento automático ativo.
+    if (!(candidatos ?? []).some((c) => agenteAtende(c) || precisaRecuperarLegado(c))) {
+      return { skipped: true, reason: "nenhum_agente_no_ar" };
+    }
+    // O resolvedor honra as chaves e escolhas da empresa; não depende de chave no env.
+    const resolvido = await resolverModeloDoPonto("sentiment_classify", event.organization_id, SENTIMENT_MODEL);
+    if (!resolvido) return { skipped: true, reason: "ai_gateway_key_missing" };
+    const sentimentModel = resolvido.model;
 
     const { agente: agent, motivo: motivoDoAgente } = resolverAgenteDaConversa(
       candidatos ?? [],

@@ -38,6 +38,7 @@ import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { type Provider } from "@/lib/ai/provider-validators";
 import { rotacionarCredencial } from "@/lib/ai/credenciais/guardar";
+import { PROVEDOR_POR_ASSINATURA } from "@/lib/ai/pontos/provedores";
 import {
   versoesCongeladas,
   versoesQueBloqueiam,
@@ -169,6 +170,21 @@ export async function PATCH(
   }
   if (!cred || cred.organization_id !== activeOrg.orgId) {
     return fail("not_found", t("Credential não encontrada."), 404, { requestId });
+  }
+
+  // O RAMO DO LOGIN POR ASSINATURA (#1672, item 3): esta linha guarda o par
+  // de tokens da conta da empresa, e o lugar de trocá-lo é o painel de
+  // conexão (conectar de novo / desconectar) — girar "chave" aqui mandaria um
+  // JSON de tokens para o provedor como se fosse chave de API.
+  if (cred.provider === PROVEDOR_POR_ASSINATURA && input.api_key !== undefined) {
+    return fail(
+      "validation_failed",
+      t(
+        "Esta credencial guarda o login por assinatura da empresa, não uma chave de API. Use Conectar ou Desconectar na tela de Credenciais.",
+      ),
+      422,
+      { requestId },
+    );
   }
 
   const resultado = await rotacionarCredencial({

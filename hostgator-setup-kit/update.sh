@@ -46,7 +46,11 @@ if [ "${SINGLE_SERVER:-0}" = "1" ]; then
   if sincronizar_smtp_do_gotrue; then
     dc_supabase up -d --no-deps auth >/dev/null 2>&1 || c_ylw "⚠ Não consegui reiniciar o auth do Supabase com o SMTP do CRM."
   else
-    c_ylw "⚠ Sem SMTP no CRM: 'esqueci a senha' e a confirmação de cadastro não enviam e-mail. Configure em /admin/email e rode o update.sh de novo."
+    # #2755 — configurar SMTP não tem nada a ver com atualização: mandar
+    # re-executar este script mandava quem estava resolvendo rodar algo que não
+    # muda o e-mail. O aviso some sozinho na próxima rodada em que o SMTP
+    # aparecer no CRM.
+    c_ylw "⚠ Sem SMTP no CRM: 'esqueci a senha' e a confirmação de cadastro não enviam e-mail. Configure em /admin/email."
   fi
 fi
 

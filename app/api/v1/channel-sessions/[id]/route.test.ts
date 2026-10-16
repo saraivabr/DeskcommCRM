@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getWahaClient } from "@/lib/waha/client";
 import { logger } from "@/lib/logger";
+import { apagarAssinaturaSocial } from "@/lib/channels/social/store";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
 
 vi.mock("@/lib/auth/require-role", () => ({ requireRole: vi.fn() }));
@@ -32,6 +33,7 @@ vi.mock("@/lib/auth/server", () => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+vi.mock("@/lib/channels/social/store", () => ({ apagarAssinaturaSocial: vi.fn() }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => undefined) }));
 vi.mock("@/lib/waha/client", () => ({
   getWahaClient: vi.fn(),
@@ -491,6 +493,70 @@ describe("DELETE /api/v1/channel-sessions/[id]", () => {
     wahaOk(db);
     const { DELETE } = await import("./route");
     expect((await DELETE(reqDelete(), ctx())).status).toBe(500);
+  });
+  describe("canal SOCIAL → apaga a assinatura no Zernio ANTES de mexer na linha", () => {
+    const social = (over: Linha = {}) =>
+      canal({ provider: "zernio_social", waha_session_name: null, ...over });
+
+    it("apaga a assinatura antes da escrita e registra na auditoria", async () => {
+      authOk();
+      const db = makeDb({ sessions: [social({ webhook_path_token: "tokenantigo" })] });
+      vi.mocked(apagarAssinaturaSocial).mockImplementation(async () => {
+        db.eventos.push("social:apagar-assinatura");
+        return "apagada";
+      });
+      const waha = wahaOk(db);
+      const { DELETE } = await import("./route");
+      const res = await DELETE(reqDelete(), ctx());
+
+      expect(res.status).toBe(200);
+      expect(apagarAssinaturaSocial).toHaveBeenCalledWith(expect.anything(), ORG, CANAL);
+      // Revoga ANTES de mexer no banco — se a ordem invertesse, a reconciliação
+      // pela URL do token não acharia mais a assinatura.
+      expect(db.eventos[0]).toBe("social:apagar-assinatura");
+      expect(waha.logoutSession).not.toHaveBeenCalled();
+      expect(vi.mocked(decryptWebhookSecret)).not.toHaveBeenCalled();
+      expect(audit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({ social_webhook: "apagada" }),
+        }),
+      );
+    });
+
+    it("provedor fora do ar → best-effort: 200 e a falha vai para a auditoria", async () => {
+      authOk();
+      const db = makeDb({ sessions: [social()] });
+      vi.mocked(apagarAssinaturaSocial).mockRejectedValue(new Error("zernio_500"));
+      wahaOk(db);
+      const { DELETE } = await import("./route");
+      const res = await DELETE(reqDelete(), ctx());
+
+      expect(res.status).toBe(200);
+      expect(db.escritas).not.toHaveLength(0);
+      expect(audit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({ social_webhook: "falhou" }),
+        }),
+      );
+    });
+
+    it("no arquivamento rotaciona o token da URL sem tocar na credencial da Meta", async () => {
+      authOk();
+      const db = makeDb({
+        sessions: [social({ webhook_path_token: "tokenantigo" })],
+        rows: { conversations: [{ id: "c1", organization_id: ORG, channel_session_id: CANAL }] },
+      });
+      vi.mocked(apagarAssinaturaSocial).mockResolvedValue("apagada");
+      wahaOk(db);
+      const { DELETE } = await import("./route");
+      const res = await DELETE(reqDelete(), ctx());
+
+      expect((await res.json()).data.archived).toBe(true);
+      const patch = db.escritas[0]?.patch as Linha;
+      expect(patch.webhook_path_token).toMatch(/^[a-f0-9]{32}$/);
+      expect(patch.webhook_path_token).not.toBe("tokenantigo");
+      expect(patch).not.toHaveProperty("meta_token_encrypted");
+    });
   });
 });
 

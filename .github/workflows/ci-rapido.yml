@@ -4,7 +4,12 @@ on:
     branches: [main]
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      integration:
+        description: Executar também os fluxos da integração estável em banco descartável
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -51,9 +56,9 @@ jobs:
         run: node scripts/ci-rapido-run.mjs database
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: ${{ inputs.integration && 35 || 10 }}
     concurrency:
-      group: ci-rapido-smoke-${{ github.event.pull_request.number || github.ref }}
+      group: ci-rapido-smoke-${{ github.event.pull_request.number || github.ref }}-${{ inputs.integration || false }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
@@ -65,7 +70,14 @@ jobs:
       - name: Preparar Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Login, sessão e telas essenciais com banco real
-        run: bash scripts/ci-smoke.sh
+        env:
+          INTEGRATION: ${{ inputs.integration || false }}
+        run: |
+          if [[ "$INTEGRATION" == true ]]; then
+            bash scripts/ci-smoke.sh --integracao-estavel
+          else
+            bash scripts/ci-smoke.sh
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         continue-on-error: true

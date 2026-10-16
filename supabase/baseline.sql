@@ -40466,6 +40466,431 @@ comment on function public.fn_meta_messaging_resolve_entry(text,text) is 'meta-m
 comment on function public.fn_meta_messaging_accept(jsonb) is 'meta-messaging-0418-ingress';
 comment on function public.fn_meta_messaging_ingest(uuid) is 'meta-messaging-0418-manual-inbox';
 
+-- ---- escreve.ai: Índices de envios por contato, métricas de jobs e poda da fila; port do upstream 7c394d415, sem alterar o worker personalizado. (migration 0420) ----
+-- 0420 — índices do caminho quente do agente e da poda diária da fila.
+--
+-- Cinco buscas rodavam sem índice que as servisse, e todas crescem com o uso:
+--
+-- 1. `send_ledger` por contato. "1º outbound" (`countPriorAcceptedSends`,
+--    disclosure e LGPD) conta envios `accepted` do contato DENTRO da transação
+--    que segura o lock do número; `ultimaInboundJaRespondida` procura envio
+--    `accepted`/`queued` do mesmo contato a cada turno. Nenhum índice começava
+--    por contato (o de busca é (organization_id, created_at)). O predicado
+--    cobre os dois status porque `status = 'accepted'` implica
+--    `status in ('accepted','queued')`: um índice serve as duas consultas.
+--    Custo aceito: `status` entra no predicado, então a troca de status de um
+--    envio deixa de ser HOT update — uma escrita a mais por envio, contra uma
+--    varredura por contato a cada turno.
+-- 2. `llm_calls.job_id`. `recordRunMetrics` soma as chamadas do run por job_id,
+--    e o `on delete set null` vindo de `job_queue` faz a poda diária
+--    (`fn_podar_fila_de_jobs`, até 1000 jobs por chamada) varrer a tabela uma vez
+--    por job apagado.
+-- 3/4. `lead_checkpoints.job_id` e `lead_state_transitions.job_id`: o mesmo
+--    `on delete set null`, a mesma varredura por job apagado.
+-- 5. `event_log` em `processing`. Dois polls fixos procuram eventos presos: o
+--    reaper do drain do agente (a cada tick, por event_type) e o do dreno geral
+--    (só status + updated_at). Os índices parciais existentes são de `pending`
+--    e `dead`. A chave é `event_type`, e NÃO `updated_at`: o trigger
+--    `trg_event_log_touch` reescreve updated_at em todo update, e indexá-lo tiraria
+--    o HOT update de toda escrita na tabela. `processing` é transitório, então o
+--    índice fica pequeno e o filtro de updated_at roda sobre poucas linhas.
+--
+-- Sem CONCURRENTLY: o runner envolve a migration em transação. A criação trava
+-- escrita nessas tabelas pelo tempo de construir cada índice.
+-- Sem função nova (nada a revogar de anon).
+
+create index if not exists idx_send_ledger_contato_entregue
+  on public.send_ledger (organization_id, contact_id)
+  where status in ('accepted', 'queued');
+
+create index if not exists idx_llm_calls_job_id
+  on public.llm_calls (job_id)
+  where job_id is not null;
+
+create index if not exists idx_lead_checkpoints_job_id
+  on public.lead_checkpoints (job_id)
+  where job_id is not null;
+
+create index if not exists idx_lead_state_transitions_job_id
+  on public.lead_state_transitions (job_id)
+  where job_id is not null;
+
+create index if not exists event_log_processing_por_tipo_idx
+  on public.event_log (event_type)
+  where status = 'processing';
+
+-- ---- escreve.ai: métricas limitadas ao período (migration 0422) ----
+-- Port de 7a640ee26 (#2514): recorta candidatas antes de ler o histórico.
+-- Somente a função usada nesta edição; preserva a régua e a RLS existentes.
+create or replace function public.fn_attendant_metrics(
+  p_org uuid,
+  p_from timestamptz,
+  p_to timestamptz,
+  p_owner uuid default null
+) returns jsonb
+language sql stable
+set search_path = public
+as $$
+  with
+  lead_agg as (
+    select
+      owner_user_id as user_id,
+      count(*) filter (where status = 'won')  as won,
+      count(*) filter (
+        where status = 'lost'
+          -- A transferência entre funis não é perda comercial (migration 0266).
+          and coalesce(lost_reason, '') <> 'moved_to_another_pipeline'
+      ) as lost
+    from public.crm_leads
+    where organization_id = p_org
+      and status in ('won', 'lost')
+      and closed_at >= p_from and closed_at < p_to
+      and owner_user_id is not null
+      and (p_owner is null or owner_user_id = p_owner)
+    group by owner_user_id
+  ),
+  conv_agg as (
+    select
+      assigned_to_user_id as user_id,
+      count(*) as conversations_handled
+    from public.conversations
+    where organization_id = p_org
+      and assigned_to_user_id is not null
+      and assigned_at >= p_from and assigned_at < p_to
+      and (p_owner is null or assigned_to_user_id = p_owner)
+    group by assigned_to_user_id
+  ),
+  -- (0235) Chamada de voz ATENDIDA conta como trabalho.
+  --
+  -- Quem passa o dia ao telefone tinha produtividade zero nesta função: ela
+  -- lia negócios fechados, conversas atribuídas e primeira resposta por
+  -- MENSAGEM, e nenhuma das três enxerga uma ligação.
+  --
+  -- `owner_user_id` é quem esteve NA LINHA (a rota de atender grava; a ponte de
+  -- eventos confirma pelo `owner` do upstream) — e não `created_by`, que só
+  -- existe na chamada iniciada pelo CRM e diria zero para toda ligação
+  -- recebida. `answered_at is not null` é o que separa trabalho de telefone
+  -- tocando.
+  voice_agg as (
+    select
+      owner_user_id as user_id,
+      count(*) as calls_answered,
+      coalesce(sum(duration_ms), 0)::bigint as call_ms
+    from public.voice_calls
+    where organization_id = p_org
+      and owner_user_id is not null
+      and answered_at is not null
+      and answered_at >= p_from and answered_at < p_to
+      and (p_owner is null or owner_user_id = p_owner)
+    group by owner_user_id
+  ),
+  -- ─── #2514: o recorte ANTES do lateral, não depois dele ────────────────────
+  --
+  -- O `ttfr` media a 1ª resposta humana de TODA conversa atribuída da
+  -- organização: o `cross join lateral` rodava uma vez por conversa e a janela
+  -- só entrava no filtro do agregado. 1 dia e 90 dias faziam o mesmo trabalho
+  -- (medido: 13,9 s contra 15,8 s), e o dashboard chama isso com janela curta a
+  -- cada visita.
+  --
+  -- O candidato é EXATO, não uma margem: a média só pode nascer de conversa cuja
+  -- 1ª resposta humana cai na janela (`fr.first_human_out >= p_from and <
+  -- p_to`, predicado que já existia), e toda conversa assim tem UMA mensagem
+  -- humana de saída na janela — é justamente ela a 1ª. O que
+  -- `ttfr_candidatas` deixa de fora não passava daquele filtro de qualquer
+  -- forma: não era contagem, não era vazamento, só pagava o lateral.
+  --
+  -- O custo do candidato acompanha a JANELA: `idx_messages_org_direction_sent`
+  -- (0133) cobre o predicado inteiro, `(organization_id, direction, sent_at)`.
+  ttfr_candidatas as (
+    select distinct m.conversation_id
+    from public.messages m
+    where m.organization_id = p_org
+      and m.direction = 'outbound'
+      and m.sent_by_user_id is not null
+      and m.sent_at >= p_from
+      and m.sent_at < p_to
+  ),
+  ttfr as (
+    select
+      c.assigned_to_user_id as user_id,
+      avg(extract(epoch from (fr.first_human_out - fr.first_in))) as avg_first_response_seconds
+    from public.conversations c
+    -- A linha de fora do candidato nunca entrou na média; ela só existia para
+    -- ser varrida. O lateral e o filtro de baixo estão INTACTOS.
+    join ttfr_candidatas k on k.conversation_id = c.id
+    cross join lateral (
+      select
+        min(m.sent_at) filter (where m.direction = 'inbound') as first_in,
+        min(m.sent_at) filter (
+          where m.direction = 'outbound' and m.sent_by_user_id is not null
+        ) as first_human_out
+      from public.messages m
+      where m.conversation_id = c.id
+    ) fr
+    where c.organization_id = p_org
+      and c.assigned_to_user_id is not null
+      and (p_owner is null or c.assigned_to_user_id = p_owner)
+      and fr.first_in is not null
+      and fr.first_human_out is not null
+      and fr.first_human_out > fr.first_in
+      and fr.first_human_out >= p_from and fr.first_human_out < p_to
+    group by c.assigned_to_user_id
+  ),
+  attendant_ids as (
+    select user_id from lead_agg
+    union select user_id from conv_agg
+    union select user_id from ttfr
+    union select user_id from voice_agg
+  )
+  select jsonb_build_object(
+    'funnel', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'stage_id', s.id,
+          'stage_name', s.name,
+          'position', s.position,
+          'count', coalesce(l.cnt, 0)
+        ) order by s.position, s.name
+      )
+      from public.crm_stages s
+      left join (
+        select stage_id, count(*) as cnt
+        from public.crm_leads
+        where organization_id = p_org
+          and status = 'open'
+          and (p_owner is null or owner_user_id = p_owner)
+        group by stage_id
+      ) l on l.stage_id = s.id
+      where s.organization_id = p_org
+        and s.is_archived = false
+    ), '[]'::jsonb),
+    'attendants', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'user_id', a.user_id,
+          'won', coalesce(la.won, 0),
+          'lost', coalesce(la.lost, 0),
+          'conversations_handled', coalesce(ca.conversations_handled, 0),
+          'avg_first_response_seconds', tf.avg_first_response_seconds,
+          'calls_answered', coalesce(va.calls_answered, 0),
+          'call_seconds', (coalesce(va.call_ms, 0) / 1000)::bigint
+        ) order by coalesce(la.won, 0) desc, a.user_id
+      )
+      from attendant_ids a
+      left join lead_agg la on la.user_id = a.user_id
+      left join conv_agg ca on ca.user_id = a.user_id
+      left join ttfr tf on tf.user_id = a.user_id
+      left join voice_agg va on va.user_id = a.user_id
+    ), '[]'::jsonb)
+  );
+$$;
+revoke all on function public.fn_attendant_metrics(uuid,timestamptz,timestamptz,uuid) from public, anon;
+grant execute on function public.fn_attendant_metrics(uuid,timestamptz,timestamptz,uuid) to authenticated, service_role;
+
+
+-- ---- Porte seletivo IA supabase/migrations/20261016082400_0424_publicar_assinatura_por_empresa.sql ----
+-- 0424: catálogo SIWC da conta, isolado por organização.
+-- Adaptado de DeskcommCRM 66f11e00e / 4ade3adbf; preserva guardas da edição escreve.ai.
+create or replace function public.fn_publish_ai_agent_version(
+  p_org_id uuid,
+  p_agent_id uuid,
+  p_version_id uuid,
+  p_platform_credential_verified boolean,
+  p_expected_provenance text
+)
+returns table (
+  agent_id uuid,
+  version_id uuid,
+  previous_version_id uuid,
+  published_at timestamptz
+)
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_agent record;
+  v_version record;
+  v_credential record;
+  v_session record;
+  v_model_count integer;
+  v_previous_version_id uuid;
+  v_published_at timestamptz := now();
+begin
+  select a.id, a.organization_id, a.published_version_id, a.archived_at
+    into v_agent
+  from public.ai_agents a
+  where a.id = p_agent_id
+  for update;
+
+  if not found then
+    raise exception 'agent_not_found' using errcode = 'P0001';
+  end if;
+  if v_agent.organization_id <> p_org_id then
+    raise exception 'agent_not_found' using errcode = 'P0001';
+  end if;
+  if v_agent.archived_at is not null then
+    raise exception 'agent_archived' using errcode = 'P0001';
+  end if;
+
+  select v.id, v.organization_id, v.agent_id, v.status, v.provider, v.model,
+         v.credential_id, v.channel_session_id, v.provisioning_origin
+    into v_version
+  from public.ai_agent_versions v
+  where v.id = p_version_id
+  for update;
+
+  if not found then
+    raise exception 'version_not_found' using errcode = 'P0001';
+  end if;
+  if v_version.agent_id <> p_agent_id or v_version.organization_id <> p_org_id then
+    raise exception 'version_not_found' using errcode = 'P0001';
+  end if;
+  if p_expected_provenance is not null and (
+    p_expected_provenance not in('onboarding','legacy_reconciliation') or
+    v_version.provisioning_origin is distinct from p_expected_provenance or
+    (select count(*) from public.ai_agent_versions own_version where own_version.organization_id=p_org_id and own_version.agent_id=p_agent_id)<>1
+  ) then raise exception 'existing_version_requires_review' using errcode='P0001';end if;
+  if v_version.status not in ('draft', 'superseded') then
+    raise exception 'version_invalid_state' using errcode = 'P0001';
+  end if;
+
+  if v_version.credential_id is null and p_platform_credential_verified is not true then
+    raise exception 'credential_missing' using errcode = 'P0001';
+  end if;
+
+  if v_version.credential_id is not null then
+  select c.id, c.organization_id, c.provider, c.is_active, c.validated_at, c.models_available
+    into v_credential
+  from public.ai_provider_credentials c
+  where c.id = v_version.credential_id;
+
+  if not found or v_credential.organization_id <> p_org_id then
+    raise exception 'credential_not_found' using errcode = 'P0001';
+  end if;
+  if not v_credential.is_active then
+    raise exception 'credential_inactive' using errcode = 'P0001';
+  end if;
+  if v_credential.validated_at is null then
+    raise exception 'credential_not_validated' using errcode = 'P0001';
+  end if;
+  if v_credential.provider <> v_version.provider then
+    raise exception 'credential_provider_mismatch' using errcode = 'P0001';
+  end if;
+
+  end if;
+
+  select s.id, s.organization_id, s.status
+    into v_session
+  from public.channel_sessions s
+  where s.id = v_version.channel_session_id;
+
+  if not found or v_session.organization_id <> p_org_id then
+    raise exception 'channel_session_not_found' using errcode = 'P0001';
+  end if;
+  if v_session.status <> 'WORKING' then
+    raise exception 'channel_session_offline' using errcode = 'P0001';
+  end if;
+
+  -- SIWC models belong to this validated organization credential, never the global catalogue.
+  if v_version.provider = 'openai-assinatura' then
+    if v_version.credential_id is null then
+      raise exception 'model_not_found' using errcode = 'P0001';
+    end if;
+    if not (v_version.model = any(coalesce(v_credential.models_available, '{}'::text[]))) then
+      raise exception 'model_not_found' using errcode = 'P0001';
+    end if;
+  else
+  select count(*)
+    into v_model_count
+  from public.ai_models m
+  where m.provider = v_version.provider
+    and m.model_id = v_version.model
+    and m.deprecated_at is null;
+
+  if v_model_count = 0 then
+    raise exception 'model_not_found' using errcode = 'P0001';
+  end if;
+
+  end if;
+
+  v_previous_version_id := v_agent.published_version_id;
+
+  if v_previous_version_id is not null and v_previous_version_id <> p_version_id then
+    update public.ai_agent_versions
+       set status = 'superseded', superseded_at = v_published_at
+     where id = v_previous_version_id;
+  end if;
+
+  update public.ai_agent_versions
+     set status = 'published',
+         published_at = v_published_at,
+         superseded_at = null
+   where id = p_version_id;
+
+  update public.ai_agents
+     set published_version_id = p_version_id,
+         updated_at = v_published_at
+   where id = p_agent_id;
+
+  return query
+    select p_agent_id, p_version_id, v_previous_version_id, v_published_at;
+end;
+$$;
+revoke all on function public.fn_publish_ai_agent_version(uuid,uuid,uuid,boolean,text) from public,anon,authenticated;
+grant execute on function public.fn_publish_ai_agent_version(uuid,uuid,uuid,boolean,text) to service_role;
+
+-- ---- Porte seletivo IA supabase/migrations/20261016082500_0425_catalogo_gpt_6.sql ----
+-- 0425: opções de modelos; não altera padrões nem linhas já personalizadas.
+-- Fonte: DeskcommCRM 262639f75; preços Standard reconferidos em 2026-10-16.
+-- https://developers.openai.com/api/docs/pricing
+-- O motor calcula faixas longas por requisição; o catálogo exibe a faixa curta.
+insert into public.ai_models
+  (provider, model_id, display_name, description, context_window,
+   input_price_per_million_cents, output_price_per_million_cents, supports_tools)
+values
+  ('openai', 'gpt-6-luna', 'GPT-6 Luna',
+   'Opção de baixo custo para atendimento e classificação.', 1050000, 10, 50, true),
+  ('openai', 'gpt-6.1-sol', 'GPT-6.1 Sol',
+   'Opção equilibrada de custo e capacidade.', 1050000, 200, 1000, true),
+  ('openai', 'gpt-6-astra', 'GPT-6 Astra',
+   'Opção de maior capacidade para tarefas complexas.', 1050000, 1000, 5000, true)
+on conflict (provider, model_id) do nothing;
+
+insert into public.ai_pricing
+  (model, prompt_cents_per_million_tokens, completion_cents_per_million_tokens, notes)
+values
+  ('gpt-6-luna',     10,   50, 'catálogo 0425 — acima de 272k tokens de entrada, 20/75'),
+  ('gpt-6.1-sol',   200, 1000, 'catálogo 0425 — acima de 272k tokens de entrada, 400/1500'),
+  ('gpt-6-astra',  1000, 5000, 'catálogo 0425 — acima de 272k tokens de entrada, 2000/7500')
+on conflict (model) do nothing;
+
+-- ---- Porte seletivo IA supabase/migrations/20261016082600_0426_catalogo_claude_5_5.sql ----
+-- 0426: opções de modelos; não altera padrões nem linhas já personalizadas.
+-- Fonte: DeskcommCRM 25bd3f751; preços Standard reconferidos em 2026-10-16.
+-- https://platform.claude.com/docs/en/about-claude/pricing
+-- O motor calcula faixas longas por requisição; o catálogo exibe a faixa curta.
+insert into public.ai_models
+  (provider, model_id, display_name, description, context_window,
+   input_price_per_million_cents, output_price_per_million_cents, supports_tools)
+values
+  ('anthropic', 'claude-haiku-5-5', 'Claude Haiku 5.5',
+   'Opção de baixo custo. Acima de 100 mil tokens de entrada, a faixa longa custa cinco vezes a curta.',
+   1000000, 10, 50, true),
+  ('anthropic', 'claude-sonnet-5-5', 'Claude Sonnet 5.5',
+   'Opção equilibrada de velocidade e capacidade.', 1000000, 200, 1000, true),
+  ('anthropic', 'claude-opus-5-5', 'Claude Opus 5.5',
+   'Opção de maior capacidade para tarefas complexas.', 1000000, 400, 2000, true)
+on conflict (provider, model_id) do nothing;
+
+insert into public.ai_pricing
+  (model, prompt_cents_per_million_tokens, completion_cents_per_million_tokens, notes)
+values
+  ('claude-haiku-5-5',   10,   50, 'catálogo 0426 — acima de 100k tokens de entrada, 50/250'),
+  ('claude-sonnet-5-5', 200, 1000, 'catálogo 0426'),
+  ('claude-opus-5-5',   400, 2000, 'catálogo 0426')
+on conflict (model) do nothing;
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
@@ -41376,3 +41801,63 @@ grant select, insert, update on table public.sales_waitlist to service_role;
 create index if not exists sales_waitlist_invited_organization_idx
   on public.sales_waitlist(invited_organization_id) where invited_organization_id is not null;
 comment on table public.sales_waitlist is 'Platform sales waitlist; intake never provisions users, tenants or invitations. Service role only; platform admin guards protect the operator view.';
+
+-- ---- Fontes liberadas do banco externo (migration 0430) ----
+-- Port seletivo de melgarafael/DeskcommCRM PR #2634 (v1.82.0), migration 0618.
+-- manifest: Fontes liberadas do banco externo — o administrador marca quais tabelas/views (e colunas) o assistente e a grade podem ler (source_mode + sources); conexões que já existem ficam em 'all' (nada muda) e as novas nascem em 'list'.
+--
+-- ─── O que isto resolve ─────────────────────────────────────────────────────
+-- O conector deixava o assistente ler QUALQUER tabela que o usuário do banco
+-- externo enxerga (Spec 20, D6). Isso custa token (a lista inteira volta ao
+-- modelo) e expõe o que não devia estar à vista (num WordPress, `wp_users` e
+-- `wp_options`). Esta migration guarda, por conexão, a lista do que PODE ser
+-- lido. O resto desaparece para o assistente, para o MCP externo e para a grade.
+--
+-- ─── Por que COLUNAS e não tabela nova ──────────────────────────────────────
+-- Tabela nova entraria no baseline de TODA instalação (ADR-0002, D9) e pediria
+-- RLS, FK e entrada no teste de isolamento. As colunas herdam a RLS da tabela
+-- (select = membro, escrita = admin), somem junto com a conexão e são trocadas
+-- de uma vez só por um UPDATE atômico. O risco do jsonb (anti-padrão 6 do
+-- CLAUDE.md) é contido por UM esquema central em lib/external-db/fontes.ts.
+--
+-- ─── Compatibilidade ────────────────────────────────────────────────────────
+-- Linhas existentes ficam 'all' (comportamento de hoje). Quem cria conexão
+-- DEPOIS desta migration recebe 'list' pela API (POST grava source_mode='list').
+
+alter table public.external_db_connections
+  add column if not exists source_mode text not null default 'all',
+  add column if not exists sources jsonb not null default '[]'::jsonb;
+
+alter table public.external_db_connections
+  drop constraint if exists external_db_connections_source_mode_valido,
+  drop constraint if exists external_db_connections_sources_valido;
+
+alter table public.external_db_connections
+  add constraint external_db_connections_source_mode_valido
+    check (source_mode in ('all', 'list')),
+  -- Medida DETERMINÍSTICA do conteúdo: `pg_column_size` mediria o valor como
+  -- está armazenado (com ou sem compressão), e o mesmo dado poderia passar na
+  -- gravação e falhar depois num restore ou no update.sh.
+  add constraint external_db_connections_sources_valido
+    check (jsonb_typeof(sources) = 'array' and octet_length(sources::text) <= 262144);
+
+comment on column public.external_db_connections.source_mode is
+  'all = o assistente lê tudo que o usuário do banco externo enxerga (comportamento anterior); list = só o que está em sources.';
+comment on column public.external_db_connections.sources is
+  'Fontes liberadas: [{schema, tabela, colunas: string[]|null, descricao}]. Formato validado em lib/external-db/fontes.ts. Só vale com source_mode = list.';
+
+-- A view ganha as duas colunas no FIM da lista. O array NÃO é exposto (a lista e
+-- a tela não carregam o conteúdo inteiro): só o modo e a contagem.
+drop view if exists public.external_db_connections_safe;
+create view public.external_db_connections_safe
+  with (security_invoker = true)
+  as
+  select id, organization_id, label, host, port, database_name, username,
+         ssl_mode, enabled, max_rows, max_filters, max_response_bytes,
+         last_tested_at, last_test_ok, last_test_error,
+         created_by, created_at, updated_at,
+         source_mode, jsonb_array_length(sources) as sources_count
+  from public.external_db_connections;
+
+revoke all on public.external_db_connections_safe from anon;
+grant select on public.external_db_connections_safe to authenticated;

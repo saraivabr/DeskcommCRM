@@ -235,6 +235,9 @@ export const AUDIT_ACTIONS = [
   "prospecting.approach_sent",
   "channel.pairing_code_requested",
   "channel.social_configured",
+  "channel.social_disconnected",
+  "channel.social_desvinculado",
+  "channel.social_webhook_ressincronizado",
   "channel.ai_access_updated",
   "channel.reconnected",
   // Duas ações distintas de propósito: `deleted` apagou a linha (canal virgem),
@@ -898,6 +901,10 @@ export const AUDIT_ACTIONS = [
   "meta.operation_checkpointed",
   "meta.campaign_draft_updated",
   "meta.campaign_approved",
+  "external_db_sources.updated",
+  "ai.login_codex_conectado",
+  // A conta da empresa foi desconectada pela própria tela de Credenciais.
+  "ai.login_codex_desconectado",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

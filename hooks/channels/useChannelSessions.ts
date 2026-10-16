@@ -16,6 +16,7 @@ export interface ChannelSession {
   display_name: string | null;
   phone_number: string | null;
   status: string;
+  metadata?: Record<string, unknown> | null;
   status_reason: string | null;
   last_health_check_at: string | null;
   last_status_change_at: string | null;
@@ -69,6 +70,17 @@ export function useChannelSessions(opts?: { refetchInterval?: number; enabled?: 
     isError: query.isError,
     /** A migration 0100 não rodou neste banco: canal excluído volta à lista. */
     schemaOutdated: query.data?.meta?.schema_outdated === true,
+    /**
+     * Uma nova tentativa, para quem DECIDE alguma coisa com a lista e não pode
+     * confundir "ainda carregando" com "nada aqui" — o seletor de canal da
+     * conversa nova (#2382) espera esta leitura na primeira vez em vez de abrir
+     * a conversa sem perguntar por causa de uma corrida de milissegundos.
+     * `undefined` = tentativa falhou; quem chama decide o que fazer (aquela
+     * tela segue sem escolha, como antes — uma leitura ruim não pode travar o
+     * atendimento).
+     */
+    refetch: async (): Promise<ChannelSession[] | undefined> =>
+      (await query.refetch()).data?.data,
   };
 }
 

@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { execFileSync } from "node:child_process";
 import {
+  chmodSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -93,4 +94,49 @@ it("HTTP 200 sem PONG reprova com diagnóstico por serviço sem revelar corpo ou
   expect(output).toContain('"redis":{"ready":false,"status":200');
   expect(output).toContain('"postgrest":{"ready":true');
   expect(output).not.toContain("SEGREDO_SENTINELA");
+});
+
+function runIntegrationFixture(omitSeed = false) {
+  const directory = checkout();
+  const bin = join(directory, "bin");
+  mkdirSync(bin);
+  const pnpm = join(bin, "pnpm");
+  writeFileSync(
+    pnpm,
+    `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == 'exec tsx scripts/seed-e2e-credentials.ts' ]]; then
+  printf '%s\n' 'local fixture' > .e2e-creds.json
+  printf '%s\n' seeded >> order
+elif [[ "$1 $2 $3" == 'exec playwright test' ]]; then
+  [[ -s .e2e-creds.json ]] || { echo 'Missing credentials before collection' >&2; exit 23; }
+  printf '%s\n' collected >> order
+  printf '%s\n' "$@" > specs
+else
+  exit 24
+fi
+`,
+  );
+  chmodSync(pnpm, 0o755);
+  const script = readFileSync("scripts/ci-smoke.sh", "utf8");
+  const start = script.lastIndexOf('if [[ "$integration" = true ]]; then');
+  if (start < 0) throw new Error("Bloco da integração ausente");
+  let block = script.slice(start);
+  if (omitSeed) block = block.replace("  pnpm exec tsx scripts/seed-e2e-credentials.ts\n", "");
+  execFileSync("bash", ["-c", `set -euo pipefail\nintegration=true\n${block}`], {
+    cwd: directory,
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` },
+    stdio: "pipe",
+  });
+  return directory;
+}
+it("seeds local credentials and TOTP before collecting integrated browser specs", () => {
+  const directory = runIntegrationFixture();
+  expect(readFileSync(join(directory, "order"), "utf8")).toBe("seeded\ncollected\n");
+  const specs = readFileSync(join(directory, "specs"), "utf8");
+  expect(specs).toContain("tests/e2e/reset-password-mfa.spec.ts");
+  expect(specs).toContain("tests/e2e/instagram-social.spec.ts");
+});
+it("negative control: integrated collection refuses a missing credential fixture", () => {
+  expect(() => runIntegrationFixture(true)).toThrow(/Missing credentials before collection/);
 });

@@ -60,6 +60,7 @@ const diasDeRetencao = (nome: string, padrao: number) =>
     });
 
 const schema = z.object({
+  OPENAI_REASONING_EFFORT: z.enum(["", "none", "minimal", "low", "medium", "high", "xhigh"]).optional(),
   // Node
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 

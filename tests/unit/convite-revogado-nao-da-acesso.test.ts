@@ -113,8 +113,19 @@ describe("porta 2 — /auth/confirm não transforma revogado em dono de tenant",
   });
 
   async function confirmar() {
-    const { GET } = await import("@/app/auth/confirm/route");
-    return GET(new NextRequest("http://localhost:3000/auth/confirm?type=signup&token_hash=abc"));
+    const { GET, POST } = await import("@/app/auth/confirm/route");
+    const { createClient } = await import("@/lib/supabase/server");
+    const preview = await GET(new NextRequest("http://localhost:3000/auth/confirm?type=signup&token_hash=abc"));
+    expect(destino(preview)).toBe("/login/continuar?type=signup&token_hash=abc");
+    expect(createClient).not.toHaveBeenCalled();
+    const form = new URLSearchParams({ type: "signup", token_hash: "abc" });
+    const response = await POST(new NextRequest("http://localhost:3000/auth/confirm", {
+      method: "POST", body: form,
+    }));
+    expect(response.status).toBe(303);
+    const client = await createClient();
+    expect(client.auth.verifyOtp).toHaveBeenCalledWith({ type: "signup", token_hash: "abc" });
+    return response;
   }
 
   it("⭐ convite revogado NÃO vira organização própria — a troca silenciosa", async () => {

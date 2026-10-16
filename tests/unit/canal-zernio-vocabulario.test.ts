@@ -29,6 +29,7 @@ describe("capabilities do canal intermediado", () => {
       freeformOutsideWindow: false,
       requiresTemplates: true,
       canManageTemplates: true,
+      canSendAttachments: true,
       banRisk: false,
       minIntervalMs: 6000,
       voiceNote: "opus-only",
@@ -143,14 +144,21 @@ describe("banco e TypeScript falam o mesmo vocabulário", () => {
   // O `pnpm test:db` prova isto contra um Postgres real; aqui é a leitura do
   // artefato que o self-hoster de fato aplica — o baseline, não as migrations.
   const baseline = readFileSync("supabase/baseline.sql", "utf8");
+  // Só a última definição é efetiva; uma constraint antiga não prova o estado final.
+  const providerCheck = [...baseline.matchAll(
+    /add\s+constraint\s+channel_sessions_provider_check\s+check\s*\(([^;]+)\);/gi,
+  )].at(-1);
+  const refCheck = [...baseline.matchAll(
+    /add\s+constraint\s+channel_sessions_provider_ref_check\s+check\s*\(([^;]+)\);/gi,
+  )].at(-1);
 
   it("o CHECK de provider do baseline conhece o canal novo", () => {
-    expect(baseline).toMatch(/channel_sessions_provider_check[\s\S]{0,300}'zernio'/);
+    expect(providerCheck?.[1]).toMatch(/provider\s+in\s*\([^)]*'zernio'/);
   });
 
   it("o CHECK de ref exige a coluna do canal novo", () => {
-    expect(baseline).toMatch(
-      /provider (?:= 'zernio'|in \('zernio', 'zernio_social'\))\s+and zernio_account_id\s+is not null/,
+    expect(refCheck?.[1]).toMatch(
+      /provider\s*(?:=\s*'zernio'|in\s*\('zernio'\s*,\s*'zernio_social'\))\s+and\s+zernio_account_id\s+is\s+not\s+null/,
     );
   });
 
@@ -164,9 +172,9 @@ describe("banco e TypeScript falam o mesmo vocabulário", () => {
 
   it("a coluna nasce antes do CHECK que a referencia", () => {
     const col = baseline.indexOf("add column if not exists zernio_account_id");
-    const check = baseline.search(/provider (?:= 'zernio'|in \('zernio', 'zernio_social'\))/);
     expect(col).toBeGreaterThan(-1);
-    expect(col).toBeLessThan(check);
+    expect(refCheck).toBeDefined();
+    expect(col).toBeLessThan(refCheck!.index!);
   });
 
   it("a migration versionada existe junto do apêndice — clone atualiza pelas duas vias", () => {

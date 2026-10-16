@@ -12,7 +12,7 @@ A criação exibe `ImageGeneration` durante o pedido; a revisão reutiliza a ani
 
 Referências são perfis informados pelo usuário. Pesquisa usa busca web com citações; sem fonte verificável, falha explicitamente. Não segue pessoas, não envia mensagens, não garante acesso a todos os posts nem afirma viralidade sem evidência. “Adaptar para meu negócio” preenche uma nova criação, sem publicar.
 
-Resultados usam a conexão social já existente, via adapter em `lib/channels/social/instagram-insights.ts`. A conta é validada contra o perfil da organização antes de consultar métricas. Ausência de métrica aparece como indisponível, nunca zero. A integração atual requer análise habilitada no provedor; não se apresenta como uma nova integração direta com a Meta.
+Resultados oferecem a conexão Meta nativa selecionada e a conexão social existente. Cada fonte valida a conta contra os grants ou o perfil da organização antes de consultar métricas; os contratos estão em “Leitura independente por fonte”, abaixo. Ausência de métrica aparece como indisponível, nunca zero. Cobrança ou permissão recusada em uma fonte não apaga as contas saudáveis da outra.
 
 Backend: `/api/v1/instagram` lista e cria; `/:id` consulta, edita legenda e remove somente referências; `/insights` consulta contas e métricas. Viewer lê; agent cria e edita; configurações de canais preservam admin. O modo de suporte é respeitado.
 
@@ -37,3 +37,19 @@ OAuth central: quando `ZERNIO_API_KEY` está configurada pelo operador, autoriza
 Destino: núcleo, como conclusão do Instagram já distribuído. Entrada: biblioteca + conexão social. Saídas: post no Instagram e regra no executor do provedor. Auditoria: `instagram.completed/failed` para publicação e `channel.social_configured` para regras. Laço de retorno: consultar resultado, corrigir conexão/conteúdo ou editar/pausar regra; publicação incerta bloqueia repetição na revisão. Mapa: `docs/architecture/instagram-publicacao.md`.
 
 Contratos verificados: https://docs.zernio.com/posts/create-post.mdx, https://docs.zernio.com/comment-automations/create-comment-automation.mdx, https://docs.zernio.com/accounts/get-account-posts.mdx. Nenhuma publicação nem mensagem real é necessária para o QA local; autorização específica continua necessária para testes com terceiros.
+
+## Leitura independente por fonte (16/10/2026)
+
+Conta do cabeçalho e Resultados combinam destinos nativos selecionados e contas do perfil social, sem substituir silenciosamente o destino. A API de insights nativos recebe `provider=meta`, `account_id` (UUID interno do ativo) e `connection_id` (UUID interno); valida grant selecionado, tenant, validade, scopes `instagram_basic`, `instagram_manage_insights`, `pages_read_engagement` e alvos granulares. Usa Page token somente no servidor e Graph `/{ig}/insights` com `period=day`, `metric_type=total_value` e janela30dias. Não soma alcance diário nem cria zero para métrica ausente. O formato `total_value.value` foi confirmado por GET de produção; envio/publicação não foram exercitados.
+
+Cobrança402, recusa de permissão, limite429 e indisponibilidade têm categorias seguras distintas. Uma fonte indisponível não apaga a outra; Growth continua dependente do provedor social, com próximo passo explícito para cobrança. O cabeçalho reconhece a conexão nativa. A Home usa `automations` e os contadores reais de DMs enviadas/falhas, sem alegar geração de leads que o contrato não fornece.
+
+`studioRequest` usa autenticação e recuperação401 canônicas do cliente API, teto total20s para leituras e cancelamento. A criação mantém300s e publicação120s, sempre uma tentativa por escrita. Timeouts permitem atualizar o resultado e nunca repetem publicação automaticamente.
+
+Stories nativas possuem estado `provider_validation_required`, mostrado antes da confirmação. Facebook Login IGUser não expõe `account_type`: consulta real retornou Graph100 e o SDK oficial não define esse campo. A elegibilidade não é inferida do nome da relação com a Página. Após confirmação explícita, a Meta valida o container `STORIES`; somente container confirmado/FINISHED pode chegar a `media_publish`. Falha ou resultado incerto usa os checkpoints/idempotência existentes. Não foi criado container real para testar.
+
+Fontes técnicas: [SDK oficial IGUser](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/iguser.py), [SDK oficial InstagramInsightsResult](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/instagraminsightsresult.py). As páginas de referência Meta foram consultadas, mas indisponíveis no leitor; as afirmações de contrato acima apoiam-se no SDK e nas leituras observadas.
+
+Living System Checklist: entrada=grants/contas por organização; saída=Insights/conta do Studio; registro=erro seguro com requestId e estado visível por fonte; porta=navegação Instagram existente; anti-morte=prazo20s e nova consulta explícita; configuração=Conexões; continuidade=consulta humana sem disparo de IA; retorno=fonte indisponível preserva destino saudável, sessão inválida retorna ao login; mapa=instagram-studio.architecture.json. Destino=núcleo, porque restaura capacidades já distribuídas sem alterar schema.
+
+A manutenção de contas, assinaturas e perfis vive em [Redes sociais — recuperação e desconexão](redes-sociais.md).

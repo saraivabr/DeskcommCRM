@@ -9,6 +9,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import type { LanguageModel } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 
+import { PROVEDOR_POR_ASSINATURA } from '@/lib/ai/pontos/provedores';
 import { allowlistedFetch, buildAllowlist } from '../egress';
 
 /**
@@ -49,6 +50,14 @@ export const OPENROUTER_ENDPOINT = process.env.OPENROUTER_BASE_URL?.trim() || 'h
  * também aceita `/v1`); o `@ai-sdk/openai` acrescenta `/chat/completions`.
  */
 export const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com';
+
+/**
+ * Endpoint oficial de inferência SIWC.
+ */
+export const OPENAI_CODEX_ENDPOINT = 'https://api.openai.com/v1';
+
+/** Endpoint oficial de catálogo SIWC. */
+export const OPENAI_MODELS_ENDPOINT = 'https://api.openai.com/v1/models';
 
 /**
  * Cabeçalhos OPCIONAIS de atribuição da OpenRouter.
@@ -134,6 +143,105 @@ function comRaciocinioDesligado(inner: typeof fetch): typeof fetch {
 }
 
 /**
+ * Esforço de raciocínio das chamadas DIRETAS à OpenAI — knob
+ * OPENAI_REASONING_EFFORT (opcional; ausente = nada é injetado e vale o padrão
+ * do modelo).
+ *
+ * Por que existe: nos modelos de raciocínio da OpenAI (famílias gpt-5.x e
+ * gpt-6) o padrão é PENSAR antes de responder, e o agente de WhatsApp paga isso
+ * em latência. Medido em 2026-09-24 com `gpt-6-luna`, prompt de produção e a
+ * tool `send_message`, 2 repetições por configuração:
+ *
+ *   padrão ........ 4,9–5,5 s, 248–282 tokens de saída, send_message 0 de 2
+ *   effort=low .... 5,9–6,3 s, 258–284 tokens de saída, send_message 1 de 2
+ *   effort=none ... 1,8–2,0 s,       49 tokens de saída, send_message 2 de 2
+ *
+ * No turno real (`agent_preview`) o padrão levou 9–27 s, com ~700 tokens de
+ * saída para um rascunho de ~40 — e, quando o modelo não chama a tool, o loop
+ * roda outra etapa. É o mesmo campo que a DeepSeek já recebe
+ * (`comRaciocinioDesligado`), só que com o valor escolhido pelo operador.
+ *
+ * ⚠️ Só vale para o provider `openai` (endpoint oficial, Responses API) e só
+ * em modelo que raciocina (`modeloOpenAIRaciocina`): modelo SEM raciocínio
+ * recusa o campo — medido: `gpt-4.1-nano` + `reasoning.effort` → 400
+ * "Unsupported parameter". A grafia é validada no boot do worker
+ * (`lib/agent-engine/env.ts`, pela mesma função abaixo): errada, o worker não
+ * sobe e diz qual variável corrigir, em vez de falhar a cada turno.
+ */
+export type EsforcoDeRaciocinioOpenAI = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+const ESFORCOS_OPENAI: readonly EsforcoDeRaciocinioOpenAI[] = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'];
+
+export function esforcoDeRaciocinioOpenAI(
+  valor: string | undefined = process.env.OPENAI_REASONING_EFFORT,
+): EsforcoDeRaciocinioOpenAI | null {
+  const v = valor?.trim().toLowerCase();
+  if (!v) return null;
+  if (!(ESFORCOS_OPENAI as readonly string[]).includes(v)) {
+    throw new Error(`OPENAI_REASONING_EFFORT inválido — use ${ESFORCOS_OPENAI.join(', ')} (ou deixe vazio)`);
+  }
+  return v as EsforcoDeRaciocinioOpenAI;
+}
+
+/**
+ * Famílias de raciocínio da OpenAI: `o1`/`o3`/`o4-…`, `gpt-5…` e `gpt-6…` — menos
+ * as variantes `-chat`, que não raciocinam. Fora daqui o knob não injeta nada.
+ */
+export function modeloOpenAIRaciocina(modelId: string): boolean {
+  const id = modelId.toLowerCase();
+  return /^(o\d|gpt-5|gpt-6)/.test(id) && !id.includes('chat');
+}
+
+/**
+ * Da linha 6 em diante nenhum modelo lista `minimal`, e só `gpt-6-luna` e `gpt-6-sol`
+ * listam `none` (doc oficial de cada id em 11/10/2026: o gpt-6.1-sol diz "`none` and
+ * `minimal` reasoning efforts are not supported", o gpt-6-astra lista low…max, o
+ * gpt-6-luna lista none, low…max; o @ai-sdk/openai declara as mesmas listas em
+ * `supportedReasoningEfforts`). Mandar o knob como está seria 400 em toda resposta.
+ *
+ * `none`/`minimal` é pedido de velocidade, então vira `none` onde ele existe e `low`
+ * onde não existe. `minimal` NÃO vira `low` no Luna: medido acima, lá `low` é mais
+ * lento até que o padrão, e `none` é o único que entrega o que o operador pediu.
+ */
+function esforcoAceitoPeloModelo(
+  modelId: string,
+  esforco: EsforcoDeRaciocinioOpenAI,
+): EsforcoDeRaciocinioOpenAI {
+  if (esforco !== 'none' && esforco !== 'minimal') return esforco;
+  const id = modelId.toLowerCase();
+  const major = /^gpt-(\d+)/.exec(id)?.[1];
+  if (major === undefined || Number(major) < 6) return esforco;
+  const aceitaNone = id === 'gpt-6-luna' || id === 'gpt-6-sol';
+  return aceitaNone ? 'none' : 'low';
+}
+
+/**
+ * Injeta `reasoning.effort` no corpo, preservando o resto de `reasoning` e da chamada.
+ *
+ * O knob é o padrão da INSTALAÇÃO, não uma ordem por cima de quem pediu: a
+ * chamada que já traz `reasoning.effort` (a opção `reasoning` de `runModelCall`,
+ * que o SDK só escreve quando alguém pede) fica com o seu. Sem isso, um
+ * `OPENAI_REASONING_EFFORT=high` faria as classificações, que pedem `none`,
+ * voltarem a pensar antes de devolver uma palavra.
+ */
+function comEsforcoDeRaciocinio(inner: typeof fetch, esforco: EsforcoDeRaciocinioOpenAI): typeof fetch {
+  return (input, init) => {
+    const corpo = init?.body;
+    if (typeof corpo === 'string') {
+      try {
+        const json = JSON.parse(corpo) as Record<string, unknown>;
+        const bruto = json['reasoning'];
+        const reasoning = bruto !== null && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {};
+        if (typeof reasoning['effort'] === 'string') return inner(input, init);
+        return inner(input, { ...init, body: JSON.stringify({ ...json, reasoning: { ...reasoning, effort: esforco } }) });
+      } catch {
+        // Corpo não-JSON: repassa intacto — um ajuste de tuning nunca derruba a chamada.
+      }
+    }
+    return inner(input, init);
+  };
+}
+
+/**
  * Providers reais do lançamento. Sonnet (Anthropic) é o default RECOMENDADO —
  * recomendação vive em .env.example/docs; o id do modelo é sempre config da org.
  *
@@ -151,6 +259,7 @@ export function createDefaultRegistry(opts?: {
    * fábrica é dela). Ausente = 'provider' = nada é injetado.
    */
   deepseekThinking?: RaciocinioDeepseek;
+  openaiReasoningEffort?: EsforcoDeRaciocinioOpenAI | null;
 }): ProviderRegistry {
   const extra = opts?.allowedHosts ?? [];
   const contain = (endpoint: string): typeof fetch => {
@@ -163,8 +272,35 @@ export function createDefaultRegistry(opts?: {
   return {
     anthropic: (apiKey, modelId) =>
       createAnthropic({ apiKey, fetch: contain(ANTHROPIC_ENDPOINT) })(modelId),
-    openai: (apiKey, modelId) =>
-      createOpenAI({ apiKey, fetch: contain(OPENAI_ENDPOINT) })(modelId),
+    openai: (apiKey, modelId) => {
+      const effort = opts?.openaiReasoningEffort ?? esforcoDeRaciocinioOpenAI();
+      const inner = contain(OPENAI_ENDPOINT);
+      const fetcher = effort && modeloOpenAIRaciocina(modelId)
+        ? comEsforcoDeRaciocinio(inner, esforcoAceitoPeloModelo(modelId, effort)) : inner;
+      return createOpenAI({ apiKey, fetch: fetcher })(modelId);
+    },
+    /**
+     * A ASSINATURA (#1639) — mesma fábrica da OpenAI, outro destino e outro
+     * segredo: o `apiKey` aqui é o `access_token` do login por PKCE, nunca uma
+     * chave de API (quem o monta é `resolveOrgLlmConfig`, e só ele).
+     *
+     * Sem `baseUrl`: este provedor não aceita endpoint próprio (`aceitaEndpointProprio:
+     * false` na lista), e honrar um endereço escolhido num provider que a tela
+     * diz não poder ser apontado seria a tela e o runtime discordando.
+     *
+     * Sem injeção de `reasoning.effort` também: o knob é da fábrica `openai`,
+     * e o campo existe onde a OpenAI o documenta — aqui ele só correria o risco
+     * de o backend recusar um parâmetro que não pediu.
+     *
+     * A listagem da conta usa GET /v1/models com o mesmo token SIWC, conforme o
+     * contrato oficial Sign in with ChatGPT; este runtime continua em /v1/responses.
+     */
+    [PROVEDOR_POR_ASSINATURA]: (apiKey, modelId) =>
+      createOpenAI({
+        apiKey,
+        baseURL: OPENAI_CODEX_ENDPOINT,
+        fetch: contain(OPENAI_CODEX_ENDPOINT),
+      })(modelId),
     google: (apiKey, modelId) =>
       createGoogleGenerativeAI({ apiKey, fetch: contain(GOOGLE_ENDPOINT) })(modelId),
     /**

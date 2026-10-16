@@ -72,6 +72,11 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
     condicao: "github.ref == 'refs/heads/main'",
     efeito: "Constrói candidata sem promover produção antes do CI aprovado.",
   },
+  "integracao-estavel.yml::integration": {
+    condicao: null,
+    efeito:
+      "Valida fluxos integrados com Auth, banco e navegador reais em instalação descartável antes da publicação.",
+  },
   "ci-rapido.yml::verify": {
     condicao: null,
     efeito: "Valida tipos, lint e testes críticos/afetados.",

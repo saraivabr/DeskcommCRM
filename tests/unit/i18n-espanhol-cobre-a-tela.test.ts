@@ -571,54 +571,7 @@ const DIVIDA_CONGELADA: { arquivo: string; chave: string; motivo: string }[] = [
     motivo:
       "valor de SEVERITY_LABEL (lib/ai/agent-inbox-copy.ts): a chave ainda não tem linha no dicionário",
   },
-  {
-    arquivo: "app/app/webhooks/_components/RuleEditor.tsx",
-    chave: "Iniciar fluxo de mensagem",
-    motivo:
-      "valor de ACTION_LABELS (app/app/webhooks/_components/labels.ts): a chave ainda não tem linha no dicionário",
-  },
-  {
-    arquivo: "app/app/webhooks/_components/RuleEditor.tsx",
-    chave: "No aniversário de um contato",
-    motivo:
-      "valor de TRIGGER_LABELS (app/app/webhooks/_components/labels.ts): a chave ainda não tem linha no dicionário",
-  },
-  {
-    arquivo: "app/app/webhooks/_components/RuleEditor.tsx",
-    chave: "Quando faltarem N dias para uma data do funil",
-    motivo:
-      "valor de TRIGGER_LABELS (app/app/webhooks/_components/labels.ts): a chave ainda não tem linha no dicionário",
-  },
-  {
-    arquivo: "app/app/webhooks/_components/RuleEditor.tsx",
-    chave: "Quando um horário for cancelado",
-    motivo:
-      "valor de TRIGGER_LABELS (app/app/webhooks/_components/labels.ts): a chave ainda não tem linha no dicionário",
-  },
-  {
-    arquivo: "app/app/webhooks/_components/RuleEditor.tsx",
-    chave: "Quando um horário for marcado",
-    motivo:
-      "valor de TRIGGER_LABELS (app/app/webhooks/_components/labels.ts): a chave ainda não tem linha no dicionário",
-  },
-  {
-    arquivo: "app/app/webhooks/_components/RuleEditor.tsx",
-    chave: "Quando um horário for remarcado",
-    motivo:
-      "valor de TRIGGER_LABELS (app/app/webhooks/_components/labels.ts): a chave ainda não tem linha no dicionário",
-  },
-  {
-    arquivo: "app/app/webhooks/_components/RuleEditor.tsx",
-    chave: "Quando um horário pendente for confirmado",
-    motivo:
-      "valor de TRIGGER_LABELS (app/app/webhooks/_components/labels.ts): a chave ainda não tem linha no dicionário",
-  },
-  {
-    arquivo: "app/onboarding/invite-team/_form.tsx",
-    chave: "Assistente com autonomia de operação",
-    motivo:
-      "valor de ROTULO_DO_PAPEL (lib/auth/types.ts): a chave ainda não tem linha no dicionário",
-  },
+
 ];
 
 function ehDividaCongelada(arquivo: string, chave: string): boolean {

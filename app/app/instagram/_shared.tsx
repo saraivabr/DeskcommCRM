@@ -10,16 +10,9 @@ import { ArtisanIcon } from "@/components/brand/ArtisanIcon";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { StudioItem } from "@/lib/instagram/schema";
+import { studioApi } from "@/lib/instagram/client";
+export { studioApi } from "@/lib/instagram/client";
 
-export async function studioApi<T>(path = "", init?: RequestInit): Promise<T> {
-  const r = await fetch(`/api/v1/instagram${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
-  const json = await r.json().catch(() => null);
-  if (!r.ok) throw new Error(json?.error?.message || "Não foi possível concluir. Tente novamente.");
-  return json.data;
-}
 export function useItems() {
   const { activeOrg } = useAuth();
   const query = useQuery({

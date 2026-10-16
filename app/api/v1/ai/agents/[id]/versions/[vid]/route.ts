@@ -14,6 +14,7 @@ import { requireRole } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { versionPatchSchema } from "@/lib/ai/agents/validation";
+import { codigoDoEscopo, mensagemDoEscopo, validarEscopoDaVersao } from "@/lib/ai/agents/escopo";
 import { traduzir } from "@/lib/i18n/dicionario";
 
 export const dynamic = "force-dynamic";
@@ -99,6 +100,15 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
       requestId,
       details: { current_status: existing.status },
     });
+  }
+
+  const escopo = await validarEscopoDaVersao(admin, activeOrg.orgId, {
+    provider: patch.provider,
+    credential_id: patch.credential_id,
+    channel_session_id: patch.channel_session_id,
+  });
+  if (!escopo.ok) {
+    return fail(codigoDoEscopo(escopo), mensagemDoEscopo(escopo), 422, { requestId });
   }
 
   const update: Record<string, unknown> = {};

@@ -455,3 +455,12 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 | `20261006193000` | `0417_meta_privacy_lifecycle` | Callbacks Meta autenticados por assinatura passam a revogar e cercar efeitos imediatamente. Recibos opacos, supressão HMAC por sujeito, atribuição explícita das preparações e limpeza limitada com lease/fencing removem somente derivados nativos e cópias de publicação, confirmadas após ACK do Storage. Preserva CRM, Auth, Studio, Zernio, assets compartilhados e objetos remotos. OAuth antigo não ressuscita a conexão; troca de App aguarda limpeza. |
 
 | `20261006223000` | `0418_meta_social_messaging` | Native Direct/Messenger channel references, tenant-safe foreign keys, globally unique webhook routing and revoke/disable triggers; existing channel RLS preserved. |
+
+| `20261016082000` | `0420_indices_do_caminho_quente` | Índices de envios por contato, métricas de jobs e poda da fila; port do upstream 7c394d415, sem alterar o worker personalizado. |
+
+
+| `20261016082200` | `0422_recorte_da_janela_nas_metricas` | Métricas de atendentes recortam candidatas antes de ler mensagens, preservando resultados e RLS. Port upstream 7a640ee26. |
+| `20261016143000` | `0430_banco_externo_fontes_liberadas` | Tabelas/views e colunas permitidas por conexão; view segura mantém RLS e só expõe contagem. Port do upstream PR #2634, sem alterar migrations aplicadas. |
+| `20261016082400` | `0424_publicar_assinatura_por_empresa` | Valida modelo SIWC no catálogo da credencial da própria organização; preserva guardas de publicação e grants service_role. |
+| `20261016082500` | `0425_catalogo_gpt_6` | Acrescenta opções GPT-6 com preço Standard verificado; preserva padrões e registros existentes. |
+| `20261016082600` | `0426_catalogo_claude_5_5` | Acrescenta opções Claude 5.5 com preço Standard verificado; preserva padrões e registros existentes. |

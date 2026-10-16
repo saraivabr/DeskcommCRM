@@ -168,3 +168,46 @@ describe("requireRole — MFA é política de sessão, não de cadastro", () => 
     }
   });
 });
+
+describe("requireRole — leituras independentes em paralelo", () => {
+  it("inicia MFA enquanto a consulta de papel ainda aguarda o banco", async () => {
+    preparar({ role: "admin", temFator: false, aal: "aal1" });
+    const stub = montarStub({ role: "admin", temFator: false, aal: "aal1" });
+    let liberar!: (value: { data: Role; error: null }) => void;
+    stub.rpc.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          liberar = resolve;
+        }),
+    );
+    vi.mocked(createClient).mockResolvedValue(
+      stub as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+    const resultado = requireRole("admin");
+    await vi.waitFor(() => expect(stub.auth.mfa.listFactors).toHaveBeenCalled());
+    liberar({ data: "admin", error: null });
+    expect((await resultado).ok).toBe(true);
+  });
+
+  it("preserva forbidden_role mesmo se a leitura de MFA falhar", async () => {
+    preparar({ role: "viewer", temFator: false, aal: "aal1" });
+    const stub = montarStub({ role: "viewer", temFator: false, aal: "aal1" });
+    stub.auth.mfa.listFactors.mockRejectedValue(new Error("MFA indisponível"));
+    vi.mocked(createClient).mockResolvedValue(
+      stub as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+    const resultado = await requireRole("admin");
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) expect((await resultado.response.json()).error.code).toBe("forbidden_role");
+  });
+
+  it("não libera acesso quando a leitura de MFA necessária falha", async () => {
+    preparar({ role: "admin", temFator: false, aal: "aal1" });
+    const stub = montarStub({ role: "admin", temFator: false, aal: "aal1" });
+    stub.auth.mfa.listFactors.mockRejectedValue(new Error("MFA indisponível"));
+    vi.mocked(createClient).mockResolvedValue(
+      stub as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+    await expect(requireRole("admin")).rejects.toThrow("MFA indisponível");
+  });
+});

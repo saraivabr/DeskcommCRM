@@ -112,6 +112,7 @@ import {
   renderStageHint,
   type StageClassifierKnobs,
 } from './stage-classifier';
+import { classificadoresDoTurno } from './classificadores-do-turno';
 import { loadPlaybook } from './playbook';
 import {
   DECLARACAO_INSTRUCTION,
@@ -2164,22 +2165,53 @@ async function executarTurnoDoAgente(
   // Ritual de abertura: playbook por ponteiro + checkpoint + contexto curado.
   // Com agente publicado, o system_prompt DELE é a camada tenant (platform de
   // compliance continua à frente, sempre).
-  const prospectingContext = !preview && input.conversationId ? await prospectingConversationContext(pool, tenantId, input.conversationId) : "";
-  const playbook = await loadPlaybook(
-    pool,
-    tenantId,
-    agentConfig !== null ? { agentLayer: agentConfig.systemPrompt + prospectingContext } : undefined,
-  );
-  // Skills situacionais (F3-09): índice (name+description) SEMPRE residente — vai junto do
-  // system do playbook, no prefixo estável org-wide (disclosure progressivo; cacheável F2-17).
-  // O CORPO só carrega no match, no sufixo por-lead (mais abaixo). loadSkills resolve os
-  // ponteiros a cada run: trocar/rollback de skill = mover o ponteiro, sem restart.
-  const skills = await loadSkills(pool, tenantId);
+  //
+  // As leituras da abertura correm em QUATRO trilhas paralelas: nenhuma escreve,
+  // nenhuma está sob lock ou transação, e a única dependência entre elas — o
+  // playbook precisa do contexto de prospecção — fica dentro da mesma trilha.
+  // Em série eram 8 RTTs ao Supabase remoto antes de o modelo começar; assim são
+  // 2 (a trilha mais funda). O teto é 4 consultas em voo por turno, porque o
+  // pool do worker tem 10 conexões (default do pg) para até 8 jobs simultâneos
+  // — por isso trilhas de duas leituras em vez de oito de uma.
+  const [playbook, [skills, currentInboundText], orgMemory, [previous, leadState]] =
+    await Promise.all([
+      (async () => {
+        const prospectingContext =
+          !preview && input.conversationId
+            ? await prospectingConversationContext(pool, tenantId, input.conversationId)
+            : '';
+        return loadPlaybook(
+          pool,
+          tenantId,
+          agentConfig !== null ? { agentLayer: agentConfig.systemPrompt + prospectingContext } : undefined,
+        );
+      })(),
+      // Skills situacionais (F3-09): índice (name+description) SEMPRE residente — vai junto do
+      // system do playbook, no prefixo estável org-wide (disclosure progressivo; cacheável F2-17).
+      // O CORPO só carrega no match, no sufixo por-lead (mais abaixo). loadSkills resolve os
+      // ponteiros a cada run: trocar/rollback de skill = mover o ponteiro, sem restart.
+      (async () =>
+        [
+          await loadSkills(pool, tenantId),
+          input.inboundMessageId === undefined
+            ? null
+            : await loadInboundBodyForJob(pool, {
+                tenantId,
+                conversationId: input.conversationId,
+                inboundMessageId: input.inboundMessageId,
+              }),
+        ] as const)(),
+      // Fase 1 (harness): memória geral da org — prefixo estável, resolvida a cada
+      // turno como o playbook (publicar ⇒ próximo turno vale). composeSystemPrompt já
+      // encaixa playbook + memória + índice de skills no prefixo cacheável.
+      loadOrgMemory(pool, tenantId),
+      (async () =>
+        [
+          preview ? (preview.previous ?? null) : await latestCheckpoint(pool, tenantId, leadId),
+          preview?.kind === 'sandbox' ? null : await getLeadState(pool, tenantId, leadId),
+        ] as const)(),
+    ]);
   const skillIndex = renderSkillIndex(skills);
-  // Fase 1 (harness): memória geral da org — prefixo estável, resolvida a cada
-  // turno como o playbook (publicar ⇒ próximo turno vale). composeSystemPrompt já
-  // encaixa playbook + memória + índice de skills no prefixo cacheável.
-  const orgMemory = await loadOrgMemory(pool, tenantId);
   const systemWithMemory = composeSystemPrompt({
     playbookPrompt: playbook.prompt,
     orgMemoryBlock: renderOrgMemory(orgMemory),
@@ -2202,10 +2234,6 @@ async function executarTurnoDoAgente(
       'MODO PRÉVIA: proponha a resposta com send_message. Operações são propostas separadas; nunca diga que executou uma proposta. Nenhum envio real acontece.',
     );
   const system = blocosResidentes.join('\n\n');
-  const previous = preview
-    ? (preview.previous ?? null)
-    : await latestCheckpoint(pool, tenantId, leadId);
-  const leadState = preview?.kind === 'sandbox' ? null : await getLeadState(pool, tenantId, leadId);
   const openingContext = preview
     ? preview.context
     : await getLeadContext(
@@ -2219,14 +2247,6 @@ async function executarTurnoDoAgente(
     // sumiu) — ambos re-tentam pela fila e morrem em 'dead' se persistirem.
     throw new Error(`abertura do turno falhou em get_lead_context (${openingContext.error.code})`);
   }
-  const currentInboundText =
-    input.inboundMessageId === undefined
-      ? null
-      : await loadInboundBodyForJob(pool, {
-          tenantId,
-          conversationId: input.conversationId,
-          inboundMessageId: input.inboundMessageId,
-        });
 
   // Seam de canal (F2-25): o envio vai SÓ pela interface ChannelAdapter — o
   // default WAHA-via-CRM envolve o sink F2-06. Instanciado por job (o pool é
@@ -2485,25 +2505,30 @@ async function executarTurnoDoAgente(
   // Índice da memória durável do lead (F3-05) — headlines dentro do orçamento fixo,
   // injetado no SUFIXO da abertura (não invalida o prefixo cacheável F2-17). Montado
   // DEPOIS do flush (F3-07) para que as notas gravadas neste turno já entrem no índice.
-  const notesIndexBlock = preview
-    ? (preview.notes ?? []).map((n) => n.headline + ': ' + n.body).join('\n')
-    : await buildNotesIndexBlock(pool, tenantId, leadId, deps.knobs.notesIndexMaxTokens);
+  // As três leituras abaixo só dependem do flush, não umas das outras: correm juntas.
+  //
   // ⚠️ `leadId` AQUI É O CONTATO (`leadIdDoJob = job.contact_id`, e o comentário
   // de `get-lead-context.ts:193` diz o mesmo). Passar essa variável para um
   // parâmetro chamado `contactId` é correto pelo VALOR; o nome é que mente, e é
   // o que a issue #509 conserta. Não troque por um `lead_id` "mais coerente".
-  const compromissosBlock =
-    preview?.kind === 'sandbox'
-      ? ''
-      : await buildCompromissosBlock(pool, tenantId, leadId, new Date());
+  const [notesIndexBlock, compromissosBlock, noteIdRows] = await Promise.all([
+    preview
+      ? (preview.notes ?? []).map((n) => n.headline + ': ' + n.body).join('\n')
+      : buildNotesIndexBlock(pool, tenantId, leadId, deps.knobs.notesIndexMaxTokens),
+    preview?.kind === 'sandbox' ? '' : buildCompromissosBlock(pool, tenantId, leadId, new Date()),
+    preview
+      ? null
+      : pool
+          .query<{ id: string }>(
+            'select id from lead_notes where organization_id = $1 and contact_id = $2 order by created_at',
+            [tenantId, leadId],
+          )
+          .then((r) => r.rows),
+  ]);
   // Observabilidade da memória (Fase 2A): SÓ ids/contagens no log — headline/corpo
   // são PII e nunca saem do prompt. Prova auditável de que a memória durável do
   // lead entrou no contexto DESTE turno.
-  if (!preview) {
-    const { rows: noteIdRows } = await pool.query<{ id: string }>(
-      'select id from lead_notes where organization_id = $1 and contact_id = $2 order by created_at',
-      [tenantId, leadId],
-    );
+  if (noteIdRows !== null) {
     runLog.info('memória do lead injetada no turno', {
       checkpoint_seq: effectivePrevious?.seq ?? null,
       notes_count: noteIdRows.length,
@@ -3889,8 +3914,16 @@ async function executarTurnoDoAgente(
     // concorrente entre turnos de leads diferentes), nenhuma decisão de
     // guardrail depende de ordem entre os dois, e o `jailbreak` segue sem vetar
     // o inbound — só flagra o turno no trace.
+    // Só classifica quando há mensagem nova e quem use a resposta.
+    const vaiClassificar = classificadoresDoTurno({
+      jobKind: job?.kind ?? null,
+      estagioLigado: deps.knobs.stageClassifier !== undefined,
+      temQuemConfirmeOEstagio: rawTools.update_lead_state !== undefined,
+      manipulacaoLigada: camadaLigada(camadas.jailbreak, deps.knobs.jailbreak !== undefined),
+      ultimaMensagemDoCliente: skillSignal,
+    });
     const [stageResultado, jailbreakVerdict] = await Promise.all([
-      deps.knobs.stageClassifier !== undefined
+      deps.knobs.stageClassifier !== undefined && vaiClassificar.estagio
         ? classifyStage(
             pool,
             deps.llmCfg,
@@ -3898,6 +3931,7 @@ async function executarTurnoDoAgente(
             {
               context: effectiveContext,
               currentStage,
+              resumo: effectivePrevious?.rolling_summary ?? null,
               ...argsAux(deps.knobs.stageClassifier.model),
             },
             { registry: deps.registry, log: runLog },
@@ -3907,7 +3941,7 @@ async function executarTurnoDoAgente(
       // skillSignal já é a última inbound). Roda pelo seam agnóstico (modelo BARATO, budget
       // checado nele). NÃO veta o inbound — só FLAGRA o turno no trace; flag/level não são PII
       // (a mensagem/reason nunca vão a log). A correlação com promessa fora de tabela escala no fim.
-      camadaLigada(camadas.jailbreak, deps.knobs.jailbreak !== undefined)
+      vaiClassificar.manipulacao
         ? classifyJailbreak(
             pool,
             deps.llmCfg,

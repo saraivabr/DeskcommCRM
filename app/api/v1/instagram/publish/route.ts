@@ -36,7 +36,7 @@ const headers = { "Cache-Control": "no-store" };
 const columns = publicationColumns;
 function failure(e: unknown, requestId: string) {
   return fail(
-    "instagram_publish_failed",
+    e instanceof SocialError ? e.code : e instanceof MetaIntegrationError ? e.code : "instagram_publish_failed",
     e instanceof SocialError || e instanceof MetaIntegrationError
       ? e.message
       : "Não foi possível concluir. Consulte o resultado antes de tentar novamente.",

@@ -214,6 +214,29 @@ messaging_migration="$workdir/0418.sql"
 messaging_contract="$workdir/0418-contract.sql"
 docker cp "$extract_container:/app/supabase/migrations/20261006223000_0418_meta_social_messaging.sql" "$messaging_migration"
 docker cp "$extract_container:/app/scripts/deploy-meta-messaging-contract.sql" "$messaging_contract"
+# Extract the manifest and its exact inputs from the same immutable worker image.
+# No directory scan and no assumption about historical Supabase migration state.
+release_root="$workdir/release-source"
+release_sql="$workdir/release-sql"
+mkdir -p "$release_root/scripts" "$release_root/supabase/migrations"
+for filename in build-upstream-release.py upstream-release.json upstream-release-preflight.sql upstream-release-postflight.sql; do
+  docker cp "$extract_container:/app/scripts/$filename" "$release_root/scripts/$filename"
+done
+python3 - "$release_root/scripts/upstream-release.json" > "$workdir/release-files" <<'RELEASE_FILES'
+import json, re, sys
+entries = json.load(open(sys.argv[1]))['migrations']
+if not entries:
+    raise SystemExit('Release must contain explicit migrations')
+for entry in entries:
+    name = entry['file']
+    if not re.fullmatch(r'20261016\d{6}_04[2-4]\d_[a-z0-9_]+\.sql', name):
+        raise SystemExit('Migration outside the approved release range')
+    print(name)
+RELEASE_FILES
+while IFS= read -r filename; do
+  docker cp "$extract_container:/app/supabase/migrations/$filename" "$release_root/supabase/migrations/$filename"
+done < "$workdir/release-files"
+python3 "$release_root/scripts/build-upstream-release.py" "$release_root" "$release_sql"
 docker rm "$extract_container" >/dev/null
 extract_container=''
 [[ -s "$migration" ]] || exit 1
@@ -287,6 +310,12 @@ messaging_schema_state=$(messaging_migration_state)
   exit 1
 }
 
+# Validate known old/new contracts before interrupting any service. The same
+# checks run again inside the single transaction that applies this release.
+release_state=$(docker exec -i escreveai-db psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres < "$release_sql/release-preflight.sql")
+[[ "$release_state" = ready ]] || { echo 'Stable release preflight failed; live services preserved' >&2; exit 1; }
+cp "$release_sql/release-apply.sql" "$backups/$stamp-stable-release.sql"
+
 # All failures from this point, including a signal during stop/SQL/up/health,
 # restore BOTH images and the worker's original running state.
 rollback_needed=1
@@ -354,6 +383,11 @@ if [[ "$messaging_schema_state" != ready ]]; then
   docker exec -i escreveai-db psql -X -1 -v ON_ERROR_STOP=1 -U postgres -d postgres < "$workdir/install-0418.sql"
 fi
 [[ "$(messaging_migration_state)" = ready ]] || exit 1
+# All new schema changes and the private checksum journal commit together.
+# A failure rolls this release back before the previous services are restored.
+docker exec -i escreveai-db psql -X -qAt -1 -v ON_ERROR_STOP=1 -U postgres -d postgres < "$release_sql/release-apply.sql"
+release_state=$(docker exec -i escreveai-db psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres < "$release_sql/release-verify.sql")
+[[ "$release_state" = ready ]] || exit 1
 docker exec escreveai-db psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c "notify pgrst, 'reload schema';"
 python3 - "$compose" "$tag" "$app_ref" "$worker_ref" <<'CONFIG'
 import json, os, sys

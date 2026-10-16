@@ -17,6 +17,7 @@ type State = {
     meta_asset_id?: string;
     connection_id?: string;
     story_eligible?: boolean;
+    story_eligibility?: "provider_validation_required";
   }[];
   publications: Publication[];
   can_publish: boolean;
@@ -64,11 +65,15 @@ export function PublishPost({
     );
   }
   useEffect(() => {
-    void studioApi<State>("/publish")
+    const controller = new AbortController();
+    void studioApi<State>("/publish", { signal: controller.signal })
       .then((value) => {
         setState(value);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
   }, []);
   const publications = state?.publications.filter((p) => p.item_ids.includes(item.id)) ?? [];
   const unresolved = publications.some((p) =>
@@ -83,7 +88,10 @@ export function PublishPost({
     (destination.provider !== "meta" ||
       (!!destination.meta_asset_id && !!destination.connection_id));
   const storyUnavailable =
-    story && destination?.provider === "meta" && destination.story_eligible !== true;
+    story &&
+    destination?.provider === "meta" &&
+    destination.story_eligible !== true &&
+    destination.story_eligibility !== "provider_validation_required";
   useEffect(() => {
     if (!processing) return;
     let alive = true;
@@ -158,6 +166,15 @@ export function PublishPost({
         {t("Conectar ou trocar minha conta")}
       </Link>
       {error && <Notice error>{error}</Notice>}
+      {story &&
+        destination?.provider === "meta" &&
+        destination.story_eligibility === "provider_validation_required" && (
+          <Notice>
+            {t(
+              "A Meta verificará se esta conta pode publicar Stories após sua confirmação. Se recusar, a publicação não será concluída.",
+            )}
+          </Notice>
+        )}
       {state?.provider_errors?.native && (
         <Notice error>
           {t("Conexão Meta")}: {state.provider_errors.native}

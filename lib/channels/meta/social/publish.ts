@@ -110,20 +110,8 @@ export async function executeNativeInstagramOperation(ctx: MetaExecutionContext)
   if (ctx.resolved.asset.kind !== "instagram")
     throw error("meta_asset_invalid", "Selecione uma conta profissional do Instagram.");
   const instagramId = ctx.resolved.asset.external_id;
-  if (payload.format === "story" && !storedId(ctx, "container_id")) {
-    const account = z
-      .object({ account_type: z.string() })
-      .safeParse(
-        await ctx.read(() =>
-          ctx.graph.request(instagramId, ctx.resolved.token, { query: { fields: "account_type" } }),
-        ),
-      );
-    if (!account.success || account.data.account_type !== "BUSINESS")
-      throw error(
-        "meta_story_not_eligible",
-        "Stories exigem uma conta Business cuja elegibilidade a Meta confirme.",
-      );
-  }
+  // Facebook Login IGUser has no account_type. The Meta STORIES container creation
+  // enforces eligibility; only its confirmed FINISHED state may reach media_publish.
   let mediaId = storedId(ctx, "media_id");
   if (!mediaId) {
     if (payload.format === "carousel") {

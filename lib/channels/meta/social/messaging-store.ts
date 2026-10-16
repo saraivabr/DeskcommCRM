@@ -10,7 +10,7 @@ import { MetaIntegrationError, type MetaMessagingStatusDTO } from "./types";
 import type { MetaActorContext } from "./store";
 import {
   assertNativeMessagingRouting,
-  messagingRequiredFields,
+  messagingPageRequiredFields,
   META_SOCIAL_WEBHOOK_PATH,
 } from "./messaging-routing";
 export { META_SOCIAL_WEBHOOK_PATH } from "./messaging-routing";
@@ -247,7 +247,7 @@ export async function configureMetaMessaging(
       await graph.request(`${target}/subscribed_apps`, resolved.token),
     );
     const found = subscribed.data.find((item) => item.id === resolved.app.appId);
-    const requiredFields = messagingRequiredFields(platform);
+    const requiredFields = messagingPageRequiredFields(platform);
     if (!requiredFields.every((field) => found?.subscribed_fields?.includes(field)))
       await graph.request(`${target}/subscribed_apps`, resolved.token, {
         method: "POST",

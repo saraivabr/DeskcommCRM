@@ -229,6 +229,7 @@ Destino: núcleo opcional; a operação comum permanece inteira sem ativação. 
 `GET /api/v1/integrations/meta/messaging` devolve `channels` (id, asset_id, platform,
 status, last_error) e webhook_url, sem segredos. `POST` aceita somente
 `{action: "enable" | "disable", asset_id: UUID}` de admin, mesma origem e sessão atual.
+A guarda `requireSupportWrite()` roda antes da autorização e de qualquer efeito remoto: acompanhamento somente leitura recebe403 e permissão indisponível recebe503. Consultar status continua permitido conforme o papel de leitura.
 Instagram exige `instagram_basic`, `instagram_manage_messages`, `pages_manage_metadata`
 e tarefa `MODERATE`/`MESSAGING`/`MANAGE`; Messenger exige `pages_messaging`,
 `pages_manage_metadata` e tarefa MODERATE/MSG/MANAGE. Permissões granulares, concessão selecionada,
@@ -236,8 +237,11 @@ expiração e app vigente são revalidados antes de toda resposta.
 
 Nesta modalidade Facebook Login, a ativação usa PageToken e `/{PAGE_ID}/subscribed_apps`, inclusive a Página vinculada ao Instagram. Faz consulta, assinatura idempotente e nova consulta de `subscribed_apps`, conforme [webhooks oficiais Messenger/Instagram](https://developers.facebook.com/documentation/business-messaging/messenger-platform/webhooks).
 `WORKING` significa assinatura confirmada; mensagem recebida real continua sendo prova
-externa separada. Instagram usa messages, messaging_postbacks e messaging_seen;
-Messenger usa messages, message_echoes, messaging_postbacks, message_deliveries e message_reads.
+externa separada. O objeto Instagram do app exige `messages`, `messaging_postbacks` e
+`messaging_seen`; a assinatura da Página vinculada exige somente `messages` e
+`messaging_postbacks`. `messaging_seen` não pertence ao enum `subscribed_fields` da
+Página, conforme o [SDK oficial da Meta](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/page.py).
+Messenger exige `messages`, `message_echoes`, `messaging_postbacks`, `message_deliveries` e `message_reads` nos dois níveis.
 Campos existentes são preservados. Desativar interrompe entrada/saída local sem excluir
 a assinatura da Página, que pode servir outro ativo autorizado no mesmo app.
 

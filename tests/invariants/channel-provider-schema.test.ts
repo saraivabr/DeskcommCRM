@@ -67,15 +67,20 @@ describe("0087 · o canal da sessão chega ao clone", () => {
     ).toBe("'waha'::text|NO");
   });
 
-  it("as três colunas do ramo meta_cloud existem", () => {
+  it("as colunas dos canais Meta declaradas nas migrations existem", () => {
     const cols = sql(`select column_name from information_schema.columns
                        where table_schema = 'public' and table_name = 'channel_sessions'
                          and column_name like 'meta\\_%' order by 1`).split("\n");
     // As três `meta_webhook_override_*` (migration 0311) entraram de propósito: são o
     // desfecho do registro do webhook do número ao conectar o canal oficial. A cerca
     // continua valendo — ela existe para pegar coluna que entrou SEM querer.
+    // A 0418 acrescenta a identidade social, isolada por organização; os dados
+    // do WhatsApp Cloud continuam separados dos canais Instagram/Messenger.
     expect(cols).toEqual([
       "meta_phone_number_id",
+      "meta_social_asset_id",
+      "meta_social_connection_id",
+      "meta_social_external_id",
       "meta_token_encrypted",
       "meta_waba_id",
       "meta_webhook_override_em",
