@@ -6,6 +6,7 @@ import { AgendaDeferredError } from "@/lib/agenda/protecao-followup";
 import { avisarRespostaDeCasoObsoleto } from "@/lib/atendimento/aviso-caso-obsoleto";
 import { withServiceJob } from "@/lib/atendimento/fronteira-server";
 import { StaleServiceBoundaryError } from "@/lib/atendimento/fronteira";
+import { runWorkerProcess } from "./process-lifecycle";
 /**
  * Worker 24/7 do agent-engine (fusão Vendaval → DeskcommCRM) — o processo
  * long-running que o CRM não tinha: fila durável, cron/follow-up, drain do
@@ -688,13 +689,13 @@ export async function main(): Promise<void> {
   await startWorker(env, handlers, log);
 }
 
-// tsx roda este arquivo como entrypoint direto.
-main().catch((err: unknown) => {
-  process.stderr.write(`boot falhou: ${errMsg(err)}\n`);
-  Sentry.captureException(err);
-  // `captureException` só enfileira — sem o flush, o `process.exit` teria boa
-  // chance de matar o processo antes do envio sair (é exatamente o cenário:
-  // boot falhou, o processo já está de saída). 2s é o mesmo teto usado pelo
-  // `SHUTDOWN_GRACE_MS` default deste worker para não pendurar o exit.
-  void Sentry.flush(2000).finally(() => process.exit(1));
+// O drain resolveu, mas sockets de bibliotecas ainda podem manter o event loop
+// vivo. Fecha a telemetria com prazo e só então encerra com o resultado real.
+void runWorkerProcess({
+  run: main,
+  closeTelemetry: (timeoutMs) => Sentry.close(timeoutMs),
+  reportFailure: (err) => {
+    process.stderr.write(`boot falhou: ${errMsg(err)}\n`);
+    Sentry.captureException(err);
+  },
 });

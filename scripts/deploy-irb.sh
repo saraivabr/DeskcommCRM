@@ -20,6 +20,9 @@ rollback_needed=0
 extract_container=''
 worker_running=false
 worker_stop_seconds=60
+worker_legacy=false
+worker_restart_changed=0
+worker_restart_policy=no
 before="$root/compose.before-$stamp.json"
 
 service_id() { docker compose -f "$compose" ps -aq "$1"; }
@@ -39,9 +42,26 @@ finish() {
     # Stop a candidate before returning the app to its previous revision.
     docker compose -f "$compose" stop -t "$worker_stop_seconds" worker || restored=1
     cp "$before" "$compose.rollback.tmp" && mv "$compose.rollback.tmp" "$compose" || restored=1
+    # Compose can reuse the old container without undoing docker update. Restore
+    # its exact policy explicitly; a recreated container uses the saved Compose.
+    if [[ "$worker_restart_changed" = 1 ]]; then
+      local current_worker
+      current_worker=$(service_id worker) || restored=1
+      if [[ "$current_worker" = "$worker_id" ]]; then
+        docker update --restart "$worker_restart_policy" "$worker_id" >/dev/null || restored=1
+      fi
+    fi
     docker compose -f "$compose" up -d --no-deps app || restored=1
     if [[ "$worker_running" = true ]]; then
       docker compose -f "$compose" up -d --no-deps worker || restored=1
+      if [[ "$worker_restart_changed" = 1 ]]; then
+        current_worker=$(service_id worker) || restored=1
+        if [[ -n "$current_worker" ]]; then
+          docker update --restart "$worker_restart_policy" "$current_worker" >/dev/null || restored=1
+        else
+          restored=1
+        fi
+      fi
     fi
     service_running app true || restored=1
     service_running worker "$worker_running" || restored=1
@@ -76,15 +96,32 @@ for name in ('app', 'worker'):
         raise SystemExit('Expected image and mapping environment for app and worker')
 app = json.load(open(sys.argv[2]))[0]
 worker = json.load(open(sys.argv[3]))[0]
+legacy = ['pnpm', 'exec', 'tsx', 'workers/agent-worker/main.ts']
+direct = ['node', '--import', 'tsx', 'workers/agent-worker/main.ts']
+service = config['services']['worker']
+if service.get('command') not in (None, legacy, direct):
+    raise SystemExit('Custom worker command requires review; live configuration preserved')
+if (service.get('entrypoint') not in (None, [], ['docker-entrypoint.sh']) or
+    worker['Config'].get('Entrypoint') not in (None, [], ['docker-entrypoint.sh']) or
+    worker['Config'].get('Cmd') not in (legacy, direct)):
+    raise SystemExit('Unsupported worker command/entrypoint; live configuration preserved')
 if not app['State']['Running'] or app['State'].get('Paused') or worker['State'].get('Paused'):
     raise SystemExit('Unexpected app or paused worker state; live configuration preserved')
 env = dict(item.split('=', 1) for item in worker['Config']['Env'] if '=' in item)
 grace = int(env.get('SHUTDOWN_GRACE_MS', '30000'))
 if not 0 < grace <= 300000:
     raise SystemExit('Unsupported worker graceful shutdown timeout')
-print(str(worker['State']['Running']).lower(), math.ceil(grace / 1000) + 30)
+policy = worker['HostConfig']['RestartPolicy']
+restart = policy.get('Name') or 'no'
+retries = policy.get('MaximumRetryCount', 0)
+if restart not in ('no', 'always', 'unless-stopped', 'on-failure') or not isinstance(retries, int) or retries < 0:
+    raise SystemExit('Unsupported worker restart policy; live configuration preserved')
+if restart == 'on-failure' and retries:
+    restart += ':' + str(retries)
+print(str(worker['State']['Running']).lower(), math.ceil(grace / 1000) + 30,
+      str(worker['Config']['Cmd'] == legacy).lower(), restart)
 STATE
-read -r worker_running worker_stop_seconds < "$workdir/previous-state"
+read -r worker_running worker_stop_seconds worker_legacy worker_restart_policy < "$workdir/previous-state"
 cp "$compose" "$before"
 mkdir -p "$backups"
 chmod 700 "$backups"
@@ -103,7 +140,62 @@ for ref, path in zip(sys.argv[2:4], sys.argv[4:6]):
         image['Config'].get('Labels', {}).get('org.opencontainers.image.revision') != sys.argv[1] or
         env.get('APP_VERSION') != sys.argv[1]):
         raise SystemExit('Image digest, revision or APP_VERSION does not match approved deployment')
+worker = json.load(open(sys.argv[5]))[0]['Config']
+if (worker.get('Cmd') != ['node', '--import', 'tsx', 'workers/agent-worker/main.ts'] or
+    worker.get('Entrypoint') not in (None, [], ['docker-entrypoint.sh'])):
+    raise SystemExit('Approved worker image must run Node directly; live services preserved')
 IMAGES
+
+# The legacy pnpm wrapper kills its child after five seconds when PID 1 gets
+# SIGTERM. Signal only the exact tsx Node child, leaving both wrappers to exit
+# naturally. Resolve and recheck the full ancestry inside this container only.
+cat > "$workdir/stop-legacy-worker.cjs" <<'LEGACY'
+const fs = require('node:fs');
+const path = require('node:path');
+const worker = 'workers/agent-worker/main.ts';
+function read(pid) {
+  const root = '/proc/' + pid;
+  const args = fs.readFileSync(root + '/cmdline', 'utf8').split('\0').filter(Boolean);
+  const stat = fs.readFileSync(root + '/stat', 'utf8').split(') ').at(-1).split(' ');
+  return { pid, args, parent: Number(stat[1]), start: stat[19], node: path.basename(fs.readlinkSync(root + '/exe')) === 'node' };
+}
+function target() {
+  const root = read(1);
+  if (!root.node || root.args.length !== 5 || path.basename(root.args[1]) !== 'pnpm' ||
+      JSON.stringify(root.args.slice(2)) !== JSON.stringify(['exec', 'tsx', worker]))
+    throw new Error('Legacy worker PID 1 is not the canonical pnpm command');
+  const candidates = [];
+  for (const entry of fs.readdirSync('/proc')) {
+    if (!/^[1-9][0-9]*$/.test(entry)) continue;
+    let child;
+    try { child = read(Number(entry)); } catch { continue; }
+    const a = child.args;
+    if (!child.node || a.length !== 6 || a[1] !== '--require' ||
+        !a[2].startsWith('/app/node_modules/') || !a[2].endsWith('/dist/preflight.cjs') ||
+        a[3] !== '--import' || !a[4].startsWith('file:///app/node_modules/') ||
+        !a[4].endsWith('/dist/loader.mjs') || a[5] !== worker) continue;
+    const parent = read(child.parent);
+    const cli = path.resolve(fs.readlinkSync('/proc/' + parent.pid + '/cwd'), parent.args[1] || '');
+    if (!parent.node || parent.parent !== 1 || parent.args.length !== 3 ||
+        !cli.startsWith('/app/node_modules/') ||
+        !cli.endsWith('/tsx/dist/cli.mjs') || parent.args[2] !== worker) continue;
+    candidates.push({ pid: child.pid, start: child.start, parent: parent.pid, parentStart: parent.start, rootStart: root.start });
+  }
+  if (candidates.length !== 1) throw new Error('Expected exactly one canonical legacy worker process');
+  return candidates[0];
+}
+const found = target();
+if (process.argv[2] === 'inspect') process.stdout.write(JSON.stringify(found));
+else if (process.argv[2] === 'signal') {
+  if (JSON.stringify(found) !== process.argv[3] || JSON.stringify(target()) !== process.argv[3])
+    throw new Error('Legacy worker process changed before shutdown');
+  process.kill(found.pid, 'SIGTERM');
+} else throw new Error('Unsupported legacy shutdown operation');
+LEGACY
+legacy_target=''
+if [[ "$worker_running" = true && "$worker_legacy" = true ]]; then
+  legacy_target=$(docker exec -i "$worker_id" node - inspect < "$workdir/stop-legacy-worker.cjs")
+fi
 
 # COPY . . in Dockerfile.worker carries this exact, reviewed migration. Creating
 # a container extracts the artifact without ever executing its CMD or loops.
@@ -199,7 +291,24 @@ messaging_schema_state=$(messaging_migration_state)
 # restore BOTH images and the worker's original running state.
 rollback_needed=1
 if [[ "$worker_running" = true ]]; then
-  docker stop --time "$worker_stop_seconds" "$worker_id" >/dev/null
+  if [[ "$worker_legacy" = true ]]; then
+    # An external signal does not mark a Docker container manually stopped.
+    # Suppress auto-restart until Compose replaces it; finish restores on error.
+    worker_restart_changed=1
+    docker update --restart no "$worker_id" >/dev/null
+    docker exec -i "$worker_id" node - signal "$legacy_target" < "$workdir/stop-legacy-worker.cjs"
+    python3 - "$worker_id" "$worker_stop_seconds" <<'WAIT_LEGACY'
+import subprocess, sys
+try:
+    result = subprocess.run(['docker', 'wait', sys.argv[1]], capture_output=True, text=True, timeout=int(sys.argv[2]))
+except subprocess.TimeoutExpired:
+    raise SystemExit('Legacy worker did not stop within its graceful deadline')
+if result.returncode or result.stdout.strip() != '0':
+    raise SystemExit('Legacy worker did not exit successfully')
+WAIT_LEGACY
+  else
+    docker stop --time "$worker_stop_seconds" "$worker_id" >/dev/null
+  fi
   docker inspect "$worker_id" | python3 -c 'import json,sys; state=json.load(sys.stdin)[0]["State"]; sys.exit(1 if state["Running"] or state.get("OOMKilled") or state.get("ExitCode") != 0 else 0)'
 fi
 # No migration ledger exists on this recovered installation. Apply only the
@@ -253,6 +362,9 @@ config = json.load(open(path))
 for name, image in zip(('app', 'worker'), sys.argv[3:5]):
     config['services'][name]['image'] = image
     config['services'][name]['environment']['APP_VERSION'] = sys.argv[2]
+if config['services']['worker'].get('command') == ['pnpm', 'exec', 'tsx', 'workers/agent-worker/main.ts']:
+    config['services']['worker']['command'] = ['node', '--import', 'tsx', 'workers/agent-worker/main.ts']
+    print('Migrated canonical legacy worker command to the approved Node command')
 with open(path + '.tmp', 'w') as target:
     json.dump(config, target, indent=2)
     target.flush()
@@ -277,6 +389,8 @@ valid = (state['Running'] and not state.get('Paused') and
          env.get('APP_VERSION') == sys.argv[3])
 if sys.argv[4] == 'app':
     valid = valid and state.get('Health', {}).get('Status') == 'healthy'
+else:
+    valid = valid and container['Config'].get('Cmd') == ['node', '--import', 'tsx', 'workers/agent-worker/main.ts']
 sys.exit(0 if valid else 1)
 CONTAINER
 }

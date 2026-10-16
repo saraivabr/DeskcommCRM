@@ -710,6 +710,17 @@
   "cards": [
     {
       "dot": "amber",
+      "title": "Ciclo de vida e comprovação da parada do worker",
+      "items": [
+        "SIGTERM/SIGINT → interromper novos claims → aguardar laços e jobs em curso → fechar pool → resolver main(); SHUTDOWN_GRACE_MS continua governando a drenagem",
+        "workers/agent-worker/process-lifecycle.ts só encerra com código 0 depois de main() resolver e da tentativa de fechar Sentry, limitada a 2 s; falha real ou drenagem esgotada mantém código 1",
+        "Dockerfile.worker inicia Node diretamente com carregador TypeScript: o prazo da drenagem não fica limitado pelos wrappers pnpm exec/CLI tsx, que encerravam o filho após cerca de 5 s",
+        "O deploy exige ExitCode 0, não apenas o log worker encerrado limpo; scripts/provar-parada-worker.sh verifica o CMD da candidata sem rede antes da promoção",
+        "Código integrado e canário aprovado não comprovam implantação: conferir o SHA em /api/v1/health e docker inspect da imagem e do CMD em execução. Histórico e verificação operacional: docs/recovery/producao-irb-20260925.md"
+      ]
+    },
+    {
+      "dot": "amber",
       "title": "Saídas do painel (Fase 4)",
       "items": [
         "Roteador e Mapa do funil são as arestas desenhadas; as outras saem por CTA",

@@ -24,4 +24,6 @@ COPY . .
 # Healthz do worker (bind 0.0.0.0 dentro do container).
 EXPOSE 8787
 
-CMD ["pnpm", "exec", "tsx", "workers/agent-worker/main.ts"]
+# O processo que drena os jobs recebe SIGTERM diretamente. O pnpm pode forçar
+# a saída do filho após 5s, antes do prazo SHUTDOWN_GRACE_MS do worker.
+CMD ["node", "--import", "tsx", "workers/agent-worker/main.ts"]
