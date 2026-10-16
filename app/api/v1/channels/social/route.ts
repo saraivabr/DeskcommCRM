@@ -57,7 +57,7 @@ function publicBase(): string {
 }
 function failure(error: unknown, requestId: string) {
   return fail(
-    "social_unavailable",
+    error instanceof SocialError ? error.code : "social_unavailable",
     error instanceof SocialError
       ? error.message
       : "Não foi possível concluir a operação nas redes sociais. Tente novamente.",

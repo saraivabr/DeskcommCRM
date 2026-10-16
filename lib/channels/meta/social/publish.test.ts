@@ -181,26 +181,26 @@ describe("Instagram native publication", () => {
       receipt: { media_id: "44" },
     });
   });
-  it("Stories deny Creator / unknown account types before creating any container", async () => {
+  it("a Story rejected by Meta never reaches media_publish", async () => {
     const h = harness("story");
-    h.request.mockResolvedValue({ account_type: "MEDIA_CREATOR" });
+    h.request.mockRejectedValue(Object.assign(new Error("not eligible"), { code: "meta_permission_missing" }));
     await expect(executeNativeInstagramOperation(h.ctx)).rejects.toMatchObject({
-      code: "meta_story_not_eligible",
+      code: "meta_permission_missing",
     });
     expect(h.request).toHaveBeenCalledTimes(1);
-    expect(h.download).not.toHaveBeenCalled();
+    expect(h.request.mock.calls[0]?.[0]).toBe("178/media");
+    expect(h.request.mock.calls.some(([path]) => path === "178/media_publish")).toBe(false);
   });
-  it("a proven Business Story uses media_type STORIES without a feed caption", async () => {
+  it("a provider-confirmed Story uses media_type STORIES without an unsupported account_type read", async () => {
     const h = harness("story");
     h.request
-      .mockResolvedValueOnce({ account_type: "BUSINESS" })
       .mockResolvedValueOnce({ id: "101" })
       .mockResolvedValueOnce({ status_code: "FINISHED" })
       .mockResolvedValueOnce({ id: "202" })
       .mockResolvedValueOnce({ id: "202" });
     await executeNativeInstagramOperation(h.ctx);
-    expect(h.request.mock.calls[1]?.[2]).toMatchObject({ body: { media_type: "STORIES" } });
-    expect(h.request.mock.calls[1]?.[2].body).not.toHaveProperty("caption");
+    expect(h.request.mock.calls[0]?.[2]).toMatchObject({ body: { media_type: "STORIES" } });
+    expect(h.request.mock.calls[0]?.[2].body).not.toHaveProperty("caption");
   });
   it("foreign paths and mutated approved media never reach Graph", async () => {
     const h = harness();

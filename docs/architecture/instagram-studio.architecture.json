@@ -98,6 +98,13 @@
       "col": 2,
       "type": "service",
       "label": "ImageGeneration: animação acessível durante geração"
+    },
+    {
+      "id": "native-read",
+      "lane": "server",
+      "col": 7,
+      "type": "service",
+      "label": "Meta: grant selecionado, Page token e insights total_value"
     }
   ],
   "edges": [
@@ -184,6 +191,18 @@
       "from": "generation-feedback",
       "to": "ui",
       "label": "feedback em criação e revisão; encerra no resultado ou erro"
+    },
+    {
+      "from": "api",
+      "to": "native-read",
+      "label": "conta e destino por organização",
+      "id": "native-read-request"
+    },
+    {
+      "from": "native-read",
+      "to": "ui",
+      "label": "métricas ou erro recuperável",
+      "id": "native-read-visible"
     }
   ]
 }

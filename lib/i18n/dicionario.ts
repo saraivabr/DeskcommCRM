@@ -38,6 +38,10 @@ import { META_NATIVE_ES } from "./meta-native";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "DMs com falha": { es: "Mensajes directos fallidos" },
+  "Conexão social": { es: "Conexión social" },
+  " — sem acesso aos resultados": { es: " — sin acceso a los resultados" },
+  "A Meta verificará se esta conta pode publicar Stories após sua confirmação. Se recusar, a publicação não será concluída.": { es: "Meta verificará si esta cuenta puede publicar Stories después de su confirmación. Si lo rechaza, la publicación no se completará." },
   ...META_NATIVE_ES,
   "Abrir conversas": { es: "Abrir conversaciones" },
   "ESCREVE AÍ": { es: "ESCRIBE AQUÍ" },

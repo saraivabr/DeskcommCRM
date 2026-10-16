@@ -4,6 +4,8 @@ export const metaCapabilitiesSchema = z.object({
   ads_read: z.boolean(),
   ads_manage: z.boolean(),
   instagram_publish: z.boolean(),
+  instagram_read: z.boolean().optional(),
+  instagram_insights: z.boolean().optional(),
   instagram_message: z.boolean().optional(),
   facebook_message: z.boolean().optional(),
 });

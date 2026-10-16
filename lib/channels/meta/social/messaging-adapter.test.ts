@@ -50,7 +50,7 @@ beforeEach(() => {
   });
   mocks.resolve.mockResolvedValue({
     app: { appId: "1", appSecret: "app-secret" },
-    asset: { external_id: "10" },
+    asset: { kind: "instagram", external_id: "10", parent_page_external_id: "30" },
     token: "private-token",
   });
   mocks.request.mockResolvedValue({ message_id: "m_1" });
@@ -100,7 +100,7 @@ describe("native replies through canonical outbound envelope", () => {
 });
 
 describe("native transport health", () => {
-  it("reports WORKING only with the active canonical Instagram callback and all Page fields", async () => {
+  it("reports WORKING with Instagram app events and the distinct parent Page delivery fields", async () => {
     const fields = ["messages", "messaging_postbacks", "messaging_seen"];
     mocks.request
       .mockResolvedValueOnce({
@@ -114,11 +114,14 @@ describe("native transport health", () => {
           },
         ],
       })
-      .mockResolvedValueOnce({ data: [{ id: "1", subscribed_fields: fields }] });
+      .mockResolvedValueOnce({
+        data: [{ id: "1", subscribed_fields: ["messages", "messaging_postbacks"] }],
+      });
     await expect(
       metaSocialAdapter.checkHealth!({ organizationId: "org", sessionRef: "10" }),
     ).resolves.toMatchObject({ reachable: true, status: "WORKING" });
     expect(mocks.request).toHaveBeenCalledTimes(2);
+    expect(mocks.request).toHaveBeenLastCalledWith("30/subscribed_apps", "private-token");
   });
   it("detects a remotely removed subscription", async () => {
     mocks.request
@@ -140,7 +143,7 @@ describe("native transport health", () => {
     await expect(
       metaSocialAdapter.checkHealth!({ organizationId: "org", sessionRef: "10" }),
     ).resolves.toMatchObject({ reachable: true, status: "FAILED" });
-    expect(mocks.request).toHaveBeenCalledWith("10/subscribed_apps", "private-token");
+    expect(mocks.request).toHaveBeenCalledWith("30/subscribed_apps", "private-token");
   });
   it("fails health on a live legacy callback without reading or mutating Page subscriptions", async () => {
     mocks.request.mockResolvedValue({

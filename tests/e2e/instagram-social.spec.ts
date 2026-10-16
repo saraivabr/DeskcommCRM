@@ -5,7 +5,10 @@ import { createClient } from "@supabase/supabase-js";
 // UI regression against authenticated local Supabase. The independent HTTP receiver
 // journey is documented in user-journey-map; these fixtures never send a real DM.
 test.use({ channel: process.env.PLAYWRIGHT_CHANNEL });
-test("selects a post, edits a populated Direct and shows a provider failure", async ({ page }) => {
+test("selects a post, edits a populated Direct and shows a provider failure", async ({
+  page,
+  context,
+}) => {
   test.setTimeout(60_000);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!/^http:\/\/(localhost|127\.0\.0\.1)(:|\/)/.test(url))
@@ -113,6 +116,69 @@ test("selects a post, edits a populated Direct and shows a provider failure", as
       path: ".superpowers/evidence/instagram-zernio/e2e-mobile.png",
       fullPage: true,
     });
+    // Read recovery and independent Meta destination; never publish or send a real message.
+    await page.route("**/api/v1/instagram/account", (route) =>
+      route.fulfill({
+        json: {
+          data: {
+            account: { username: "conta_nativa", active: true, provider: "meta", avatar_url: null },
+          },
+        },
+      }),
+    );
+    let stalled = true;
+    await page.route("**/api/v1/instagram/insights**", async (route) => {
+      if (stalled) return; // held until the client deadline aborts it
+      const params = new URL(route.request().url()).searchParams;
+      await route.fulfill({
+        json: {
+          data: params.has("account_id")
+            ? {
+                insights: {
+                  dateRange: { since: "2026-09-16", until: "2026-10-16" },
+                  metrics: { reach: { total: 42 } },
+                },
+              }
+            : {
+                connected: true,
+                accounts: [
+                  {
+                    id: "10000000-0000-4000-8000-000000000001",
+                    connection_id: "10000000-0000-4000-8000-000000000002",
+                    provider: "meta",
+                    name: "conta_nativa",
+                    insights_available: true,
+                  },
+                ],
+                provider_errors: { zernio: { message: "Confira a cobrança do provedor." } },
+              },
+        },
+      });
+    });
+    await page.clock.install();
+    await page.goto("/app/instagram/insights");
+    await expect(
+      page.getByRole("status").filter({ hasText: "Preparando seu espaço" }),
+    ).toBeVisible();
+    await page.clock.fastForward(21_000);
+    await expect(page.getByText("A consulta demorou demais. Tente novamente.")).toBeVisible();
+    stalled = false;
+    await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
+    await expect(page.getByText("42", { exact: true })).toBeVisible();
+    await expect(page.getByText("Confira a cobrança do provedor.")).toBeVisible();
+    await expect(
+      page.getByText("A conta não disponibilizou essa métrica neste período.").first(),
+    ).toBeVisible();
+    await page.unroute("**/api/v1/instagram/insights**");
+    await page.route("**/api/v1/instagram/insights**", (route) =>
+      route.fulfill({
+        status: 401,
+        json: { error: { code: "unauthenticated", message: "Entre novamente." } },
+      }),
+    );
+    await context.clearCookies();
+    await page.getByRole("button", { name: "Atualizar resultados" }).click();
+    await expect(page).toHaveURL(/\/login\?next=%2Fapp%2Finstagram%2Finsights/);
   } finally {
     await admin.from("organizations").delete().eq("id", org);
     await admin.auth.admin.deleteUser(user.data.user.id);

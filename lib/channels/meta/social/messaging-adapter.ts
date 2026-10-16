@@ -6,7 +6,7 @@ import { resolveSelectedMetaAsset } from "./operations";
 import { messagingSession, META_SOCIAL_PROVIDER } from "./messaging-store";
 import { MetaIntegrationError } from "./types";
 import { metaMessageId } from "./messaging-events";
-import { assertNativeMessagingRouting, messagingRequiredFields } from "./messaging-routing";
+import { assertNativeMessagingRouting, messagingPageRequiredFields } from "./messaging-routing";
 
 export const metaSocialAdapter: ChannelAdapter = {
   provider: META_SOCIAL_PROVIDER,
@@ -100,7 +100,7 @@ export const metaSocialAdapter: ChannelAdapter = {
       const active = response.data.some(
         (item) =>
           item.id === resolved.app.appId &&
-          messagingRequiredFields(platform).every((field) =>
+          messagingPageRequiredFields(platform).every((field) =>
             item.subscribed_fields?.includes(field),
           ),
       );

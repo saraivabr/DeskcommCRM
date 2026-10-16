@@ -31,7 +31,13 @@ const grantSchema = z.object({
   page_access_token_encrypted: z.string().nullable(),
 });
 export type MetaAssetCapability =
-  "ads_read" | "ads_manage" | "instagram_publish" | "instagram_message" | "facebook_message";
+  | "ads_read"
+  | "ads_manage"
+  | "instagram_publish"
+  | "instagram_message"
+  | "facebook_message"
+  | "instagram_read"
+  | "instagram_insights";
 export interface ResolvedMetaAsset {
   app: Awaited<ReturnType<typeof getPlatformMetaAppNative>>;
   connectionId: string;
@@ -134,7 +140,7 @@ export async function resolveSelectedMetaAsset(
   });
   if (!capabilities.capabilities[capability]) throw unavailable();
   let token: string;
-  if (capability === "instagram_publish" || capability === "instagram_message") {
+  if (capability.startsWith("instagram_")) {
     // Facebook Login publishing uses the Page token for this Instagram account's parent Page.
     const { data: parentGrant, error } = await db
       .from("meta_asset_grants")

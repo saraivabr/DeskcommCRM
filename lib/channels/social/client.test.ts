@@ -27,3 +27,29 @@ describe("social provider boundary", () => {
     );
   });
 });
+
+it.each([
+  [402, 402, "social_payment_required"],
+  [401, 422, "social_reauthorization_required"],
+  [403, 422, "social_reauthorization_required"],
+  [429, 429, "rate_limited"],
+  [503, 503, "social_unavailable"],
+])(
+  "maps provider status %s without confusing it with session expiry",
+  async (upstream, status, code) => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response("private provider detail", { status: Number(upstream) })),
+    );
+    await expect(socialRequest("test-key", "accounts")).rejects.toMatchObject({
+      status,
+      code,
+      upstreamStatus: upstream,
+    });
+    await expect(socialRequest("test-key", "accounts")).rejects.not.toThrow(
+      "private provider detail",
+    );
+  },
+);

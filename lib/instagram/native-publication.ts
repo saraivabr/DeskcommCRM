@@ -71,7 +71,7 @@ export async function listNativeInstagramAccounts(organizationId: string) {
     connection_id: string;
     username: string;
     active: boolean;
-    story_eligible: boolean;
+    story_eligibility: "provider_validation_required";
   }[] = [];
   for (const connection of status.connections.filter((c) => c.status === "healthy")) {
     const { assets } = await service.assets(organizationId, connection.id);
@@ -83,8 +83,8 @@ export async function listNativeInstagramAccounts(organizationId: string) {
         connection_id: connection.id,
         username: asset.username ?? asset.name,
         active: asset.capabilities.instagram_publish,
-        // Eligibility is confirmed by Graph before creating a Story, never inferred from the relationship name.
-        story_eligible: false,
+        // Facebook Login has no account_type field. The STORIES container response validates eligibility after explicit publication confirmation.
+        story_eligibility: "provider_validation_required",
       });
     }
   }

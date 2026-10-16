@@ -22,9 +22,14 @@ const row = {
   meta_social_external_id: "10",
   status: "STOPPED",
   updated_at: "2026-01-01T00:00:00Z",
-  metadata: { social_platform: "facebook" },
+  metadata: {
+    social_platform: "facebook",
+    ai_gate: "allowlist",
+    ai_gate_mode: "pre_go_live",
+    ai_test_phone_numbers: [],
+  },
 };
-function database() {
+function database(kind: "page" | "instagram" = "page") {
   return {
     from: (table: string) => {
       let changed = false;
@@ -38,7 +43,7 @@ function database() {
           return q;
         },
         maybeSingle: async () => ({
-          data: table === "meta_assets" ? { kind: "page" } : changed ? { id: row.id } : row,
+          data: table === "meta_assets" ? { kind } : changed ? { id: row.id } : row,
           error: null,
         }),
         then: (resolve: (value: unknown) => unknown) =>
@@ -87,6 +92,115 @@ beforeEach(() => {
     connectionId: row.meta_social_connection_id,
     asset: { external_id: "10", name: "Page" },
     token: "synthetic-page-token",
+  });
+});
+
+describe("Instagram app fields and parent Page subscription use separate contracts", () => {
+  const instagramFields = ["messages", "messaging_postbacks", "messaging_seen"];
+  const pageFields = ["messages", "messaging_postbacks", "messaging_optins", "standby"];
+  const instagramSubscription = () =>
+    appSubscription({
+      object: "instagram",
+      fields: instagramFields.map((name) => ({ name })),
+    });
+  beforeEach(() => {
+    mocks.resolve.mockResolvedValue({
+      app: { appId: "1", appSecret: "synthetic-private-app-secret" },
+      connectionId: row.meta_social_connection_id,
+      asset: { kind: "instagram", external_id: "10", parent_page_external_id: "20" },
+      token: "synthetic-page-token",
+    });
+  });
+  it("accepts the existing parent Page subscription without posting Instagram-only fields", async () => {
+    mocks.request
+      .mockResolvedValueOnce({ data: [instagramSubscription()] })
+      .mockResolvedValueOnce({ data: [{ id: "1", subscribed_fields: pageFields }] })
+      .mockResolvedValueOnce({ data: [{ id: "1", subscribed_fields: pageFields }] });
+    const state = await configureMetaMessaging(
+      actor,
+      row.meta_social_asset_id,
+      "enable",
+      "https://produto.example",
+      database("instagram") as never,
+    );
+    expect(state.channels[0]?.status).toBe("WORKING");
+    expect(mocks.request.mock.calls.map((call) => [call[0], call[2]?.method ?? "GET"])).toEqual([
+      ["1/subscriptions", "GET"],
+      ["20/subscribed_apps", "GET"],
+      ["20/subscribed_apps", "GET"],
+    ]);
+    expect(mocks.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        status: "WORKING",
+        metadata: expect.objectContaining({
+          ai_gate: "allowlist",
+          ai_gate_mode: "pre_go_live",
+          ai_test_phone_numbers: [],
+        }),
+      }),
+    );
+  });
+  it("adds only missing Page fields and preserves unrelated existing subscriptions", async () => {
+    mocks.request
+      .mockResolvedValueOnce({ data: [instagramSubscription()] })
+      .mockResolvedValueOnce({
+        data: [
+          { id: "other-app", subscribed_fields: ["feed"] },
+          { id: "1", subscribed_fields: ["standby", "messages", "messaging_optins"] },
+        ],
+      })
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({ data: [{ id: "1", subscribed_fields: pageFields }] });
+    await configureMetaMessaging(
+      actor,
+      row.meta_social_asset_id,
+      "enable",
+      "https://produto.example",
+      database("instagram") as never,
+    );
+    expect(mocks.request).toHaveBeenNthCalledWith(3, "20/subscribed_apps", "synthetic-page-token", {
+      method: "POST",
+      body: { subscribed_fields: "standby,messages,messaging_optins,messaging_postbacks" },
+    });
+    expect(mocks.resolve).toHaveBeenCalledTimes(2);
+  });
+  it("still requires messaging_seen at the canonical app Instagram callback before mutation", async () => {
+    mocks.request.mockResolvedValueOnce({
+      data: [
+        appSubscription({
+          object: "instagram",
+          fields: ["messages", "messaging_postbacks"].map((name) => ({ name })),
+        }),
+      ],
+    });
+    await expect(
+      configureMetaMessaging(
+        actor,
+        row.meta_social_asset_id,
+        "enable",
+        "https://produto.example",
+        database("instagram") as never,
+      ),
+    ).rejects.toMatchObject({ code: "meta_messaging_callback_mismatch" });
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.request).toHaveBeenCalledOnce();
+  });
+  it("fails the channel if the provider does not confirm the Page delivery fields", async () => {
+    mocks.request
+      .mockResolvedValueOnce({ data: [instagramSubscription()] })
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({ data: [{ id: "1", subscribed_fields: ["messages"] }] });
+    await expect(
+      configureMetaMessaging(
+        actor,
+        row.meta_social_asset_id,
+        "enable",
+        "https://produto.example",
+        database("instagram") as never,
+      ),
+    ).rejects.toMatchObject({ code: "meta_subscription_unconfirmed" });
+    expect(mocks.update).toHaveBeenLastCalledWith(expect.objectContaining({ status: "FAILED" }));
   });
 });
 describe("native activation verifies the global callback before any channel or Page mutation", () => {
