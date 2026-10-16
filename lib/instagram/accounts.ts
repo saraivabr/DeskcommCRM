@@ -1,5 +1,5 @@
 import { LEGACY_INSTAGRAM_PUBLICATION_PROVIDER } from "@/lib/channels/social/instagram-publishing";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createBoundedMetaAdminClient } from "@/lib/channels/meta/social/bounded-admin";
 import { listNativeInstagramReadAccounts } from "@/lib/channels/meta/social/instagram-read";
 import { readSocialIntegration } from "@/lib/channels/social/store";
 import { listSocialAccounts, socialErrorDetails } from "@/lib/channels/social/client";
@@ -14,12 +14,15 @@ export type InstagramReadAccount = {
   avatar_url?: string | null;
 };
 export async function instagramReadAccounts(org: string, signal?: AbortSignal) {
+  const readSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
+    : AbortSignal.timeout(15_000);
   const [native, legacy] = await Promise.allSettled([
-    listNativeInstagramReadAccounts(org, signal),
+    listNativeInstagramReadAccounts(org, readSignal),
     (async (): Promise<InstagramReadAccount[]> => {
-      const config = await readSocialIntegration(createAdminClient(), org);
+      const config = await readSocialIntegration(createBoundedMetaAdminClient(readSignal), org);
       if (!config) return [];
-      return (await listSocialAccounts(config.key, config.profileId))
+      return (await listSocialAccounts(config.key, config.profileId, readSignal))
         .filter((a) => a.platform === "instagram")
         .map((a) => ({
           id: a._id,

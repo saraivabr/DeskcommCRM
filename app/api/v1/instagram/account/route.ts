@@ -5,13 +5,13 @@ import { instagramReadAccounts } from "@/lib/instagram/accounts";
 import { instagramAPIError } from "@/lib/instagram/api-error";
 
 export const dynamic = "force-dynamic";
-export async function GET() {
+export async function GET(req: Request) {
   const requestId = randomUUID();
   const headers = { "Cache-Control": "no-store" };
   const auth = await requireRole("viewer", { requestId });
   if (!auth.ok) return auth.response;
   try {
-    const { accounts, provider_errors } = await instagramReadAccounts(auth.org.orgId);
+    const { accounts, provider_errors } = await instagramReadAccounts(auth.org.orgId, req.signal);
     const account = accounts.find((a) => a.active) ?? accounts[0];
     return ok(
       {

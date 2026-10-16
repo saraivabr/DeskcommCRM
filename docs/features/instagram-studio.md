@@ -12,7 +12,7 @@ A criação exibe `ImageGeneration` durante o pedido; a revisão reutiliza a ani
 
 Referências são perfis informados pelo usuário. Pesquisa usa busca web com citações; sem fonte verificável, falha explicitamente. Não segue pessoas, não envia mensagens, não garante acesso a todos os posts nem afirma viralidade sem evidência. “Adaptar para meu negócio” preenche uma nova criação, sem publicar.
 
-Resultados usam a conexão social já existente, via adapter em `lib/channels/social/instagram-insights.ts`. A conta é validada contra o perfil da organização antes de consultar métricas. Ausência de métrica aparece como indisponível, nunca zero. A integração atual requer análise habilitada no provedor; não se apresenta como uma nova integração direta com a Meta.
+Resultados oferecem a conexão Meta nativa selecionada e a conexão social existente. Cada fonte valida a conta contra os grants ou o perfil da organização antes de consultar métricas; os contratos estão em “Leitura independente por fonte”, abaixo. Ausência de métrica aparece como indisponível, nunca zero. Cobrança ou permissão recusada em uma fonte não apaga as contas saudáveis da outra.
 
 Backend: `/api/v1/instagram` lista e cria; `/:id` consulta, edita legenda e remove somente referências; `/insights` consulta contas e métricas. Viewer lê; agent cria e edita; configurações de canais preservam admin. O modo de suporte é respeitado.
 
@@ -51,3 +51,5 @@ Stories nativas possuem estado `provider_validation_required`, mostrado antes da
 Fontes técnicas: [SDK oficial IGUser](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/iguser.py), [SDK oficial InstagramInsightsResult](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/instagraminsightsresult.py). As páginas de referência Meta foram consultadas, mas indisponíveis no leitor; as afirmações de contrato acima apoiam-se no SDK e nas leituras observadas.
 
 Living System Checklist: entrada=grants/contas por organização; saída=Insights/conta do Studio; registro=erro seguro com requestId e estado visível por fonte; porta=navegação Instagram existente; anti-morte=prazo20s e nova consulta explícita; configuração=Conexões; continuidade=consulta humana sem disparo de IA; retorno=fonte indisponível preserva destino saudável, sessão inválida retorna ao login; mapa=instagram-studio.architecture.json. Destino=núcleo, porque restaura capacidades já distribuídas sem alterar schema.
+
+A manutenção de contas, assinaturas e perfis vive em [Redes sociais — recuperação e desconexão](redes-sociais.md).

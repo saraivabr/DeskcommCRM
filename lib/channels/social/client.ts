@@ -15,7 +15,11 @@ export async function socialRequest(
   key: string,
   path: string,
   body?: unknown,
-  options: { method?: "POST" | "PATCH"; requestId?: string } = {},
+  options: {
+    method?: "POST" | "PATCH" | "PUT" | "DELETE";
+    requestId?: string;
+    signal?: AbortSignal;
+  } = {},
 ): Promise<unknown> {
   let response: Response;
   try {
@@ -23,7 +27,9 @@ export async function socialRequest(
       method: options.method ?? (body === undefined ? "GET" : "POST"),
       redirect: "error",
       cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
+      signal: options.signal
+        ? AbortSignal.any([options.signal, AbortSignal.timeout(15_000)])
+        : AbortSignal.timeout(15_000),
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
@@ -60,6 +66,7 @@ export async function socialRequest(
       response.status === 429 ? "rate_limited" : "social_unavailable",
     );
   }
+  if (options.method === "DELETE") return null;
   try {
     return await response.json();
   } catch {
@@ -90,10 +97,18 @@ const accountSchema = z.object({
   profileId: z.union([z.string(), z.object({ _id: z.string(), name: z.string().optional() })]),
 });
 export type SocialAccount = z.infer<typeof accountSchema>;
-export async function listSocialAccounts(key: string, profileId: string): Promise<SocialAccount[]> {
+export async function listSocialAccounts(
+  key: string,
+  profileId: string,
+  signal?: AbortSignal,
+): Promise<SocialAccount[]> {
   const parsed = z
     .object({ accounts: z.array(accountSchema) })
-    .safeParse(await socialRequest(key, `accounts?profileId=${encodeURIComponent(profileId)}`));
+    .safeParse(
+      await socialRequest(key, `accounts?profileId=${encodeURIComponent(profileId)}`, undefined, {
+        signal,
+      }),
+    );
   if (!parsed.success) throw new SocialError("O provedor retornou uma lista de contas inválida.");
   return parsed.data.accounts.filter(
     (a) => (typeof a.profileId === "string" ? a.profileId : a.profileId._id) === profileId,

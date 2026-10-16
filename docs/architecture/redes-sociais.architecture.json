@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Redes sociais — ciclo de vida",
+    "subtitle": "Assinaturas confirmadas, isolamento por organização e histórico preservado",
+    "output": "redes-sociais.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Interface"
+    },
+    {
+      "id": "api",
+      "label": "Servidor"
+    },
+    {
+      "id": "state",
+      "label": "Estado"
+    }
+  ],
+  "mainPath": ["ui", "guard", "store", "provider", "receipt"],
+  "nodes": [
+    {
+      "id": "ui",
+      "lane": "ui",
+      "col": 0,
+      "type": "service",
+      "label": "Conexões: confirmar alvo e ação"
+    },
+    {
+      "id": "guard",
+      "lane": "api",
+      "col": 1,
+      "type": "service",
+      "label": "Admin, MFA, suporte, tenant e limite"
+    },
+    {
+      "id": "store",
+      "lane": "api",
+      "col": 2,
+      "type": "service",
+      "label": "Store: ID ou token do canal da organização"
+    },
+    {
+      "id": "provider",
+      "lane": "state",
+      "col": 3,
+      "type": "service",
+      "label": "Provedor: PUT parcial + releitura / DELETE"
+    },
+    {
+      "id": "receipt",
+      "lane": "state",
+      "col": 4,
+      "type": "service",
+      "label": "Auditoria, canal arquivado e histórico preservado"
+    }
+  ],
+  "edges": [
+    {
+      "id": "request",
+      "from": "ui",
+      "to": "guard",
+      "label": "confirmação explícita"
+    },
+    {
+      "id": "owned",
+      "from": "guard",
+      "to": "store",
+      "label": "org confiável"
+    },
+    {
+      "id": "remote",
+      "from": "store",
+      "to": "provider",
+      "label": "efeito remoto primeiro"
+    },
+    {
+      "id": "result",
+      "from": "provider",
+      "to": "receipt",
+      "label": "confirmação ou erro registrado"
+    },
+    {
+      "id": "feedback",
+      "from": "receipt",
+      "to": "ui",
+      "label": "reler lista / tentar novamente"
+    }
+  ]
+}

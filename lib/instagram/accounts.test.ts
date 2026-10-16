@@ -4,7 +4,9 @@ const m = vi.hoisted(() => ({ native: vi.fn(), config: vi.fn(), accounts: vi.fn(
 vi.mock("@/lib/channels/meta/social/instagram-read", () => ({
   listNativeInstagramReadAccounts: m.native,
 }));
-vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
+vi.mock("@/lib/channels/meta/social/bounded-admin", () => ({
+  createBoundedMetaAdminClient: () => ({}),
+}));
 vi.mock("@/lib/channels/social/store", () => ({ readSocialIntegration: m.config }));
 vi.mock("@/lib/channels/social/client", async (actual) => ({
   ...(await actual<typeof SocialClient>()),
@@ -35,4 +37,26 @@ it("propagates billing when there is no independent destination, rather than cla
     new SocialError("Confira a cobrança.", 402, 402, "social_payment_required"),
   );
   await expect(instagramReadAccounts("tenant")).rejects.toMatchObject({ status: 402 });
+});
+
+it("cancels the stalled provider branch without losing an independently available native destination", async () => {
+  const caller = new AbortController();
+  m.native.mockResolvedValue([{ id: "native", provider: "meta", name: "Store", active: true }]);
+  m.accounts.mockImplementation(
+    (_key: string, _profile: string, signal: AbortSignal) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener(
+          "abort",
+          () => reject(new SocialError("O provedor não respondeu.", 503)),
+          { once: true },
+        );
+      }),
+  );
+  const pending = instagramReadAccounts("tenant", caller.signal);
+  await vi.waitFor(() => expect(m.accounts).toHaveBeenCalledOnce());
+  caller.abort();
+  await expect(pending).resolves.toMatchObject({
+    accounts: [{ id: "native" }],
+    provider_errors: { legacy: { status: 503 } },
+  });
 });
