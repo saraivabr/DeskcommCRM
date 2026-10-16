@@ -35,6 +35,7 @@
  * de precedência é a parte que erra, e ela precisa ser exercitável por teste
  * unitário. O I/O fica em quem chama.
  */
+import { PROVEDORES } from "./provedores";
 import { PONTO_POR_ID, type PontoDeIa } from "./registro";
 
 /** De onde a escolha efetiva veio — vai para a tela e para o log. */
@@ -44,6 +45,7 @@ export type OrigemDaEscolha =
   | "binding"
   | "variavel_de_ambiente"
   | "herdado_de_quem_chamou"
+  | "economico_do_provedor"
   | "padrao_da_organizacao";
 
 export const EXPLICACAO_DA_ORIGEM: Record<OrigemDaEscolha, string> = {
@@ -52,6 +54,9 @@ export const EXPLICACAO_DA_ORIGEM: Record<OrigemDaEscolha, string> = {
   variavel_de_ambiente: "Definido em variável de ambiente na instalação.",
   herdado_de_quem_chamou:
     "Herdado de quem disparou a chamada — o agente publicado, ou o roteador de intenção.",
+  economico_do_provedor:
+    "Modelo mais econômico do mesmo provedor — esta tarefa é uma classificação curta e não precisa do modelo do agente. Escolha outro no painel se preferir.",
+
   padrao_da_organizacao: "Usando o padrão da organização.",
   fixo_do_produto: "O produto resolve este ponto sozinho — não há modelo a escolher.",
 };
@@ -86,6 +91,13 @@ export interface EntradaDaDecisao {
   /** O knob de ambiente daquele ponto, quando existe. */
   modeloDeAmbiente: string | undefined;
   padraoDaOrganizacao: PadraoDaOrganizacao;
+  /**
+   * O modelo econômico do provedor, para os pontos de
+   * `PONTOS_DE_TIER_ECONOMICO`. Quem chama consulta o catálogo (I/O) e
+   * responde com `escolherModeloEconomico`; o resolvedor só decide QUANDO ele
+   * vale. Ausente = a regra de antes, intacta.
+   */
+  economicoDoProvedor?: (provider: string, modeloAtual: string | null) => string | null;
 }
 
 export interface DecisaoDeBinding {
@@ -102,6 +114,14 @@ export interface DecisaoDeBinding {
    * existir voltaria a ser uma falha muda.
    */
   avisos: string[];
+  /**
+   * O que valeria SEM a economia — só quando `origem` é
+   * `economico_do_provedor`. O seam tenta este modelo se o econômico falhar:
+   * um catálogo com um modelo que a chave não alcança degradaria o
+   * classificador em silêncio (ele falha aberto), e a reserva devolve
+   * exatamente o comportamento de antes.
+   */
+  reserva?: { modelId: string; origem: OrigemDaEscolha };
 }
 
 /**
@@ -157,6 +177,133 @@ export const PONTOS_QUE_HERDAM_DO_AGENTE: ReadonlySet<string> = new Set([
   // painel vira somente leitura, e "configurável por organização" morreria.
   "case_chat",
 ]);
+
+/**
+ * Os pontos que são uma CLASSIFICAÇÃO curta e, sem escolha explícita, usam o
+ * modelo mais barato do mesmo provedor em vez do modelo do agente.
+ *
+ * Por que existe: sem knob nem binding, estes pontos herdavam o modelo do
+ * agente — Sonnet para devolver um rótulo. O comentário "modelo BARATO" em
+ * `lib/agent-engine/env.ts` descrevia uma intenção que só valia para quem
+ * preenchia a variável à mão, e o `.env.example` nunca a mencionou. Medido no
+ * catálogo: a tarifa do classificador era 2× (Anthropic), 10× (OpenAI) e 15×
+ * (Google) a do modelo econômico do mesmo provedor, em TODO turno.
+ *
+ * Fora daqui de propósito:
+ *  - `promise_semantic`: guardrail de compliance sem `catch` no envio; trocar o
+ *    modelo dele exige golden set e reserva testados antes.
+ *  - `checkpoint`, `compaction`, `flush`: são a memória do lead; um modelo
+ *    fraco degrada a continuidade sem erro nenhum.
+ *  - `intent_router`: decide QUAL agente atende — erro ali é cliente com o
+ *    agente errado, e a tela do roteador já oferece a escolha.
+ *  - `sentiment_classify`: já nasce no modelo econômico (`DEFAULT_CLASSIFIER_MODEL`).
+ */
+export const PONTOS_DE_TIER_ECONOMICO: ReadonlySet<string> = new Set([
+  "stage_classifier",
+  "jailbreak_detect",
+  "flow_validate",
+  "followup_classify",
+  "followup_decide_timing",
+]);
+
+/**
+ * Provedores cujo catálogo é CURADO pelo produto (semeado por migration), os
+ * únicos em que a escolha automática é segura. Num catálogo sincronizado do
+ * mercado (OpenRouter, Requesty) "o mais barato" seria um modelo de outro
+ * fabricante qualquer. O personalizado entra aqui mas não tem linha no catálogo,
+ * então a escolha devolve `null` sozinha.
+ */
+const PROVEDORES_COM_CATALOGO_CURADO: ReadonlySet<string> = new Set(
+  PROVEDORES.filter((p) => !p.catalogoSincronizavel).map((p) => p.id),
+);
+
+/** Uma linha do catálogo `ai_models`, só com o que a escolha econômica consulta. */
+export interface ModeloDoCatalogoEconomico {
+  provider: string;
+  model_id: string;
+  input_price_per_million_cents: number | null;
+  output_price_per_million_cents: number | null;
+  supports_tools: boolean;
+  supports_embedding: boolean;
+}
+
+/**
+ * O modelo mais barato do provedor que ainda é um modelo de CONVERSA, e só se
+ * ele for estritamente mais barato que o atual. `null` = fique com o atual.
+ *
+ * - Modelo de embedding sai (`supports_embedding`): o catálogo da OpenAI tem
+ *   `text-embedding-3-small` a 2 centavos/M, e mandá-lo para um classificador
+ *   seria um 400 que o fail-open engoliria.
+ * - Sem `supports_tools` sai: no catálogo curado, é o marcador de modelo que
+ *   não é de chat (transcrição, imagem).
+ * - Preço do modelo atual desconhecido ⇒ `null`: sem régua não há como afirmar
+ *   que a troca economiza, e o agente pode já estar num modelo barato fora do catálogo.
+ * - `habilitados` não vazio restringe a escolha: a organização que limitou os
+ *   modelos tomaria `LlmModelNotEnabledError` em todo turno.
+ * - Desempate determinístico: menor saída, depois o id em ordem DECRESCENTE —
+ *   entre `gemini-2.0-flash` e `gemini-2.5-flash-lite` (mesmo preço), a versão
+ *   mais nova.
+ * - `temPrecoNoMotor`: o catálogo ter preço não basta — quem COBRA é a tabela do
+ *   motor (`precoDoModelo`). Se o atual é cobrado e o candidato não, a troca faz
+ *   o custo sair null e a chamada some do teto. Vem de quem chama para este
+ *   módulo seguir puro; ausente = sem essa restrição.
+ */
+export function escolherModeloEconomico(
+  catalogo: readonly ModeloDoCatalogoEconomico[],
+  provider: string,
+  modeloAtual: string | null,
+  habilitados: readonly string[] = [],
+  temPrecoNoMotor?: (modelId: string) => boolean,
+): string | null {
+  if (!PROVEDORES_COM_CATALOGO_CURADO.has(provider) || modeloAtual === null) return null;
+  const doProvedor = catalogo.filter(
+    (m) =>
+      m.provider === provider &&
+      m.supports_tools &&
+      !m.supports_embedding &&
+      m.input_price_per_million_cents !== null &&
+      m.output_price_per_million_cents !== null,
+  );
+  const atual = doProvedor.find((m) => m.model_id === modeloAtual);
+  if (atual === undefined) return null;
+  const exigePrecoNoMotor = temPrecoNoMotor !== undefined && temPrecoNoMotor(modeloAtual);
+  const candidatos = doProvedor
+    .filter((m) => habilitados.length === 0 || habilitados.includes(m.model_id))
+    .filter((m) => !exigePrecoNoMotor || temPrecoNoMotor(m.model_id))
+    .sort(
+      (a, b) =>
+        a.input_price_per_million_cents! - b.input_price_per_million_cents! ||
+        a.output_price_per_million_cents! - b.output_price_per_million_cents! ||
+        b.model_id.localeCompare(a.model_id),
+    );
+  const maisBarato = candidatos[0];
+  if (maisBarato === undefined) return null;
+  const maisBaratoQueOAtual =
+    maisBarato.input_price_per_million_cents! < atual.input_price_per_million_cents! ||
+    (maisBarato.input_price_per_million_cents === atual.input_price_per_million_cents &&
+      maisBarato.output_price_per_million_cents! < atual.output_price_per_million_cents!);
+  return maisBaratoQueOAtual ? maisBarato.model_id : null;
+}
+
+/**
+ * Troca o modelo pelo econômico do MESMO provedor e da MESMA credencial,
+ * guardando a decisão original como reserva. Provider e credencial não mudam
+ * nunca — é a regra do PR #151 (modelo e chave vêm do mesmo lugar).
+ */
+function comEconomia(entrada: EntradaDaDecisao, decisao: DecisaoDeBinding): DecisaoDeBinding {
+  if (!PONTOS_DE_TIER_ECONOMICO.has(entrada.pontoId) || entrada.economicoDoProvedor === undefined) {
+    return decisao;
+  }
+  if (decisao.baseUrl !== null || decisao.modelId === null) return decisao;
+  const economico = entrada.economicoDoProvedor(decisao.provider, decisao.modelId);
+  if (economico === null || economico === decisao.modelId) return decisao;
+  return {
+    ...decisao,
+    modelId: economico,
+    origem: "economico_do_provedor",
+    reserva: { modelId: decisao.modelId, origem: decisao.origem },
+  };
+}
 
 export function decidirBinding(entrada: EntradaDaDecisao): DecisaoDeBinding {
   const ponto = PONTO_POR_ID.get(entrada.pontoId);
@@ -262,25 +409,28 @@ export function decidirBinding(entrada: EntradaDaDecisao): DecisaoDeBinding {
   const modeloDeQuemChamou = entrada.agentePublicado?.model;
   if (entrada.agentePublicado !== null && modeloDeQuemChamou !== undefined) {
     const quemChamou = entrada.agentePublicado;
-    return {
+    // 3.6 · Classificador: o econômico do provedor de quem chamou (ver
+    // `PONTOS_DE_TIER_ECONOMICO`). Depois do knob e do binding de propósito —
+    // escolha explícita sempre vence a automática.
+    return comEconomia(entrada, {
       provider: quemChamou.provider,
       modelId: modeloDeQuemChamou,
       credentialId: quemChamou.credentialId,
       baseUrl: null,
       origem: "herdado_de_quem_chamou",
       avisos,
-    };
+    });
   }
 
-  // 4 · O padrão da organização.
-  return {
+  // 4 · O padrão da organização (com o mesmo degrau 3.6 para classificador).
+  return comEconomia(entrada, {
     provider: entrada.padraoDaOrganizacao.provider,
     modelId: entrada.padraoDaOrganizacao.defaultModel,
     credentialId: null,
     baseUrl: null,
     origem: "padrao_da_organizacao",
     avisos,
-  };
+  });
 }
 
 /**

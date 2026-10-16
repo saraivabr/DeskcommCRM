@@ -46,6 +46,14 @@ interface Preco {
 
 /** USD por MILHÃO de tokens, por id EXATO de modelo (o sufixo de data é tolerado). */
 const USD_PER_MTOK: Record<string, Preco> = {
+  // Preços Standard verificados em 2026-10-16 nas fontes oficiais acima.
+  'claude-haiku-5-5': { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite5m: 0.125, cacheWrite1h: 0.2 },
+  'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.1, cacheWrite5m: 2.5, cacheWrite1h: 4 },
+  'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2, cacheWrite5m: 5, cacheWrite1h: 8 },
+  'gpt-6-luna': { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite5m: 0.125, cacheWrite1h: 0.125 },
+  'gpt-6.1-sol': { input: 2, output: 10, cacheRead: 0.1, cacheWrite5m: 2.5, cacheWrite1h: 2.5 },
+  'gpt-6-astra': { input: 10, output: 50, cacheRead: 1, cacheWrite5m: 12.5, cacheWrite1h: 12.5 },
+
   'claude-sonnet-5': { input: 2, output: 10, cacheRead: 0.2, cacheWrite5m: 2.5, cacheWrite1h: 4 },
   'claude-sonnet-4-6': { input: 3, output: 15, cacheRead: 0.3, cacheWrite5m: 3.75, cacheWrite1h: 6 },
   'claude-sonnet-4-5': { input: 3, output: 15, cacheRead: 0.3, cacheWrite5m: 3.75, cacheWrite1h: 6 },
@@ -106,6 +114,11 @@ export function precoDoModelo(model: string): Preco | undefined {
   );
 }
 
+/** O motor sabe cobrar este modelo — sem isso o custo sai null e o teto não o vê. */
+export function temPrecoNoMotor(model: string): boolean {
+  return precoDoModelo(model) !== undefined;
+}
+
 /**
  * Custo em CENTS (fracionário; coluna numeric) ou null se o modelo não tem preço
  * conhecido. `inputTokens` aqui é o TOTAL do usage do SDK — a parcela cacheada é
@@ -118,7 +131,11 @@ export function costCents(model: string, usage: TokenUsage, cacheTtl?: CacheTtl)
   if (Object.values(usage).some(value => !Number.isFinite(value) || value < 0)) return null;
   if (usage.cacheReadTokens + usage.cacheWriteTokens > usage.inputTokens) return null;
   if (usage.cacheWriteTokens > 0 && model.startsWith("claude-") && !cacheTtl) return null;
-  const p = precoDoModelo(model);
+  const base = precoDoModelo(model);
+  // Este usage corresponde a UMA requisição no caminho contábil canônico.
+  const p = base && model.replace(/-\d{8}$/, "") === "claude-haiku-5-5" && usage.inputTokens > 100_000
+    ? { input: 0.5, output: 2.5, cacheRead: 0.05, cacheWrite5m: 0.625, cacheWrite1h: 1 }
+    : base;
   if (p === undefined) {
     return null;
   }

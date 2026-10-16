@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { salvarChaveDaIa } from "@/app/actions/onboarding/chaveDaIa";
-import { PROVEDORES } from "@/lib/ai/pontos/provedores";
+import { PROVEDOR_POR_ASSINATURA, PROVEDORES } from "@/lib/ai/pontos/provedores";
 
 /**
  * "O CÉREBRO DELE" — a chave, medida e testada onde ela passa a importar.
@@ -46,7 +46,17 @@ type Prova =
   | { estado: "problema"; mensagem: string }
   | { estado: "nao_deu" };
 
-export function InteligenciaDele({ inicial }: { inicial: EstadoDaChave }) {
+export function InteligenciaDele({
+  inicial,
+  provedoresOferecidos,
+}: {
+  inicial: EstadoDaChave;
+  /**
+   * O que a instalação oferece, filtrado no servidor (`idsDosProvedoresOferecidos`):
+   * a assinatura do ChatGPT só com o módulo `login_codex` ligado. Ausente = sem ela.
+   */
+  provedoresOferecidos?: readonly string[];
+}) {
   const t = useT();
   const [chave, setChave] = useState(inicial);
   const [prova, setProva] = useState<Prova | null>(null);
@@ -120,7 +130,12 @@ export function InteligenciaDele({ inicial }: { inicial: EstadoDaChave }) {
               onChange={(e) => setProvedor(e.target.value)}
               className="h-9 w-full rounded-md border bg-background px-3 text-sm"
             >
-              {PROVEDORES.map((p) => (
+              {PROVEDORES.filter(
+                (p) =>
+                  (provedoresOferecidos
+                    ? provedoresOferecidos.includes(p.id)
+                    : p.id !== PROVEDOR_POR_ASSINATURA) || p.id === provedor,
+              ).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.rotulo}
                 </option>

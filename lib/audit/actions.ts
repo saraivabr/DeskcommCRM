@@ -902,6 +902,9 @@ export const AUDIT_ACTIONS = [
   "meta.campaign_draft_updated",
   "meta.campaign_approved",
   "external_db_sources.updated",
+  "ai.login_codex_conectado",
+  // A conta da empresa foi desconectada pela própria tela de Credenciais.
+  "ai.login_codex_desconectado",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

@@ -197,18 +197,55 @@ export async function getLeadContext(
     );
   }
 
+  // Daqui em diante tudo depende só do contato, e nada depende entre si além da
+  // conversa (histórico e desfechos precisam do id dela). Cada `await` em série
+  // era um RTT ao Supabase remoto antes do modelo responder; em paralelo, o turno
+  // paga o mais lento. Teto de 4 consultas em voo por contexto: o pool do worker
+  // tem 10 conexões (default do pg) para até 8 jobs simultâneos.
+  //
   // Conversa: a do job quando informada (fonte confiável); senão a 1:1 mais
   // recente do contato. Grupos NUNCA (regra dura nº 12).
-  let conversationId = input.conversationId ?? null;
-  if (conversationId === null) {
-    const { rows } = await db.query<{ id: string }>(
-      `select id from conversations
-       where organization_id = $1 and contact_id = $2 and is_group = false
-       order by last_message_at desc nulls last limit 1`,
-      [input.tenantId, input.leadId],
-    );
-    conversationId = rows[0]?.id ?? null;
-  }
+  const conversaHistoricoEDesfechos = async (): Promise<{
+    conversationId: string | null;
+    history: HistoryRow[];
+    previousOutcomes: Array<{ desfecho: string }>;
+  }> => {
+    let conversationId = input.conversationId ?? null;
+    if (conversationId === null) {
+      const { rows } = await db.query<{ id: string }>(
+        `select id from conversations
+         where organization_id = $1 and contact_id = $2 and is_group = false
+         order by last_message_at desc nulls last limit 1`,
+        [input.tenantId, input.leadId],
+      );
+      conversationId = rows[0]?.id ?? null;
+    }
+    const [history, { rows: previousOutcomes }] = await Promise.all([
+      conversationId
+        ? db
+            .query<HistoryRow>(
+              `select direction, type, body, media_url, media_storage_path, media_mime,
+                      media_derived_text, sent_at
+               from messages
+               where organization_id = $1 and conversation_id = $2
+                 and direction in ('inbound', 'outbound')
+                 and exists(select 1 from conversations c where c.organization_id=$1 and c.id=$2
+                   and ((messages.direction='inbound' and messages.service_revision=c.service_revision
+                     and messages.demanda_id is not distinct from c.current_demanda_id)
+                     or (messages.direction='outbound' and messages.sent_at >= c.service_started_at)))
+               order by sent_at desc, id desc
+               limit $3`,
+              [input.tenantId, conversationId, knobs.historyLimit],
+            )
+            .then((r) => r.rows.reverse())
+        : Promise.resolve<HistoryRow[]>([]),
+      db.query<{ desfecho: string }>(
+        `select distinct d.desfecho from demandas d join demanda_conversas dc on dc.demanda_id=d.id and dc.organization_id=d.organization_id
+         where d.organization_id=$1 and dc.conversation_id=$2 and d.fechada_em is not null limit 5`,
+        [input.tenantId, conversationId]),
+    ]);
+    return { conversationId, history, previousOutcomes };
+  };
 
   // A decisão vem do BARRAMENTO (crm_lead_activities), não de coluna nova: a
   // timeline já é a memória compartilhada entre humano e agente, e foi para isso
@@ -217,36 +254,22 @@ export async function getLeadContext(
   //
   // Filtra por `contact_id` porque deste lado da casa `leadId` é o CONTATO —
   // e é assim que a decisão chega mesmo que o negócio tenha mudado de mãos.
-  const { rows: decisaoRows } = await db.query<DecisionRow>(
-    `select type, payload, reason, performed_at::text as performed_at
-     from crm_lead_activities
-     where organization_id = $1
-       and contact_id = $2
-       and type in ('next_action_approved', 'next_action_dismissed')
-     order by performed_at desc, id desc
-     limit 1`,
-    [input.tenantId, input.leadId],
-  );
-  const lastHumanDecision = decisaoRows[0] ? paraDecisao(decisaoRows[0]) : null;
+  const ultimaDecisao = async (): Promise<UltimaDecisaoHumana | null> => {
+    const { rows: decisaoRows } = await db.query<DecisionRow>(
+      `select type, payload, reason, performed_at::text as performed_at
+       from crm_lead_activities
+       where organization_id = $1
+         and contact_id = $2
+         and type in ('next_action_approved', 'next_action_dismissed')
+       order by performed_at desc, id desc
+       limit 1`,
+      [input.tenantId, input.leadId],
+    );
+    return decisaoRows[0] ? paraDecisao(decisaoRows[0]) : null;
+  };
 
-  const history: HistoryRow[] = conversationId
-    ? (
-        await db.query<HistoryRow>(
-          `select direction, type, body, media_url, media_storage_path, media_mime,
-                  media_derived_text, sent_at
-           from messages
-           where organization_id = $1 and conversation_id = $2
-             and direction in ('inbound', 'outbound')
-             and exists(select 1 from conversations c where c.organization_id=$1 and c.id=$2
-               and ((messages.direction='inbound' and messages.service_revision=c.service_revision
-                 and messages.demanda_id is not distinct from c.current_demanda_id)
-                 or (messages.direction='outbound' and messages.sent_at >= c.service_started_at)))
-           order by sent_at desc, id desc
-           limit $3`,
-          [input.tenantId, conversationId, knobs.historyLimit],
-        )
-      ).rows.reverse()
-    : [];
+  const [{ conversationId, history, previousOutcomes }, lastHumanDecision] =
+    await Promise.all([conversaHistoricoEDesfechos(), ultimaDecisao()]);
 
   // Arquivo do telefone é independente da demanda atual. Lemos só o contato
   // deste tenant e excluímos IDs já presentes na timeline ao vivo.
@@ -286,11 +309,6 @@ export async function getLeadContext(
     },
     false,
   );
-
-  const { rows: previousOutcomes } = await db.query<{ desfecho: string }>(
-    `select distinct d.desfecho from demandas d join demanda_conversas dc on dc.demanda_id=d.id and dc.organization_id=d.organization_id
-     where d.organization_id=$1 and dc.conversation_id=$2 and d.fechada_em is not null limit 5`,
-    [input.tenantId, conversationId]);
 
   const archiveBudget = importedHistory ? Math.min(400, Math.floor(knobs.maxTokens * 0.2)) : 0;
   const context = fitToBudget(

@@ -148,6 +148,7 @@ const envSchema = z.object({
   // 'disabled' injeta o desligamento no corpo das chamadas — e SÓ nas da
   // DeepSeek (a fábrica é dela; ver providers.ts).
   DEEPSEEK_THINKING: z.enum(['provider', 'disabled']).default('provider'),
+  OPENAI_REASONING_EFFORT: z.enum(['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh']).optional(),
   // Payload curado da tool get_lead_context.
   LEAD_CONTEXT_HISTORY_LIMIT: z.coerce.number().int().positive().default(20),
   LEAD_CONTEXT_MAX_TOKENS: z.coerce.number().int().positive().default(1_000),
@@ -169,7 +170,8 @@ const envSchema = z.object({
   // Skills situacionais — near-misses viram candidatos ao golden set (curadoria
   // humana; escrita por fs em runtime, gitignored).
   GOLDEN_CANDIDATES_DIR: z.string().min(1).default('lib/agent-engine/golden-candidates'),
-  // Classificadores auxiliares (modelo BARATO; sem valor = default da org).
+  // Sem knob: classificador usa modelo econômico do mesmo provedor, com reserva.
+
   STAGE_CLASSIFIER_MODEL: z.string().min(1).optional(),
   JAILBREAK_CLASSIFIER_MODEL: z.string().min(1).optional(),
   // Camada SEMÂNTICA de promessa na cadeia before_send (1 chamada por envio quando on).

@@ -4,6 +4,8 @@ import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { listSelectableChannels } from "@/lib/channels/selectable";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { idsDosProvedoresOferecidos } from "@/lib/ai/pontos/provedores-oferecidos";
 import type { CredentialRow } from "@/hooks/ai/useCredentials";
 
 import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
@@ -76,6 +78,7 @@ export default async function NewAgentPage({
         <AgentForm
           mode="create"
           initialPreset={initialPreset}
+          provedoresOferecidos={await idsDosProvedoresOferecidos(createAdminClient())}
           credentials={credentials}
           provedoresDaInstalacao={platformProviders}
           defaultAI={defaultAI}

@@ -184,8 +184,18 @@ export function FormularioDeComportamento({ inicial }: { inicial: ComportamentoD
 export function FormularioDeModulos({ ligados }: { ligados: readonly ModuloOpcional[] }) {
   const t = useT();
   const [bancoExterno, setBancoExterno] = useState(ligados.includes("banco_externo"));
+  const [loginCodex, setLoginCodex] = useState(ligados.includes("login_codex"));
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, startTransition] = useTransition();
+
+  function trocarLoginCodex(valor: boolean) {
+    setErro(null);
+    setLoginCodex(valor);
+    startTransition(async () => {
+      const r = await updateModuloDaInstalacao({ modulo: "login_codex", ligado: valor });
+      if (!r.ok) { setLoginCodex(!valor); setErro(t("Não deu para salvar. Tente de novo em instantes.")); }
+    });
+  }
 
   function trocar(valor: boolean) {
     setErro(null);
@@ -228,6 +238,15 @@ export function FormularioDeModulos({ ligados }: { ligados: readonly ModuloOpcio
             disabled={pendente}
             aria-label={t("Banco de dados externo")}
           />
+        </div>
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+          <div className="space-y-1">
+            <Label htmlFor="modulo-login-codex" className="text-base">{t("Assinatura do ChatGPT por empresa")}</Label>
+            <p className="text-sm text-muted-foreground">{t("Ative somente após confirmar a elegibilidade desta instalação com a OpenAI. Apps pagos ou hospedados remotamente exigem habilitação específica; o login da conta não substitui essa habilitação.")}</p>
+            <a className="text-sm underline" href="https://developers.openai.com/siwc/token-sharing-open-source" target="_blank" rel="noopener noreferrer">{t("Ver requisitos oficiais")}</a>
+          </div>
+          <Switch id="modulo-login-codex" checked={loginCodex} onCheckedChange={trocarLoginCodex} disabled={pendente} aria-label={t("Assinatura do ChatGPT por empresa")} />
         </div>
 
         {erro && (

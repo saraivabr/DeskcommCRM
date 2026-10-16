@@ -71,3 +71,9 @@ Se um cliente reportar que a key BYO dele vazou (não a master key):
 - Cliente roda fluxo normal de criação com nova key.
 - A versão de agent que usa a credential deletada para de rodar (FK ON DELETE
   RESTRICT garante consistência — endpoint DELETE bloqueia se publicada).
+
+
+## Conta ChatGPT por empresa
+
+O módulo opcional usa consentimento OAuth e tokens cifrados, sem aceitar o JSON
+como API key. Consulte [operação, elegibilidade e renovação SIWC](../features/ia-assinatura-e-classificadores.md) antes de habilitar.

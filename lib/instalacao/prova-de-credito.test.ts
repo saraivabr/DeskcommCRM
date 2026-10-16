@@ -13,14 +13,14 @@ import {
   montarRequisicaoDeProva,
   provarSaldo,
 } from "@/lib/instalacao/prova-de-credito";
-import { IDS_DE_PROVEDOR } from "@/lib/ai/pontos/provedores";
+import { IDS_DE_PROVEDOR, PROVEDOR_POR_ASSINATURA } from "@/lib/ai/pontos/provedores";
 
 describe("montarRequisicaoDeProva", () => {
   it("sabe cobrar TODOS os provedores que a lista oferece", () => {
     // Se a lista ganhar um provedor e este módulo não souber testá-lo, o
     // diagnóstico ficaria mudo justamente para quem escolheu o mais novo.
     const semProva = IDS_DE_PROVEDOR.filter(
-      (id) => montarRequisicaoDeProva(id, "k", "m") === null,
+      (id) => id !== PROVEDOR_POR_ASSINATURA && montarRequisicaoDeProva(id, "k", "m") === null,
     );
     expect(semProva).toEqual([]);
   });
@@ -28,6 +28,7 @@ describe("montarRequisicaoDeProva", () => {
   it("é uma GERAÇÃO, não uma listagem — é o que o provedor cobra", () => {
     // O ponto do arquivo inteiro: listar modelos passa com saldo zero.
     for (const id of IDS_DE_PROVEDOR) {
+      if (id === PROVEDOR_POR_ASSINATURA) continue;
       const req = montarRequisicaoDeProva(id, "k", "modelo-x");
       expect(req, id).not.toBeNull();
       expect(req!.url, `${id} está batendo num endpoint de catálogo`).not.toMatch(/\/models$/);

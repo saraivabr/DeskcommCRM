@@ -36,7 +36,7 @@ import { useT } from "@/hooks/i18n/useT";
 import Link from "next/link";
 
 import { TETO_TOOLS_POR_AGENTE } from "@/lib/mcp/tools/selecao-por-pacote";
-import { PROVEDORES } from "@/lib/ai/pontos/provedores";
+import { PROVEDOR_POR_ASSINATURA, PROVEDORES } from "@/lib/ai/pontos/provedores";
 
 import { ModelPicker, useModelMeta } from "./ModelPicker";
 import {
@@ -107,6 +107,7 @@ interface BaseProps {
    * conseguia salvar nada.
    */
   provedoresDaInstalacao?: string[];
+  provedoresOferecidos?: readonly string[];
   channelSessions: ChannelSessionLite[];
   routerMembership?: { routerId: string; routerName: string } | null;
   readOnly?: boolean;
@@ -211,6 +212,8 @@ const DEFAULT_TRIGGER: TriggerValue = {
   },
   concurrency: "one_per_conversation",
 };
+
+const SEM_A_ASSINATURA: readonly string[] = PROVEDORES.map((p) => p.id).filter((id) => id !== PROVEDOR_POR_ASSINATURA);
 
 function buildState(args: {
   agent?: AgentRow;
@@ -1141,7 +1144,7 @@ export function AgentForm(props: Props) {
                     nenhum item casava com o valor, e o primeiro save silencioso
                     trocava o provedor do dono por outro.
                   */}
-                    {PROVEDORES.map((p) => (
+                    {PROVEDORES.filter((p) => (props.provedoresOferecidos ?? SEM_A_ASSINATURA).includes(p.id) || p.id === form.provider).map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.rotulo}
                       </SelectItem>

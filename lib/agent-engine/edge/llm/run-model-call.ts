@@ -1,3 +1,4 @@
+import { executarStreamDaAssinatura, podeRepetirFalhaDaAssinatura } from "@/lib/ai/pontos/stream-da-assinatura";
 import { usageEvidence } from "@/lib/billing/usage-evidence";
 import { guardServiceTools } from "@/lib/atendimento/fronteira-server";
 /**
@@ -21,12 +22,21 @@ import { generateText, stepCountIs, type ModelMessage, type ToolSet } from 'ai';
 import type pg from 'pg';
 import { z } from 'zod';
 
+import { PROVEDOR_POR_ASSINATURA } from '@/lib/ai/pontos/provedores';
 import { PONTO_POR_ID } from '@/lib/ai/pontos/registro';
+import { decidirQuedaDoProvedor } from '@/lib/ai/pontos/reserva-da-assinatura';
 import { scrubMessage } from '@/lib/sentry/scrub';
 
 import type { Logger } from '../../obs/logger';
 import { decidirParaOSeam } from './binding-do-ponto';
-import { resolveOrgLlmConfig, type LlmEdgeConfig, type OrcamentoDaOrg } from './credentials';
+import {
+  resolveOrgLlmConfig,
+  temChaveDeReserva,
+  type LlmEdgeConfig,
+  type OrcamentoDaOrg,
+  type OrgLlmConfig,
+  type LlmResolveOverride,
+} from './credentials';
 import {
   AVISO_CORPO,
   AVISO_TITULO,
@@ -181,6 +191,8 @@ const paramsSchema = z
   })
   .passthrough();
 
+const PROVEDORES_COM_RACIOCINIO_NENHUM_MEDIDO: ReadonlySet<string> = new Set(['anthropic', 'openai']);
+
 export interface RunModelCallInput {
   tenantId: string;
   leadId?: string | null;
@@ -217,13 +229,24 @@ export interface RunModelCallInput {
   maxSteps?: number;
   /** Teto por chamada auxiliar; nunca aumenta o limite configurado pela organização. */
   maxOutputTokens?: number;
+  /**
+   * Raciocínio pedido NESTA chamada, na opção portátil do AI SDK (`reasoning`).
+   * Cada provedor traduz para o seu campo — a Anthropic desliga o `thinking` (ou
+   * baixa o esforço no modelo que não deixa desligar), a OpenAI manda
+   * `reasoning.effort` — então quem chama não nomeia provedor.
+   *
+   * `'none'` é de quem devolve uma palavra (as classificações): o modelo que
+   * pensa antes dela cobra a espera do cliente e os tokens sem ganho. Ausente =
+   * o padrão do modelo, como sempre foi.
+   */
+  reasoning?: 'none';
   /** Cancelamento propagado pelo chamador; a falha continua registrada em llm_calls. */
   abortSignal?: AbortSignal;
   /**
    * Override de provider/credencial vindo da versão PUBLICADA do agente (Fase
    * 2B) — resolvido no seam, nunca no call site. Sem ele, config da org.
    */
-  llmOverride?: import('./credentials').LlmResolveOverride;
+  llmOverride?: LlmResolveOverride;
 }
 
 export interface RunModelCallDeps {
@@ -236,6 +259,23 @@ export interface RunModelCallDeps {
    */
   agora?: Date;
 }
+
+/**
+ * O subconjunto do `GenerateTextResult` que o motor deste seam CONSUME — e a
+ * régua que o ramo da assinatura tem de satisfazer campo a campo.
+ *
+ * Existe por causa do defeito da #2657: o ramo da assinatura monta à mão um
+ * objeto com cara de resultado de generateText (o SIWC exige streamText), e o
+ * cast duplo do SDK escondia do compilador o campo responseMessages que
+ * faltava — o motor lê esse campo em `inbound-turn.ts` e o turno quebrava com
+ * `TypeError: e is not iterable` logo depois de a resposta já ter saído. Com o
+ * `satisfies` aqui, tirar (ou jamais adicionar) qualquer campo que o motor lê
+ * vira erro de tipo NA HORA, não um turno mudo em produção.
+ */
+export type ResultadoDoModeloDoSeam = Pick<
+  Awaited<ReturnType<typeof generateText>>,
+  'text' | 'usage' | 'response' | 'responseMessages' | 'steps' | 'toolCalls'
+>;
 
 /**
  * Texto do aviso de limiar. É PONTEIRO, não retrato: manda ver os números na
@@ -505,7 +545,7 @@ async function registrarRecusaDeEnderecoSemChave(d: {
 export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunModelCallInput, deps: RunModelCallDeps = {}) {
   // O knob do raciocínio da DeepSeek entra pela fábrica: `deepseekThinking` só é
   // lido pela fábrica `deepseek`, então os outros provedores não têm como mudar.
-  const registry = deps.registry ?? createDefaultRegistry({ deepseekThinking: cfg.deepseekThinking });
+  const registry = deps.registry ?? createDefaultRegistry({ deepseekThinking: cfg.deepseekThinking, openaiReasoningEffort: cfg.openaiReasoningEffort });
   const purpose = input.purpose ?? 'agent_turn';
 
   // A config da org é lida ANTES da decisão porque o resolvedor precisa dela
@@ -529,6 +569,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
             model: input.model,
           },
     padraoDaOrganizacao: { provider: padrao.provider, defaultModel: padrao.defaultModel },
+    modelosHabilitados: padrao.enabledModels,
   }, deps.log ? { log: deps.log } : {});
 
   // Só re-resolve a credencial quando a decisão aponta para OUTRA que não a já
@@ -547,23 +588,27 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
     decisao.provider !== padrao.provider ||
     (decisao.credentialId !== null && decisao.credentialId !== credencialJaCarregada);
 
-  const config = precisaOutraCredencial
+  let config = precisaOutraCredencial
     ? await resolveOrgLlmConfig(db, cfg, input.tenantId, {
         provider: decisao.provider,
         credentialId: decisao.credentialId,
       })
     : padrao;
 
-  const model = decisao.modelId;
-  if (model === null || model === undefined) {
+  const modeloDecidido = decisao.modelId;
+  if (modeloDecidido === null || modeloDecidido === undefined) {
     throw new Error(
       'modelo LLM não definido — configure o ponto no painel de provedores, ' +
         'organizations.settings.llm.default_model, ou passe input.model',
     );
   }
-  if (config.enabledModels.length > 0 && !config.enabledModels.includes(model)) {
-    throw new LlmModelNotEnabledError(model);
+  if (config.enabledModels.length > 0 && !config.enabledModels.includes(modeloDecidido)) {
+    throw new LlmModelNotEnabledError(modeloDecidido);
   }
+  // `model`/`origem` podem mudar UMA vez: quando o modelo econômico do
+  // classificador falha, a chamada se repete no modelo de antes (ver abaixo).
+  let model = modeloDecidido;
+  let origem = decisao.origem;
   const factory = registry[config.provider];
   if (factory === undefined) {
     throw new LlmProviderUnknownError(config.provider);
@@ -621,24 +666,30 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   // valor inventado numa tabela de auditoria é pior que a linha faltando.
   // Continua ANTES de qualquer byte ao provedor, que é a propriedade que
   // importa: bloqueio custa zero token.
-  await aplicarOrcamento({
-    db,
-    organizationId: input.tenantId,
-    orcamentoDaConfig: config.orcamento,
-    orcamentoIndisponivelPorque: config.orcamentoIndisponivelPorque,
-    // A chave EFETIVA da instalação: a linha escrita na tela de admin vence, e
-    // o valor do `.env` (que veio na config) é o PISO. A leitura é feita AQUI,
-    // a cada chamada, porque é aqui que a decisão acontece — um snapshot no
-    // boot faria o kill switch da tela só valer depois de reiniciar o worker
-    // (issue #1034). Sem banco lido nesta vida do processo, isto é o de hoje.
-    chave: chaveDeOrcamentoDaInstalacao(cfg.budgetEnforcement ?? 'on'),
-    purpose,
-    provider: config.provider,
-    model,
-    origem: decisao.origem,
-    input,
-    ...(deps.log ? { log: deps.log } : {}),
-  });
+  // O mesmo gate, para QUALQUER provedor que vá falar nesta chamada —
+  // inclusive a reserva que a assinatura pode acionar mais abaixo (mesma
+  // organização, mesmo purpose, mesmo teto: recusar na assinatura e deixar a
+  // reserva passar seria o mesmo furo de antes, com outro nome).
+  const gateDeOrcamento = async (cfgUsada: OrgLlmConfig): Promise<void> =>
+    aplicarOrcamento({
+      db,
+      organizationId: input.tenantId,
+      orcamentoDaConfig: cfgUsada.orcamento,
+      orcamentoIndisponivelPorque: cfgUsada.orcamentoIndisponivelPorque,
+      // A chave EFETIVA da instalação: a linha escrita na tela de admin vence, e
+      // o valor do `.env` (que veio na config) é o PISO. A leitura é feita AQUI,
+      // a cada chamada, porque é aqui que a decisão acontece — um snapshot no
+      // boot faria o kill switch da tela só valer depois de reiniciar o worker
+      // (issue #1034). Sem banco lido nesta vida do processo, isto é o de hoje.
+      chave: chaveDeOrcamentoDaInstalacao(cfg.budgetEnforcement ?? 'on'),
+      purpose,
+      provider: cfgUsada.provider,
+      model,
+      origem: decisao.origem,
+      input,
+      ...(deps.log ? { log: deps.log } : {}),
+    });
+  await gateDeOrcamento(config);
 
   // Disciplina de cache: o prefixo estável org-wide (system do playbook + tools
   // em ordem determinística) ganha os breakpoints AQUI, no seam — call sites
@@ -651,58 +702,59 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   });
 
   let allowanceReservation: string | null = null;
-  let allowanceDispatched = false;
-  const startedAt = Date.now();
-  let result: Awaited<ReturnType<typeof generateText>>;
-  try {
-    input.abortSignal?.throwIfAborted();
-    allowanceReservation = await reserveSubscriptionAi(db, input.tenantId);
-    await recordSubscriptionAiEvidence(db, input.tenantId, allowanceReservation,
-      { provider: config.provider, model, usageKind: "text" }, null);
-    // `system` aceita SystemModelMessage (com providerOptions de cache) — igual
-    // em v6 e v7 (smoke prova que o cacheControl continua virando cache_control).
-    allowanceDispatched = true;
-    result = await generateText({
-      // `decisao.baseUrl` só é preenchido quando o painel apontou um endpoint
-      // (gateway OpenAI-compatível, ou modelo local). Providers canônicos
-      // ignoram o terceiro argumento e vão ao endpoint intrínseco.
-      model: factory(config.apiKey, model, decisao.baseUrl ?? undefined),
-      system: prefix.system,
-      messages: input.messages,
-      abortSignal: input.abortSignal,
-      tools: guardServiceTools(prefix.tools),
-      stopWhen: input.maxSteps === undefined ? undefined : stepCountIs(input.maxSteps),
-      temperature,
-      topP,
-      topK,
-      maxOutputTokens: input.maxOutputTokens === undefined
-        ? maxOutputTokens
-        : Math.min(maxOutputTokens ?? Infinity, input.maxOutputTokens),
-    });
-  } catch (err) {
-    await settleSubscriptionAi(db, input.tenantId, allowanceReservation, allowanceDispatched ? null : 0).catch(() => {
-      // A retained reservation cannot be spent again; preserve the original provider error.
-      (deps.log ?? console).error('llm: conciliação da franquia pendente', { organization_id: input.tenantId });
-    });
-    // ─── A LINHA QUE FALTAVA ────────────────────────────────────────────────
-    //
-    // Até aqui o INSERT em llm_calls vivia só DEPOIS desta chamada, sem `try`
-    // em volta. Provedor recusou a chave, modelo não existe, conta sem saldo? A
-    // exceção subia e NADA ficava gravado. A tabela que deveria explicar era
-    // justamente a que ficava vazia no caso que precisa de explicação — e é a
-    // causa direta de "o agente não responde e não aparece erro em lugar
-    // nenhum".
-    //
-    // Grava e RELANÇA: quem chama continua decidindo o que fazer com a falha
-    // (o worker reagenda, o dry-run mostra na tela). Engolir aqui trocaria uma
-    // falha invisível por uma silenciosa, que é pior.
+  // Cada tentativa mantém a reserva/evidência da edição, inclusive o fallback.
+  const chamar = async (modelo: string) => {
+    let dispatched = false;
+    allowanceReservation = null;
+    try {
+      input.abortSignal?.throwIfAborted();
+      allowanceReservation = await reserveSubscriptionAi(db, input.tenantId);
+      await recordSubscriptionAiEvidence(db, input.tenantId, allowanceReservation,
+        { provider: config.provider, model: modelo, usageKind: "text" }, null);
+      dispatched = true;
+      const opcoesBase = {
+        model: registry[config.provider]!(config.apiKey, modelo, decisao.baseUrl ?? undefined),
+        system: prefix.system,
+        messages: input.messages,
+        abortSignal: input.abortSignal,
+        tools: guardServiceTools(prefix.tools),
+        stopWhen: input.maxSteps === undefined ? undefined : stepCountIs(input.maxSteps),
+        maxOutputTokens: input.maxOutputTokens === undefined
+          ? maxOutputTokens
+          : Math.min(maxOutputTokens ?? Infinity, input.maxOutputTokens),
+      };
+      if (config.provider === PROVEDOR_POR_ASSINATURA) {
+        const streamed = await executarStreamDaAssinatura(opcoesBase);
+        const resultadoDoStream = {
+          ...streamed,
+          response: { ...streamed.response, messages: streamed.responseMessages },
+        } satisfies ResultadoDoModeloDoSeam;
+        return resultadoDoStream as unknown as Awaited<ReturnType<typeof generateText>>;
+      }
+      return await generateText({
+        ...opcoesBase,
+        temperature,
+        topP,
+        topK,
+        ...(input.reasoning !== undefined && PROVEDORES_COM_RACIOCINIO_NENHUM_MEDIDO.has(config.provider)
+          ? { reasoning: input.reasoning } : {}),
+      });
+    } catch (err) {
+      await settleSubscriptionAi(db, input.tenantId, allowanceReservation, dispatched ? null : 0).catch(() => {
+        (deps.log ?? console).error('llm: conciliação da franquia pendente', { organization_id: input.tenantId });
+      });
+      throw err;
+    }
+  };
+
+  const registrarAFalha = async (inicio: number, err: unknown) => {
     await registrarFalha(db, {
       input,
       purpose,
       provider: config.provider,
       model,
-      origem: decisao.origem,
-      latencyMs: Date.now() - startedAt,
+      origem,
+      latencyMs: Date.now() - inicio,
       erro: err,
     }).catch(() => {
       // O log da falha não pode causar uma segunda falha. Se o próprio INSERT
@@ -713,10 +765,53 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       purpose,
       provider: config.provider,
       model,
-      origem_da_escolha: decisao.origem,
+      origem_da_escolha: origem,
       ...normalizarErro(err),
     });
-    throw err;
+  };
+
+  let startedAt = Date.now();
+  let result: Awaited<ReturnType<typeof generateText>>;
+  try {
+    input.abortSignal?.throwIfAborted();
+    result = await chamar(model);
+  } catch (err) {
+    await registrarAFalha(startedAt, err);
+    if (err instanceof SubscriptionAiAllowanceError || err instanceof LlmBudgetExceededError ||
+      !podeRepetirFalhaDaAssinatura(err)) throw err;
+    // A reserva da assinatura usa a mesma escada e mantém orçamento/franquia.
+    const failure = normalizarErro(err);
+    const queda = config.provider === PROVEDOR_POR_ASSINATURA && !input.abortSignal?.aborted
+      ? decidirQuedaDoProvedor({ provider: config.provider, status: failure.http_status,
+          detalhe: failure.error_message, temChaveDeReserva: await temChaveDeReserva(db, cfg, input.tenantId) })
+      : null;
+    if (queda?.acao === 'tentar_reserva') {
+      config = await resolveOrgLlmConfig(db, cfg, input.tenantId, { provider: queda.provedorDeReserva, credentialId: null });
+      if (!registry[config.provider]) throw err;
+      await gateDeOrcamento(config);
+    }
+    const reserva = queda?.acao === 'tentar_reserva'
+      ? { modelId: model, origem }
+      : decisao.reserva;
+    if (!reserva || input.abortSignal?.aborted ||
+      (config.enabledModels.length > 0 && !config.enabledModels.includes(reserva.modelId))) throw err;
+    deps.log?.warn(queda?.acao === 'tentar_reserva'
+      ? 'llm: assinatura indisponível — tentando a chave de reserva'
+      : 'llm: o modelo econômico falhou — repetindo no modelo de antes', {
+      organization_id: input.tenantId,
+      purpose,
+      modelo_economico: model,
+      modelo_de_reserva: reserva.modelId,
+    });
+    model = reserva.modelId;
+    origem = reserva.origem;
+    startedAt = Date.now();
+    try {
+      result = await chamar(model);
+    } catch (errDaReserva) {
+      await registrarAFalha(startedAt, errDaReserva);
+      throw errDaReserva;
+    }
   }
   const latencyMs = Date.now() - startedAt;
 
@@ -765,7 +860,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       usage.cacheWriteTokens,
       cost,
       latencyMs,
-      decisao.origem,
+      origem,
       input.agentId ?? null,
     ],
   );
@@ -779,7 +874,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
     // POR QUE este modelo, e não só QUAL: é a diferença entre um log que
     // confirma o que aconteceu e um que explica uma configuração que não
     // pegou. Vira coluna em llm_calls na frente de logs.
-    origem_da_escolha: decisao.origem,
+    origem_da_escolha: origem,
     ...usage,
     cost_cents: cost,
     latency_ms: latencyMs,
@@ -801,7 +896,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
     costCents: cost,
     latencyMs,
     /** De onde veio a escolha — o painel lê isto para explicar cada ponto. */
-    origem: decisao.origem,
+    origem,
     avisos: decisao.avisos,
   };
 }
