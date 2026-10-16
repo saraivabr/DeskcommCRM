@@ -229,6 +229,7 @@ Destino: núcleo opcional; a operação comum permanece inteira sem ativação. 
 `GET /api/v1/integrations/meta/messaging` devolve `channels` (id, asset_id, platform,
 status, last_error) e webhook_url, sem segredos. `POST` aceita somente
 `{action: "enable" | "disable", asset_id: UUID}` de admin, mesma origem e sessão atual.
+A guarda `requireSupportWrite()` roda antes da autorização e de qualquer efeito remoto: acompanhamento somente leitura recebe403 e permissão indisponível recebe503. Consultar status continua permitido conforme o papel de leitura.
 Instagram exige `instagram_basic`, `instagram_manage_messages`, `pages_manage_metadata`
 e tarefa `MODERATE`/`MESSAGING`/`MANAGE`; Messenger exige `pages_messaging`,
 `pages_manage_metadata` e tarefa MODERATE/MSG/MANAGE. Permissões granulares, concessão selecionada,

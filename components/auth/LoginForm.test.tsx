@@ -73,7 +73,7 @@ describe("login recuperável", () => {
     fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "example-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Tente novamente em instantes"));
-    expect((screen.getByRole("button", { name: "Entrar" }) as HTMLButtonElement).disabled).toBe(false);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled());
     expect(screen.queryByText("Email ou senha incorretos.")).toBeNull();
     expect(mocks.replace).not.toHaveBeenCalled();
   });

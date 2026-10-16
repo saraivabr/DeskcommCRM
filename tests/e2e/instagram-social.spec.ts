@@ -150,16 +150,20 @@ test("selects a post, edits a populated Direct and shows a provider failure", as
                     insights_available: true,
                   },
                 ],
-                provider_errors: { zernio: { message: "Confira a cobrança do provedor." } },
+                provider_errors: { legacy: { message: "Confira a cobrança do provedor." } },
               },
         },
       });
     });
     await page.clock.install();
+    const insightsStarted = page.waitForRequest(
+      (request) => new URL(request.url()).pathname === "/api/v1/instagram/insights",
+    );
     await page.goto("/app/instagram/insights");
     await expect(
       page.getByRole("status").filter({ hasText: "Preparando seu espaço" }),
     ).toBeVisible();
+    await insightsStarted;
     await page.clock.fastForward(21_000);
     await expect(page.getByText("A consulta demorou demais. Tente novamente.")).toBeVisible();
     stalled = false;

@@ -613,12 +613,6 @@ const DIVIDA_CONGELADA: { arquivo: string; chave: string; motivo: string }[] = [
     motivo:
       "valor de TRIGGER_LABELS (app/app/webhooks/_components/labels.ts): a chave ainda não tem linha no dicionário",
   },
-  {
-    arquivo: "app/onboarding/invite-team/_form.tsx",
-    chave: "Assistente com autonomia de operação",
-    motivo:
-      "valor de ROTULO_DO_PAPEL (lib/auth/types.ts): a chave ainda não tem linha no dicionário",
-  },
 ];
 
 function ehDividaCongelada(arquivo: string, chave: string): boolean {

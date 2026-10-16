@@ -13331,6 +13331,8 @@ export const DICIONARIO: Traducoes = {
   },
   Filtros: { es: "Filtros" },
 
+  "Assistente com autonomia de operação": { es: "Asistente con autonomía de operación" },
+  "Ao conectar Facebook ou Instagram, esta instalação recebe a identificação da autorização, as contas permitidas e os dados necessários para publicar e acompanhar campanhas. Se você habilitar o atendimento, também recebe os identificadores e o conteúdo das mensagens necessárias para receber e responder às conversas autorizadas na caixa de atendimento. Você pode solicitar a exclusão dos dados locais recebidos por essa autorização.": { es: "Al conectar Facebook o Instagram, esta instalación recibe la identificación de la autorización, las cuentas permitidas y los datos necesarios para publicar y supervisar campañas. Si habilitas la atención, también recibe los identificadores y el contenido de los mensajes necesarios para recibir y responder a las conversaciones autorizadas en la bandeja de atención. Puedes solicitar la eliminación de los datos locales recibidos mediante esa autorización." },
 };
 
 /**
