@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/server";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { traduzir } from "@/lib/i18n/dicionario";
 
@@ -23,11 +22,8 @@ export default async function ContinuarPage({
   searchParams: Promise<{ token_hash?: string; type?: string }>;
 }) {
   const { token_hash: tokenHash, type } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const idioma = await idiomaDoVisitante((user?.user_metadata?.locale as string | undefined) ?? null);
+  // Confirmar o link não depende de uma sessão prévia nem de outra chamada Auth.
+  const idioma = await idiomaDoVisitante(null);
   const t = (texto: string) => traduzir(texto, idioma);
 
   if (!tokenHash || !type) {

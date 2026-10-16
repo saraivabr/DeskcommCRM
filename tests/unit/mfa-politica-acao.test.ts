@@ -19,6 +19,7 @@ vi.mock("@/lib/auth/server", () => ({
   resolveActiveOrg: async () => ({ orgId: "o1", role: estado.role }),
   sessionAal: async () => "aal2",
   isMfaEnrolled: async () => true,
+  mfaEmDivida: async () => false,
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({

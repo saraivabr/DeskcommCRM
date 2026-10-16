@@ -61,7 +61,7 @@ describe("definirExigenciaDeMfa", () => {
 
   it("admin com fator provado (aal2) muda", async () => {
     preparar({ temFator: true, aal: "aal2" });
-    expect(await definirExigenciaDeMfa(false)).toEqual({ ok: true });
+    expect(await definirExigenciaDeMfa(true)).toEqual({ ok: true });
     expect(deps.update).toHaveBeenCalledTimes(1);
   });
 

@@ -144,7 +144,7 @@ describe("pacing: sem varrer o histórico do número", () => {
       numberActivatedAt: null,
     });
     expect(estado).toEqual({ lastSentAt: ultimo, sentToday: 3, numberActivatedAt: null });
-    const sql = db.sqls[0].replace(/\s+/g, " ");
+    const sql = db.sqls[0]!.replace(/\s+/g, " ");
     expect(sql).not.toMatch(/filter|max\(/i);
     expect(sql).toContain("order by sent_at desc limit 1");
     expect(sql).toMatch(/and sent_at >= \$3\) as sent_today/);

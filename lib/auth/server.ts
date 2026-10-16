@@ -339,12 +339,13 @@ export const exigenciaDeMfa = cache(
 
     let plataformaExige: boolean | null = null;
     if (isPlatformAdmin && userId) {
-      const { data } = await admin
+      const { data, error } = await withAuthDeadline(async () => admin
         .from("platform_admins")
         .select("mfa_required")
         .eq("user_id", userId)
         .is("revoked_at", null)
-        .maybeSingle();
+        .maybeSingle());
+      if (error) throw new AuthUnavailableError();
       plataformaExige = (data?.mfa_required as boolean | undefined) ?? null;
     }
 
@@ -354,11 +355,12 @@ export const exigenciaDeMfa = cache(
     let mudouEm: Date | null = null;
     let aceitoEm: string | null = null;
     if (orgId) {
-      const { data } = await admin
+      const { data, error } = await withAuthDeadline(async () => admin
         .from("organizations")
         .select("settings")
         .eq("id", orgId)
-        .maybeSingle();
+        .maybeSingle());
+      if (error || !data) throw new AuthUnavailableError();
       empresaExige = empresaExigeMfa(data?.settings);
       const cfg = politicaDaEmpresa(data?.settings);
       papelMinimo = cfg.papelMinimo;
@@ -366,12 +368,13 @@ export const exigenciaDeMfa = cache(
       mudouEm = cfg.mudouEm;
 
       if (userId && diasDeCarencia > 0) {
-        const { data: vinculo } = await admin
+        const { data: vinculo, error: erroVinculo } = await withAuthDeadline(async () => admin
           .from("user_organizations")
           .select("accepted_at")
           .eq("organization_id", orgId)
           .eq("user_id", userId)
-          .maybeSingle();
+          .maybeSingle());
+        if (erroVinculo) throw new AuthUnavailableError();
         aceitoEm = (vinculo?.accepted_at as string | null | undefined) ?? null;
       }
     }

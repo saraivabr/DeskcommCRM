@@ -4452,6 +4452,7 @@ export type Database = {
           bot_silenced_until: string | null
           channel: string
           channel_session_id: string
+          contato_trava_humano: boolean
           contact_id: string
           created_at: string
           current_demanda_id: string | null
@@ -4496,6 +4497,7 @@ export type Database = {
           bot_silenced_until?: string | null
           channel?: string
           channel_session_id: string
+          contato_trava_humano?: boolean
           contact_id: string
           created_at?: string
           current_demanda_id?: string | null
@@ -4540,6 +4542,7 @@ export type Database = {
           bot_silenced_until?: string | null
           channel?: string
           channel_session_id?: string
+          contato_trava_humano?: boolean
           contact_id?: string
           created_at?: string
           current_demanda_id?: string | null

@@ -455,3 +455,9 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 | `20261006193000` | `0417_meta_privacy_lifecycle` | Callbacks Meta autenticados por assinatura passam a revogar e cercar efeitos imediatamente. Recibos opacos, supressão HMAC por sujeito, atribuição explícita das preparações e limpeza limitada com lease/fencing removem somente derivados nativos e cópias de publicação, confirmadas após ACK do Storage. Preserva CRM, Auth, Studio, Zernio, assets compartilhados e objetos remotos. OAuth antigo não ressuscita a conexão; troca de App aguarda limpeza. |
 
 | `20261006223000` | `0418_meta_social_messaging` | Native Direct/Messenger channel references, tenant-safe foreign keys, globally unique webhook routing and revoke/disable triggers; existing channel RLS preserved. |
+
+| `20261016082000` | `0420_indices_do_caminho_quente` | Índices de envios por contato, métricas de jobs e poda da fila; port do upstream 7c394d415, sem alterar o worker personalizado. |
+
+| `20261016082100` | `0421_o_comando_da_conversa_le_o_bit_do_contato` | Inbox lê a trava do contato na conversa, mantida por gatilhos; tenant e expiração do silêncio preservados. Port b72161cd0/8b92355f9 adaptado à regra escreve.ai. |
+
+| `20261016082200` | `0422_recorte_da_janela_nas_metricas` | Métricas de atendentes recortam candidatas antes de ler mensagens, preservando resultados e RLS. Port upstream 7a640ee26. |
