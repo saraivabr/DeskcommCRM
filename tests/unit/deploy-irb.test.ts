@@ -98,7 +98,9 @@ if (args[0] === 'cp') {
   if (source.includes('0416_meta_native_platform')) fail('native-migration');
   if (source.includes('0417_meta_privacy_lifecycle')) fail('privacy-migration');
   if (source.includes('0418_meta_social_messaging')) fail('messaging-migration');
+  if (source.includes('upstream-release.json')) fail('release-artifact');
   fs.copyFileSync(path.join(process.env.IRB_REPO, source), args[2]);
+  if (source.includes('_0420_') && failure === 'release-checksum') fs.appendFileSync(args[2], '\\n-- changed');
   process.exit(0);
 }
 if (args[0] === 'rm') process.exit(0);
@@ -138,6 +140,17 @@ if (args[0] === 'exec') {
   if (args.includes('psql')) {
     const sql = fs.readFileSync(0, 'utf8');
     fs.appendFileSync(path.join(dir, 'sql.txt'), sql);
+    if (sql.startsWith('-- escreve.ai stable release preflight')) {
+      fail('release-preflight'); process.stdout.write('ready'); process.exit(0);
+    }
+    if (sql.startsWith('-- escreve.ai stable release apply')) {
+      if (!args.includes('-1')) process.exit(1);
+      fail('release-sql'); state.releaseApplied = true; save();
+      process.stdout.write('ready'); process.exit(0);
+    }
+    if (sql.startsWith('-- escreve.ai stable release verify')) {
+      fail('release-verify'); process.stdout.write(state.releaseApplied ? 'ready' : 'missing'); process.exit(0);
+    }
     if (sql.startsWith('-- 0415 contract')) {
       process.stdout.write(failure === 'incompatible' ? 'incompatible' : (failure === 'existing' || failure.startsWith('messaging-') || state.migration ? 'ready' : 'missing'));
       process.exit(0);
@@ -254,6 +267,21 @@ process.stdout.write(JSON.stringify({ data: { status: 'healthy', version: proces
 }
 
 describe("IRB deploy executes the approved app and worker together", () => {
+  it("validates the explicit release before stopping and applies it atomically before changing images", () => {
+    const proof = deployment("existing", true, undefined, { command: DIRECT_WORKER });
+    expect(proof.result.status, proof.result.stderr).toBe(0);
+    expect(proof.state.releaseApplied).toBe(true);
+    const pause = proof.calls.findIndex((call) => call[0] === "stop");
+    const transactions = proof.calls.map((call, i) => ({ call, i }))
+      .filter(({ call }) => call.includes("psql") && call.includes("-1"));
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].i).toBeGreaterThan(pause);
+    expect(transactions[0].i).toBeLessThan(proof.calls.findIndex((call) => call.includes("up")));
+    expect(proof.sql).toContain("-- escreve.ai stable release preflight");
+    expect(proof.sql).toContain("escreveai_ops.schema_releases");
+    expect(proof.sql).toContain("-- escreve.ai stable release verify");
+  });
+
   it("keeps docker stop for the direct Node command without changing restart policy", () => {
     const proof = deployment("", true, undefined, { command: DIRECT_WORKER });
     expect(proof.result.status, proof.result.stderr).toBe(0);
@@ -315,6 +343,9 @@ describe("IRB deploy executes the approved app and worker together", () => {
     "native-migration",
     "privacy-migration",
     "messaging-migration",
+    "release-artifact",
+    "release-checksum",
+    "release-preflight",
     "messaging-partial",
     "messaging-incompatible",
     "messaging-unsafe-acl",
@@ -345,6 +376,8 @@ describe("IRB deploy executes the approved app and worker together", () => {
     "native-sql",
     "privacy-sql",
     "messaging-sql",
+    "release-sql",
+    "release-verify",
     "messaging-concurrent",
     "messaging-unknown-core",
     "messaging-recheck",
@@ -398,6 +431,7 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expect(proof.state.nativeMigration).toBe(true);
     expect(proof.state.privacyMigration).toBe(true);
     expect(proof.state.messagingMigration).toBe(true);
+    expect(proof.state.releaseApplied).toBe(true);
     expect(proof.sql).toContain("create function public.fn_meta_privacy_request");
     expect(proof.sql).toContain("create table public.meta_privacy_subjects");
     expect(proof.sql).not.toContain("create or replace function public.fn_meta_privacy_");
@@ -421,9 +455,9 @@ describe("IRB deploy executes the approved app and worker together", () => {
   it("preserves an existing compatible function, including future forward fixes", () => {
     const proof = deployment("existing");
     expect(proof.result.status, proof.result.stdout + proof.result.stderr).toBe(0);
-    expect(proof.sql).not.toContain("create function");
-    expect(proof.sql).not.toContain("create or replace function");
-    expect(proof.calls.some((call) => call.includes("psql") && call.includes("-1"))).toBe(false);
+    expect(proof.sql).not.toMatch(/create (?:or replace )?function public\.(automatico_da_prospeccao|fn_meta_)/);
+    expect(proof.calls.filter((call) => call.includes("psql") && call.includes("-1"))).toHaveLength(1);
+    expect(proof.state.releaseApplied).toBe(true);
     expect(proof.state.worker).toBe(true);
   });
   it("preserves an installed compatible Meta schema while installing only missing 0415", () => {
@@ -451,15 +485,15 @@ describe("IRB deploy executes the approved app and worker together", () => {
     const appUp = proof.calls.findIndex((call) => call.includes("up") && call.includes("app"));
     expect(stopped).toBeLessThan(applied);
     expect(applied).toBeLessThan(appUp);
-    expect(proof.calls.filter((call) => call.includes("psql") && call.includes("-1"))).toHaveLength(
-      1,
-    );
+    // One transaction installs 0418; the second installs the stable release.
+    expect(proof.calls.filter((call) => call.includes("psql") && call.includes("-1"))).toHaveLength(2);
   });
   it("preserves a ready messaging contract while installing no recovered schema", () => {
     const proof = deployment("messaging-ready");
     expect(proof.result.status, proof.result.stdout + proof.result.stderr).toBe(0);
-    expect(proof.sql).not.toContain("create or replace function");
-    expect(proof.calls.some((call) => call.includes("psql") && call.includes("-1"))).toBe(false);
+    expect(proof.sql).not.toMatch(/create (?:or replace )?function public\.(automatico_da_prospeccao|fn_meta_)/);
+    expect(proof.calls.filter((call) => call.includes("psql") && call.includes("-1"))).toHaveLength(1);
+    expect(proof.state.releaseApplied).toBe(true);
   });
   it("reports a rollback failure instead of claiming services were restored", () => {
     const proof = deployment("rollback");

@@ -34,12 +34,12 @@ O envio consulta o histórico somente no replay de uma chave existente, preserva
 ledger de idempotência e procura a mensagem pela chave primária antes do formato
 legado. A saúde do worker conta somente jobs ativos.
 
-As migrations próprias0420–0422 acrescentam índices e removem consultas repetidas:
+As migrations próprias 0420–0422 acrescentam índices e removem consultas repetidas:
 
--0420: índices de send_ledger por contato, métricas por job e eventos em processamento.
--0421: trava do contato mantida por gatilhos na conversa; atualização direta do bit
+- 0420: índices de send_ledger por contato, métricas por job e eventos em processamento.
+- 0421: trava do contato mantida por gatilhos na conversa; atualização direta do bit
   é recalculada, o tenant é conferido e a expiração do silêncio continua pelo relógio.
--0422: métricas de atendentes recortam candidatas pelo período antes de consultar
+- 0422: métricas de atendentes recortam candidatas pelo período antes de consultar
   mensagens. A saída e a RLS são preservadas e comparadas com a função anterior.
 
 Estas são mudanças de leitura e manutenção derivada. Não geram mensagens nem
@@ -56,3 +56,17 @@ são reaproveitados. Cada port recebe número próprio, apêndice de baseline,
 manifesto e teste. A produção recuperada não recebe o baseline inteiro: a
 publicação aplica somente a lista revisada e valida seus pré-requisitos. App e
 worker são imagens da edição, construídas no CI para a mesma revisão.
+
+
+O pacote `scripts/upstream-release.json` fixa cada arquivo e seu SHA-256. O
+pré-check consulta apenas o catálogo do PostgreSQL e recusa objetos com corpo,
+permissão ou estrutura desconhecida antes de interromper o worker. O mesmo
+contrato é conferido dentro da transação de instalação e depois dela. O registro
+privado `escreveai_ops.schema_releases` identifica esta atualização; ele não tenta
+reconstruir o histórico de migrations da instalação recuperada.
+
+Se a transação falha, suas alterações e o registro são desfeitos juntos. Se o
+problema acontece depois, na subida dos serviços, o deploy restaura as imagens e
+o estado de execução anteriores; as adições compatíveis ao banco permanecem.
+O dump de segurança não é restaurado automaticamente, pois isso apagaria escritas
+feitas durante a operação.

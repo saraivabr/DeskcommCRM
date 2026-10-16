@@ -40606,8 +40606,8 @@ create trigger trg_contato_atualiza_trava_nas_conversas
 create index if not exists conversations_contact_id_idx
   on public.conversations (contact_id);
 
--- O campo calculado: mesma assinatura, mesmo definer, parâmetro sem nome — o
--- corpo é que deixa de resolver o contato por linha. A regra desta edição
+-- O campo calculado conserva a assinatura e passa a definer, com parâmetro sem
+-- nome. O corpo deixa de resolver o contato por linha. A regra desta edição
 -- mantém os seis argumentos existentes e o tratamento personalizado de grupos.
 drop function if exists public.comando_da_conversa(public.conversations);
 
@@ -40632,7 +40632,7 @@ as $comando$
 $comando$;
 
 comment on function public.comando_da_conversa(public.conversations)
-  is 'Campo calculado exposto pelo PostgREST: ?select=comando_da_conversa e ?comando_da_conversa=in.(...). A trava do contato vem da COLUNA contato_trava_humano (issue #2739), não de subconsulta por linha; o prazo do silêncio é avaliado NA CONSULTA com now() de verdade. SECURITY DEFINER e parâmetro SEM NOME desde a 0404 (issue #1571). A regra em si é fn_comando_da_conversa.';
+  is 'Campo calculado exposto pelo PostgREST: ?select=comando_da_conversa e ?comando_da_conversa=in.(...). A trava do contato vem da COLUNA contato_trava_humano (issue #2739), não de subconsulta por linha; o prazo do silêncio é avaliado NA CONSULTA com now() de verdade. SECURITY DEFINER e parâmetro SEM NOME nesta edição. A regra em si é fn_comando_da_conversa.';
 
 revoke execute on function public.comando_da_conversa(public.conversations) from public, anon;
 grant execute on function public.comando_da_conversa(public.conversations) to authenticated, service_role;
