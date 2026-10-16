@@ -51,14 +51,22 @@ describe("canal datafy — vocabulário e seam", () => {
 
   it("migration e baseline conhecem o provider, o ramo do CHECK e o arquivo do webhook", () => {
     const baseline = readFileSync("supabase/baseline.sql", "utf8");
-    expect(baseline).toMatch(/channel_sessions_provider_check[\s\S]{0,600}'datafy'::text/);
-    expect(baseline).toMatch(/provider = 'datafy'\s+and datafy_phone_number_id\s+is not null/);
-    expect(baseline).toMatch(/webhook_events_log_provider_check check \(provider in \([^)]*'datafy'/);
+    // Vale a última definição aplicada, não um CHECK antigo ainda no histórico.
+    // Espaços e o cast opcional de texto não mudam o contrato do Postgres.
+    const ultimoCheck = (nome: string) => [...baseline.matchAll(new RegExp(
+      `add\\s+constraint\\s+${nome}\\s+check\\s*\\(([^;]+)\\);`, "gi",
+    ))].at(-1);
+    const providerCheck = ultimoCheck("channel_sessions_provider_check");
+    const refCheck = ultimoCheck("channel_sessions_provider_ref_check");
+    const webhookCheck = ultimoCheck("webhook_events_log_provider_check");
+    expect(providerCheck?.[1]).toMatch(/provider\s+in\s*\([^)]*'datafy'/);
+    expect(refCheck?.[1]).toMatch(/provider\s*=\s*'datafy'\s+and\s+datafy_phone_number_id\s+is\s+not\s+null/);
+    expect(webhookCheck?.[1]).toMatch(/provider\s+in\s*\([^)]*'datafy'/);
     expect(baseline).toContain("channel_sessions_datafy_phone_number_id_ativo_unique");
     // Colunas ANTES do CHECK que as referencia — senão o install quebra.
-    expect(baseline.indexOf("add column if not exists datafy_phone_number_id")).toBeLessThan(
-      baseline.indexOf("(provider = 'datafy'"),
-    );
+    const coluna = baseline.indexOf("add column if not exists datafy_phone_number_id");
+    expect(coluna).toBeGreaterThan(-1);
+    expect(coluna).toBeLessThan(refCheck!.index!);
 
     const mig = readFileSync(MIGRATION, "utf8");
     expect(mig).toContain("add column if not exists datafy_phone_number_id");
