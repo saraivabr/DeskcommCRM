@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/hooks/i18n/useT";
 import { cn } from "@/lib/utils";
+import { camposVisiveis, type MostrarQuando } from "@/lib/schemas/mostrar-quando";
 
 export type CustomFieldType =
   | "text"
@@ -35,6 +36,8 @@ export interface CustomFieldDef {
   label: string;
   type: CustomFieldType;
   required?: boolean;
+  /** Esconder preserva os valores já gravados. */
+  mostrar_quando?: MostrarQuando;
   options?: Array<{ value: string; label: string }>;
 }
 
@@ -53,9 +56,10 @@ export function CustomFieldsEditor({ fields, value, onChange, disabled, classNam
     onChange({ ...value, [key]: v });
   }
 
+  const visiveis = camposVisiveis(fields, value);
   return (
     <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", className)}>
-      {fields.map((f) => {
+      {visiveis.map((f) => {
         const v = value[f.key];
         const id = `cf-${f.key}`;
 

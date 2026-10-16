@@ -28,18 +28,21 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { ok, fail } from "@/lib/api/wrappers";
-import { audit } from "@/lib/audit";
+import { audit, isServiceRoleConfigured } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { registraAtividadeDaTarefa } from "@/lib/tarefas/atividade";
+import { conferirVinculosDaTarefa } from "@/lib/tarefas/vinculos";
+import { conferirResponsavel } from "@/lib/tarefas/responsavel";
 import { PRIORIDADES_DA_TAREFA, SITUACOES_DA_TAREFA, type Tarefa } from "@/lib/tarefas/tipos";
 
 export const dynamic = "force-dynamic";
 
 /** As colunas que a tela lê. Explícitas para o `select *` não vazar coluna nova. */
 const COLUNAS =
-  "id, organization_id, title, description, due_date, priority, status, lead_id, contact_id, assigned_to, created_by, created_at, updated_at";
+  "id, organization_id, title, description, due_date, priority, status, lead_id, contact_id, assigned_to, created_by, created_at, updated_at, lead:crm_leads(id, title)";
 
 const criacaoSchema = z.object({
   title: z.string().trim().min(1).max(255),
@@ -126,7 +129,31 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   }
 
+  if (parsed.data.assigned_to) {
+    // A chave estrangeira de `assigned_to` é só para `auth.users`: sem esta conferência, um id de
+    // outra organização (ou de quem saiu da equipe) gravaria sem erro. A régua
+    // e o porquê do admin client estão em `lib/tarefas/responsavel.ts`.
+    const equipe = isServiceRoleConfigured() ? createAdminClient() : await createClient();
+    const veredito = await conferirResponsavel(equipe, authz.org.orgId, parsed.data.assigned_to);
+    if (veredito === "falha_na_consulta") {
+      return fail("internal_error", t("Erro ao salvar a tarefa."), 500, { requestId });
+    }
+    if (veredito === "fora_da_equipe") {
+      return fail("validation_failed", t("O responsável escolhido não faz parte da equipe."), 422, {
+        requestId,
+      });
+    }
+  }
+
   const supabase = await createClient();
+  const vinculos = await conferirVinculosDaTarefa(supabase, authz.org.orgId, parsed.data);
+  if (vinculos === "falha_na_consulta") {
+    return fail("internal_error", t("Erro ao salvar a tarefa."), 500, { requestId });
+  }
+  if (vinculos === "fora_da_organizacao") {
+    return fail("validation_failed", t("O negócio ou contato vinculado não existe."), 422, { requestId });
+  }
+
   const { data, error } = await supabase
     .from("crm_tasks")
     .insert({
@@ -138,7 +165,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (error) {
-    // 23503 = lead ou contato de outra organização (ou apagado no meio). A
+    // 23503 = lead ou contato apagado entre a conferência e a gravação. A
     // recusa nomeia o campo porque quem lê é quem escolheu na tela.
     if (error.code === "23503") {
       return fail("validation_failed", t("O negócio ou contato vinculado não existe."), 422, {

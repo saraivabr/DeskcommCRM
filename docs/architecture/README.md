@@ -103,3 +103,6 @@ superfície do CRM atravessa essa aresta, e precisa responder três perguntas
 
 As três vezes o custo foi o mesmo: descobrir a aresta **durante** a
 implementação, com a peça já meio pronta.
+
+- `crm-visual-upstream.architecture.json`: Inbox, tarefas, calendário e campos condicionais conectados aos contratos existentes.
+- `designer-de-automacoes.architecture.json`: editor visual que grava os contratos de automação existentes.

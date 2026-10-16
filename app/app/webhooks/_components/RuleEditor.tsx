@@ -44,7 +44,7 @@ interface Props {
   rule: AutomationRuleRow | null;
 }
 
-type Op = "eq" | "neq" | "contains";
+export type Op = "eq" | "neq" | "contains";
 
 interface ConditionRow {
   field: string;
@@ -52,7 +52,7 @@ interface ConditionRow {
   value: string;
 }
 
-interface CuratedField {
+export interface CuratedField {
   value: string;
   label: string;
   op: Op;
@@ -119,7 +119,7 @@ const AGENDAMENTO_FIELDS: CuratedField[] = [
 // ponytail: etapa de destino usa o funil default (cobre o caso comum de 1
 // funil); se o produto ganhar múltiplos funis relevantes aqui, trocar por um
 // seletor de funil antes do de etapa.
-const CURATED_FIELDS: Record<TriggerEvent, CuratedField[]> = {
+export const CURATED_FIELDS: Record<TriggerEvent, CuratedField[]> = {
   "lead.created": LEAD_FIELDS,
   "lead.stage_changed": [...LEAD_FIELDS, STAGE_FIELD],
   "message.received": MESSAGE_FIELDS,
@@ -140,7 +140,7 @@ const CURATED_FIELDS: Record<TriggerEvent, CuratedField[]> = {
   "lead.date_field_due": LEAD_FIELDS,
 };
 
-const OP_LABELS: Record<Op, string> = { eq: "é", neq: "não é", contains: "contém" };
+export const OP_LABELS: Record<Op, string> = { eq: "é", neq: "não é", contains: "contém" };
 
 function emptyCondition(): ConditionRow {
   return { field: "", op: "eq", value: "" };

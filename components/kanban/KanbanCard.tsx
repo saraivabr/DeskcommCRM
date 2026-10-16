@@ -12,6 +12,7 @@ import { ConversaSlot } from "./ConversaSlot";
 import { ScoreSlot } from "./ScoreSlot";
 import { OwnerBadge } from "./OwnerBadge";
 import { ContatoNoCard } from "./ContatoNoCard";
+import { TarefasNoCard } from "./TarefasNoCard";
 
 /** Os dois gestos de seleção que o card sabe relatar. */
 export type GestoDeSelecao = "alterna" | "intervalo";
@@ -296,7 +297,8 @@ export function KanbanCard({
 
           {/* ④ dono · ⑤ tempo no estágio */}
           <div className="mt-1 flex min-h-6 items-center justify-between gap-2">
-            <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+              <TarefasNoCard tarefas={lead.tarefas} />
               <OwnerBadge
                 ownerKind={card.owner.kind}
                 ownerName={card.owner.name}

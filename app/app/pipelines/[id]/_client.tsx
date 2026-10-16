@@ -22,6 +22,8 @@ function formatError(err: unknown, t: (texto: string) => string): string {
   }
   return String(err);
 }
+import { CalendarioDoFunil } from "@/components/kanban/CalendarioDoFunil";
+import { cn } from "@/lib/utils";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { FilterBar } from "@/components/kanban/FilterBar";
 import { BulkActionBar } from "@/components/kanban/BulkActionBar";
@@ -53,6 +55,7 @@ export function PipelinePageClient({
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [newOpen, setNewOpen] = useState(false);
+  const [visao, setVisao] = useState<"quadro" | "calendario">("quadro");
 
   const filteredLeads = data ? applyFilters(data.leads, filters) : [];
   const openLeads = filteredLeads.filter((lead) => lead.status === "open");
@@ -116,9 +119,41 @@ export function PipelinePageClient({
             {t("Acompanhe etapas, valores e responsáveis.")}
           </p>
         </div>
-        <Button onClick={() => setNewOpen(true)} disabled={!data} className="shrink-0">
-          <Plus size={16} className="mr-2" /> {t("Novo Lead")}
-        </Button>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center gap-0.5 rounded-md border bg-muted p-0.5">
+            <button
+              type="button"
+              data-testid="visao-quadro"
+              aria-pressed={visao === "quadro"}
+              onClick={() => setVisao("quadro")}
+              className={cn(
+                "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                visao === "quadro"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("Quadro")}
+            </button>
+            <button
+              type="button"
+              data-testid="visao-calendario"
+              aria-pressed={visao === "calendario"}
+              onClick={() => setVisao("calendario")}
+              className={cn(
+                "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                visao === "calendario"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("Calendário")}
+            </button>
+          </div>
+          <Button onClick={() => setNewOpen(true)} disabled={!data} className="shrink-0">
+            <Plus size={16} className="mr-2" /> {t("Novo Lead")}
+          </Button>
+        </div>
       </header>
       <section className="workspace-pipeline-summary" aria-label={t("Resumo do funil")}>
         <div>
@@ -157,6 +192,15 @@ export function PipelinePageClient({
         <div className="flex flex-1 animate-pulse items-center justify-center text-muted-foreground">
           {t("Carregando…")}
         </div>
+      ) : visao === "calendario" ? (
+        // A MESMA lista filtrada do quadro: as duas abas olham o mesmo funil,
+        // e discordar sobre quem está nele seria pior do que não ter filtro.
+        <CalendarioDoFunil
+          pipelineId={pipelineId}
+          pipeline={data.pipeline}
+          stages={data.stages}
+          leads={filteredLeads}
+        />
       ) : hasActiveFilters && filteredLeads.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-border p-8 text-center">
           <p className="text-sm text-muted-foreground">
