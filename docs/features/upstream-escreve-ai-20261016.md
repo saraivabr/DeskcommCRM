@@ -6,6 +6,27 @@ A base desta integração é o escreve.ai `7c4e88506`. Os commits trazidos conse
 atribuição; os módulos próprios de Instagram, Meta, workspace, prospecção,
 identidade, cobrança e operação continuam pertencendo à edição escreve.ai.
 
+## Escopo das sete áreas
+
+| Área | Alteração incorporada |
+| --- | --- |
+| Instagram e redes sociais | Leituras com prazo, falhas por provedor, insights do ativo Meta selecionado, ressincronização e desconexão; inscrição do Direct separa eventos do aplicativo e da Página. |
+| Acesso | Confirmação por POST, recuperação com diagnóstico de SMTP e MFA por perfil/carência, mantendo os limites de espera do escreve.ai. |
+| Desempenho | Pausa de consultas em abas ocultas, consultas de envio e métricas com índices e recorte antecipado por período. |
+| Execução de IA | Leituras independentes em paralelo, classificadores econômicos com preço conhecido e reaproveitamento do julgamento/sentimento do turno. |
+| CRM | Iniciar conversa na Inbox, tarefas no negócio/cartão, calendário do funil, campos condicionais e editor visual de automações. |
+| Credenciais e modelos de IA | Login ChatGPT por empresa, catálogo da conta e novos modelos GPT/Claude; o módulo de login começa desligado e exige elegibilidade da instalação. |
+| Banco externo | Lista explícita de tabelas, views e colunas permitidas, com painel administrativo e isolamento por empresa. |
+
+O [detalhamento de IA](ia-assinatura-e-classificadores.md) registra autenticação,
+renovação, limites de custo e fallback. Incluir o recurso não conecta uma conta
+ChatGPT nem altera o modelo padrão dos agentes existentes.
+
+As correções do Instagram mantêm a Meta nativa independente da indisponibilidade
+do Zernio. A ativação do Direct é uma operação posterior ao deploy: confere o
+callback, preserva as outras inscrições Meta e mantém a IA em `pre_go_live`.
+Um callback aceito e um canal `WORKING` não provam entrega real de uma mensagem.
+
 ## Acesso
 
 O link de e-mail abre `/login/continuar`; somente o formulário POST em
