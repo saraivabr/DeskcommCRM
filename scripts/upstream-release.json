@@ -11,6 +11,18 @@
       "sha256": "a8bf9f67ffbe5a44b6bbf38cf24a1f1702efd723e44967240fd69edc5858c3ca"
     },
     {
+      "file": "20261016082400_0424_publicar_assinatura_por_empresa.sql",
+      "sha256": "4d3435bbe0c7c9da6af84916445bc394a20fff7cc9a4f94979a5b9fb0817691d"
+    },
+    {
+      "file": "20261016082500_0425_catalogo_gpt_6.sql",
+      "sha256": "83bb0e17403acf60ba1c3a19e48cc9452678dca77402651d015fd76b51cd0472"
+    },
+    {
+      "file": "20261016082600_0426_catalogo_claude_5_5.sql",
+      "sha256": "73c44a97c6b5f8b1379ac1cf3f303785d45b6e98def9c593c033ed76966fecd6"
+    },
+    {
       "file": "20261016143000_0430_banco_externo_fontes_liberadas.sql",
       "sha256": "b73eaefb036e354a7c5bbfff24c5ef9a7a2b43bfd197d0c25eb9a695040239d6"
     }
