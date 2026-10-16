@@ -8,6 +8,7 @@ test("sessão real protege API e abre Home, cobrança e Studio sem gerar conteú
   expect(anonymous.status()).toBe(401);
   await page.goto("/app/settings/billing");
   await expect(page).toHaveURL(/\/login(?:\?|$)/);
+  await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeEnabled();
   await page.locator("#email").fill(process.env.OWNER_EMAIL!);
   await page.locator("#password").fill(process.env.OWNER_PASSWORD!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
@@ -54,6 +55,7 @@ test("Home interrompe consulta presa, recupera pelo botão e volta ao destino ap
   context,
 }, testInfo) => {
   await page.goto("/login");
+  await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeEnabled();
   await page.locator("#email").fill(process.env.OWNER_EMAIL!);
   await page.locator("#password").fill(process.env.OWNER_PASSWORD!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
@@ -94,6 +96,7 @@ test("Home interrompe consulta presa, recupera pelo botão e volta ao destino ap
     await context.clearCookies();
     await refresh.click();
     await expect(page).toHaveURL(/\/login\?next=%2Fapp$/);
+    await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeEnabled();
     await page.locator("#email").fill(process.env.OWNER_EMAIL!);
     await page.locator("#password").fill(process.env.OWNER_PASSWORD!);
     await page.getByRole("button", { name: "Entrar", exact: true }).click();

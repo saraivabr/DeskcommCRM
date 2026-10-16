@@ -1,6 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Component, type ReactNode } from "react";
+import { renderToString } from "react-dom/server";
+import { hydrateRoot, type Root } from "react-dom/client";
 import { getRedirectError } from "next/dist/client/components/redirect";
 import { RedirectType } from "next/navigation";
 const mocks = vi.hoisted(() => ({ signIn: vi.fn(), replace: vi.fn() }));
@@ -19,6 +21,38 @@ class RedirectBoundaryProbe extends Component<{ children: ReactNode; onError: (e
 }
 
 describe("login recuperável", () => {
+  it("só aceita credenciais depois de hidratar o formulário entregue pelo servidor", async () => {
+    mocks.signIn.mockResolvedValue({ ok: false, error: "auth_unavailable" });
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<LoginForm next="/app" />);
+    document.body.append(container);
+    const form = within(container);
+    const email = form.getByLabelText("Email") as HTMLInputElement;
+    const password = form.getByLabelText("Senha") as HTMLInputElement;
+    const submit = form.getByRole("button", { name: "Entrar" });
+    let root: Root | undefined;
+    try {
+      expect(email).toBeDisabled();
+      expect(password).toBeDisabled();
+      expect(submit).toBeDisabled();
+      await act(async () => { root = hydrateRoot(container, <LoginForm next="/app" />); });
+      expect(email).toBeEnabled();
+      expect(password).toBeEnabled();
+      expect(submit).toBeEnabled();
+      fireEvent.change(email, { target: { value: "user@example.com" } });
+      fireEvent.change(password, { target: { value: "example-password" } });
+      fireEvent.click(submit);
+      await waitFor(() => expect(mocks.signIn).toHaveBeenCalledWith(
+        { email: "user@example.com", password: "example-password" }, "/app",
+      ));
+      await waitFor(() => expect(form.getByRole("alert")).toHaveTextContent("Tente novamente"));
+      expect(email).toHaveValue("user@example.com");
+      expect(password).toHaveValue("example-password");
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+    }
+  });
   it("redirect real do Next atravessa o catch e chega ao boundary", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const redirect = getRedirectError("/app", RedirectType.push);

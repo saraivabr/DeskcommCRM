@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTransition, useState } from "react";
+import { useTransition, useState, useSyncExternalStore } from "react";
 import { unstable_rethrow, useRouter } from "next/navigation";
 
 import { useT } from "@/hooks/i18n/useT";
@@ -18,6 +18,13 @@ export function LoginForm({ next }: { next?: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
+  // O HTML chega antes de o react-hook-form registrar os campos. Aceitar
+  // digitação nessa janela deixa a hidratação apagar o que a pessoa escreveu.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const {
     register,
@@ -74,6 +81,7 @@ export function LoginForm({ next }: { next?: string }) {
           type="email"
           autoComplete="email"
           autoFocus
+          disabled={!hydrated}
           aria-invalid={errors.email ? true : undefined}
           {...register("email")}
         />
@@ -87,6 +95,7 @@ export function LoginForm({ next }: { next?: string }) {
           id="password"
           type="password"
           autoComplete="current-password"
+          disabled={!hydrated}
           aria-invalid={errors.password ? true : undefined}
           {...register("password")}
         />
@@ -102,7 +111,7 @@ export function LoginForm({ next }: { next?: string }) {
           {serverError}
         </div>
       )}
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button type="submit" className="w-full" disabled={!hydrated || isPending}>
         {isPending ? t("Entrando...") : t("Entrar")}
       </Button>
     </form>
