@@ -107,7 +107,7 @@ test("calendário abre a ficha, condição preserva valor, tarefa aparece no car
   await form.getByLabel("O que precisa ser feito").fill(taskTitle);
   await form.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(form).toHaveCount(0);
-  await expect(dossier.getByText(taskTitle, { exact: true })).toBeVisible();
+  await expect(dossier.getByRole("region", { name: /^Tarefas/ }).getByText(taskTitle, { exact: true })).toBeVisible();
   const ownTask = await db.from("crm_tasks").select("id, lead_id, assigned_to").eq("organization_id", creds.org_id).eq("title", taskTitle).single();
   expect(ownTask.error).toBeNull();
   expect(ownTask.data?.lead_id).toBe(leadId);
