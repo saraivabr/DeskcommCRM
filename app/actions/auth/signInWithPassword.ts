@@ -98,9 +98,12 @@ export async function signInWithPassword(input: LoginInput, next?: string): Prom
 
   // MFA gating — if the user has any verified TOTP factor enrolled, they must
   // complete the challenge in /login/mfa before reaching the app.
+  // A senha pode consumir quase todo o prazo do primeiro cliente. Um cliente
+  // novo lê o cookie recém-gravado e dá à verificação de MFA seu próprio prazo.
+  const mfaClient = await createClient();
   let factors;
   try {
-    factors = await withAuthDeadline(() => supabase.auth.mfa.listFactors());
+    factors = await withAuthDeadline(() => mfaClient.auth.mfa.listFactors());
   } catch {
     return { ok: false, error: "auth_unavailable" };
   }

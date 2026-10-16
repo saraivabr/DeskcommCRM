@@ -6,7 +6,7 @@
  * antes de falar com o GoTrue. Sem a chamada em signInWithPassword.ts, as seis
  * tentativas chegariam ao provedor e o teste fica vermelho.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -23,6 +23,8 @@ const signIn = vi.fn(async () => ({
   data: { user: null, session: null },
   error: { message: "Invalid login credentials", status: 400 },
 }));
+
+afterEach(() => vi.useRealTimers());
 
 describe("signInWithPassword — teto de tentativas", () => {
   beforeEach(() => {
@@ -104,5 +106,35 @@ describe("signInWithPassword — teto de tentativas", () => {
     const client = await createClient();
     vi.mocked(client.auth.mfa.listFactors).mockResolvedValue({ data: null, error: { status: 503, message: "unavailable" } } as never);
     expect(await signInWithPassword({ email: "mfa-indisponivel@example.com", password: "senha-certa-123" })).toEqual({ ok: false, error: "auth_unavailable" });
+  });
+
+  it("senha lenta não consome o prazo da verificação MFA", async () => {
+    vi.useFakeTimers();
+    const { signInWithPassword } = await import("./signInWithPassword");
+    signIn.mockImplementationOnce(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 7_900));
+      return { data: { user: { id: "u1" }, session: {} }, error: null } as never;
+    });
+    const clients: number[] = [];
+    vi.mocked(createClient).mockImplementation(async () => {
+      const deadline = Date.now() + 8_000;
+      clients.push(deadline);
+      return {
+        auth: {
+          signInWithPassword: signIn,
+          mfa: { listFactors: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 1_000));
+            return Date.now() >= deadline
+              ? { data: null, error: { status: 504, name: "AuthRetryableFetchError" } }
+              : { data: { totp: [{ id: "factor", status: "verified" }] }, error: null };
+          } },
+        },
+      } as never;
+    });
+    const pending = signInWithPassword({ email: "login-lento@example.com", password: "senha-certa-123" });
+    await vi.advanceTimersByTimeAsync(9_000);
+    expect(await pending).toEqual({ ok: false, error: "mfa_required", challengeId: "factor" });
+    expect(clients).toHaveLength(2);
+    expect(clients[1]! - clients[0]!).toBe(7_900);
   });
 });

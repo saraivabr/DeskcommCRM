@@ -51,7 +51,8 @@ describe("proxy — indisponibilidade não expira sessão", () => {
     vi.useFakeTimers();
     let finish!: (value: unknown) => void;
     mocks.getUser.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
-    const pending = proxy(request("/api/v1/workspace/home"));
+    const originalRequest = request("/api/v1/workspace/home");
+    const pending = proxy(originalRequest);
     await vi.advanceTimersByTimeAsync(AUTH_TIMEOUT_MS + 1);
     const response = await pending;
     expect(response.status).toBe(503);
@@ -59,6 +60,9 @@ describe("proxy — indisponibilidade não expira sessão", () => {
     finish({ data: { user: null }, error: { status: 504 } });
     await Promise.resolve();
     expect(response.headers.get("set-cookie")).toBeNull();
+    // Sem acceptingCookies o callback alteraria request.cookies e criaria
+    // outra response. Observar apenas a response já retornada não detecta isso.
+    expect(originalRequest.cookies.get("sb-deskcomm-auth")?.value).toBe("original");
   });
 
   it("refresh chega ao handler e ao browser com atributos de segurança", async () => {

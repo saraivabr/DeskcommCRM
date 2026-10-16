@@ -77,16 +77,17 @@ test("Home interrompe consulta presa, recupera pelo botão e volta ao destino ap
     await page.goto("/app");
     await expect.poll(() => calls).toBe(1);
     const refresh = page.getByRole("button", { name: "Atualizar operação" });
+    const homeError = page.getByRole("alert").filter({ hasText: "A conexão falhou. Tente atualizar novamente." });
     await expect(refresh).toBeDisabled();
     // Avança somente o relógio da página; a sessão e o banco continuam reais.
     await page.clock.fastForward(21_000);
     await expect(refresh).toBeEnabled();
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(homeError).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("home-consulta-interrompida.png"), fullPage: true });
     await refresh.click();
     await expect.poll(() => calls).toBeGreaterThan(1);
     await expect(refresh).toBeEnabled();
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(homeError).toHaveCount(0);
     expect(new URL(page.url()).pathname).toBe("/app");
 
     // Expiração real no navegador de teste: o próximo GET deve sair do shell.
