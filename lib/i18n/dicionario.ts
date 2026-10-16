@@ -8012,6 +8012,7 @@ export const DICIONARIO: Traducoes = {
   "Recusar": { es: "Rechazar" },
   "Já tem conta?": { es: "¿Ya tienes cuenta?" },
   "Email ou senha incorretos.": { es: "Correo o contraseña incorrectos." },
+  "Não foi possível verificar seu acesso agora. Tente novamente em instantes.": { es: "No fue posible verificar tu acceso ahora. Inténtalo de nuevo en unos instantes." },
   "Erro inesperado. Tente novamente.": { es: "Error inesperado. Intenta de nuevo." },
   "Entrando...": { es: "Entrando..." },
   "Configurando autenticação em duas etapas...": {

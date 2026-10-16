@@ -254,6 +254,7 @@ export const ApiErrorCodes = {
   // 500 / upstream
   internal_error: "internal_error",
   upstream_unavailable: "upstream_unavailable",
+  auth_unavailable: "auth_unavailable", // 503: verificar identidade falhou; não implica sessão expirada
   unavailable: "unavailable", // 503: dependência de config ausente (ex.: pool do engine sem SUPABASE_DB_URL)
   waha_error: "waha_error",
   wacalls_error: "wacalls_error", // 502: o serviço de chamada de voz recusou ou não respondeu

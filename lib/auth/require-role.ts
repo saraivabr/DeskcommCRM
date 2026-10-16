@@ -24,6 +24,7 @@ import { loadAuthUser, mfaEmDivida, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK, type ActiveOrg, type AuthUser, type Role } from "@/lib/auth/types";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { createClient } from "@/lib/supabase/server";
+import { AUTH_TIMEOUT_MS, isAuthUnavailable } from "@/lib/auth/availability";
 
 export type RoleCheck =
   | { ok: true; user: AuthUser; org: ActiveOrg }
@@ -52,7 +53,13 @@ interface RequireRoleOpts {
 export async function requireRole(min: Role, opts: RequireRoleOpts = {}): Promise<RoleCheck> {
   const { requestId, resource, allowPlatformAdmin = false, organizationId } = opts;
 
-  const user = await loadAuthUser();
+  let user;
+  try {
+    user = await loadAuthUser();
+  } catch (error) {
+    if (!isAuthUnavailable(error)) throw error;
+    return { ok: false, response: fail("auth_unavailable", "A verificação de acesso está temporariamente indisponível. Tente novamente.", 503, { requestId, headers: { "Retry-After": "2", "Cache-Control": "no-store" } }) };
+  }
   if (!user) {
     return { ok: false, response: fail("unauthenticated", "Auth required.", 401, { requestId }) };
   }
@@ -90,12 +97,12 @@ export async function requireRole(min: Role, opts: RequireRoleOpts = {}): Promis
   }
 
   // Role efetivo do banco (não do snapshot do cookie/membership em memória).
-  const supabase = await createClient();
+  const supabase = await createClient({ signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) });
   const { data: effectiveRole, error } = await supabase.rpc("fn_user_role_in_org", {
     p_org: org.orgId,
   });
   if (error) {
-    return { ok: false, response: fail("internal_error", error.message, 500, { requestId }) };
+    return { ok: false, response: fail("auth_unavailable", "Não foi possível confirmar sua permissão. Tente novamente.", 503, { requestId, headers: { "Retry-After": "2", "Cache-Control": "no-store" } }) };
   }
 
   const rank = effectiveRole ? (ROLE_RANK[effectiveRole as Role] ?? 0) : 0;
@@ -112,7 +119,16 @@ export async function requireRole(min: Role, opts: RequireRoleOpts = {}): Promis
   // Fica DEPOIS do rank e ANTES do retorno de sucesso, de propósito: quem não
   // tem papel suficiente continua levando 403 por falta de papel, sem que a
   // resposta revele o estado de MFA de quem nem chegaria lá.
-  if (rank >= ROLE_RANK[min] && (await mfaEmDivida())) {
+  let mfaRequired = false;
+  if (rank >= ROLE_RANK[min]) {
+    try {
+      mfaRequired = await mfaEmDivida();
+    } catch (error) {
+      if (!isAuthUnavailable(error)) throw error;
+      return { ok: false, response: fail("auth_unavailable", "Não foi possível verificar a autenticação em duas etapas. Tente novamente.", 503, { requestId, headers: { "Retry-After": "2", "Cache-Control": "no-store" } }) };
+    }
+  }
+  if (mfaRequired) {
     void audit({
       action: "authz.denied",
       actorUserId: user.id,

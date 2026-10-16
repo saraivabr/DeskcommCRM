@@ -13,6 +13,7 @@ import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { audit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
 import type { AuthUser, Role } from "@/lib/auth/types";
+import { AuthUnavailableError } from "@/lib/auth/availability";
 
 vi.mock("@/lib/auth/server", () => ({
   // Sessão sem dívida de MFA: esta suíte mede rank de papel; o gate de segundo
@@ -66,6 +67,15 @@ beforeEach(() => {
 });
 
 describe("requireRole — helper único (spec 13 §4)", () => {
+  it("verificação indisponível é503, nunca401", async () => {
+    vi.mocked(loadAuthUser).mockRejectedValueOnce(new AuthUnavailableError());
+    const result = await requireRole("viewer");
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.response.status).toBe(503);
+    expect((await result.response.json()).error.code).toBe("auth_unavailable");
+    expect(audit).not.toHaveBeenCalled();
+  });
   it("nega 401 unauthenticated sem sessão", async () => {
     session(null);
     const res = await requireRole("viewer");

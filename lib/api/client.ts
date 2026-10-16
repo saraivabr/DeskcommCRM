@@ -2,6 +2,7 @@ import type { ZodSchema } from "zod";
 
 import { ApiError, type ApiErrorBody } from "@/lib/api/types";
 import { randomId } from "@/lib/random-id";
+import { isSessionExpired, redirectExpiredSession } from "@/lib/auth/session-navigation";
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
@@ -67,7 +68,7 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 const MUTATION_TIMEOUT_MS = 30_000;
 
 const MAX_ATTEMPTS = 3;
-const RETRYABLE_STATUSES = new Set([429, 503]);
+const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 const MUTATING_METHODS = new Set<HttpMethod>(["POST", "PATCH", "PUT", "DELETE"]);
 
 /**
@@ -295,9 +296,15 @@ async function request<T>(
         return parsed;
       }
 
-      // Retry on 429/503
-      if (RETRYABLE_STATUSES.has(res.status) && attempt < MAX_ATTEMPTS) {
+      // Um proxy pode emitir 503/504 depois do efeito. Sem um recibo de
+      // idempotência do servidor não há como repetir escrita com segurança.
+      if (method === "GET" && RETRYABLE_STATUSES.has(res.status) && attempt < MAX_ATTEMPTS) {
         const retryAfter = parseRetryAfterSeconds(res.headers.get("Retry-After"));
+        // Um Retry-After enorme não deixa a tela aguardando indefinidamente:
+        // nesse caso devolvemos o erro para a pessoa decidir quando retentar.
+        if (retryAfter !== null && retryAfter > 5) {
+          throw new ApiError(res.status, synthesizeCode(res.status), undefined, responseRequestId, "Serviço temporariamente indisponível. Tente novamente em instantes.");
+        }
         const delay = retryAfter !== null ? retryAfter * 1000 : backoffMs(attempt);
         await sleep(delay, opts.signal);
         continue;
@@ -307,6 +314,7 @@ async function request<T>(
       const errBody = await readBodySafe(res);
       if (isApiErrorBody(errBody)) {
         const e = errBody.error;
+        if (isSessionExpired(res.status, e.code)) redirectExpiredSession();
         // Ver o bloco `MARCA_DE_RECARGA` acima. O `throw` continua acontecendo:
         // o recarregamento não é instantâneo, e quem chamou precisa terminar
         // com erro em vez de ficar pendurado esperando uma resposta que não vem.

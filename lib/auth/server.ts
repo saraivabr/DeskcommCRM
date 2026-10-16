@@ -13,6 +13,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/server";
+import { AUTH_TIMEOUT_MS, AuthUnavailableError, getUserWithDeadline, isAuthUnavailable, withAuthDeadline } from "@/lib/auth/availability";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { empresaExigeMfa, exigeCadastroDeMfa } from "@/lib/auth/politica-mfa";
 import { normalizarIdioma } from "@/lib/i18n/idiomas";
@@ -120,49 +121,29 @@ export function ehSessaoAusente(error: { name?: string } | null | undefined): bo
 }
 
 export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  // ⚠️ O `error` era DESCARTADO — nem chegava a ser desestruturado —, e aqui
-  // `user: null` é tão ambíguo quanto o `data: null` que a query logo abaixo
-  // trata com todo o cuidado: significa "não está logado" (estado normal) E
-  // "não deu para perguntar" (rede, GoTrue fora do ar, token ilegível).
-  //
-  // A ação não muda, e isso é deliberado: sem usuário confirmado, devolver
-  // `null` — e portanto redirecionar para o login — é o desfecho seguro.
-  // Falhar FECHADO na ação continua certo. O que estava errado era falhar
-  // fechado também na INFORMAÇÃO: quem investigasse depois via só uma pessoa
-  // "deslogada", sem nada distinguindo isso de uma falha transitória.
-  //
-  // Custou caro uma vez: um vermelho de e2e em que a barra lateral "perdeu o
-  // logo" foi, por eliminação, uma casca de app que não era a casca do app —
-  // e a hipótese nº 1 é justamente um redirect nascido aqui. Com este log, a
-  // próxima ocorrência se explica sozinha em vez de custar uma investigação.
-  //
-  // ⚠️ MAS NEM TODO `error` AQUI É INCIDENTE — e é por isso que `ehSessaoAusente`
-  // existe. Ver o comentário dela: sem esse filtro, este log dispara em todo
-  // visitante deslogado e refaz, do lado do log, a mesma fusão que este bloco
-  // existe para desfazer.
+  // Toda a resolução de identidade/permissões é leitura e compartilha o prazo:
+  // getUser, memberships, plataforma e acompanhamento não se acumulam em série.
+  const supabase = await createClient({ signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) });
+  let result;
+  try {
+    result = await getUserWithDeadline(() => supabase.auth.getUser());
+  } catch {
+    logger.error("[auth] getUser falhou — verificação indisponível");
+    throw new AuthUnavailableError();
+  }
+  const { data: { user }, error } = result;
   if (error && !ehSessaoAusente(error)) {
-    // As chaves são as MESMAS do outro `logger.error` desta função (linha ~134):
-    // `code` e `message`. Dois nomes para o mesmo conceito, dentro da mesma
-    // função, obrigariam quem consulta o agregador a escrever duas buscas — num
-    // conserto cujo objeto é diagnóstico.
-    //
-    // `name` viaja junto porque é o que separa as CLASSES: `AuthRetryableFetchError`
-    // (rede, GoTrue fora do ar) de `AuthApiError` (token ilegível). Ambas podem
-    // chegar com o mesmo `status`, e a mensagem vem em inglês do upstream — sem o
-    // nome, distinguir as duas viraria regex sobre texto que muda entre versões.
-    logger.error("[auth] getUser falhou — tratando como não autenticado", {
+    logger.error("[auth] getUser falhou", {
       name: error.name,
       code: error.code ?? null,
       status: error.status ?? null,
       message: error.message,
     });
   }
-  if (!user) return null;
+  // Falhar fechado não exige deslogar: indisponibilidade chega ao boundary
+  // recuperável da tela, ou vira 503 no guard REST, preservando a sessão.
+  if (isAuthUnavailable(error)) throw new AuthUnavailableError();
+  if (error || !user) return null;
 
   // Platform admin e Org memberships consultados em paralelo no Supabase:
   // elimina round-trip sequencial a cada requisição.
@@ -221,7 +202,7 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
       code: detalhe.code,
       message: detalhe.message,
     });
-    throw new Error(
+    throw new AuthUnavailableError(
       `auth_permissions_unavailable: ${detalhe.message} — permissões não puderam ser ` +
         `resolvidas; a sessão NÃO foi rebaixada por decisão de autorização.`,
     );
@@ -246,7 +227,12 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
     };
   });
 
-  const support = await readSupportContext(supabase);
+  let support;
+  try {
+    support = await readSupportContext(supabase);
+  } catch {
+    throw new AuthUnavailableError();
+  }
   const fullName = (user.user_metadata?.full_name as string | undefined) ?? null;
   const avatarUrl = (user.user_metadata?.avatar_url as string | undefined) ?? null;
   const locale = (user.user_metadata?.locale as string | undefined) ?? null;
@@ -317,8 +303,10 @@ export async function requireAuth(): Promise<AuthUser> {
  * Use only in Server Components / Server Actions (cookie session).
  */
 export const isMfaEnrolled = cache(async (): Promise<boolean> => {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.mfa.listFactors();
+  const supabase = await createClient({ signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) });
+  const { data, error } = await withAuthDeadline(() => supabase.auth.mfa.listFactors());
+  // Falhar ao ler os fatores não significa que a pessoa não ativou MFA.
+  if (error || !data) throw new AuthUnavailableError();
   return !!data?.totp?.some((f) => f.status === "verified");
 });
 
@@ -386,8 +374,9 @@ export const requiresMfa = cache(
  * vazada/phishing).
  */
 export async function sessionAal(): Promise<"aal1" | "aal2" | null> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  const supabase = await createClient({ signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) });
+  const { data, error } = await withAuthDeadline(() => supabase.auth.mfa.getAuthenticatorAssuranceLevel());
+  if (error || !data) throw new AuthUnavailableError();
   // O tipo do SDK é `"aal1" | "aal2" | (string & {})` — aberto de propósito, para
   // aceitar níveis futuros. Estreitar aqui mantém a decisão em quem chama.
   const nivel: string | null | undefined = data?.currentLevel;

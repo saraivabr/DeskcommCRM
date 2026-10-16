@@ -77,6 +77,26 @@ beforeEach(() => {
 });
 
 describe("requireRole — MFA é política de sessão, não de cadastro", () => {
+  it.each(["viewer", "admin"] as const)("falha consultando fatores de %s bloqueia503, nunca autoriza como sem MFA", async (role) => {
+    preparar({ role, temFator: true, aal: "aal1" });
+    const client = await createClient();
+    vi.mocked(client.auth.mfa.listFactors).mockResolvedValue({ data: null, error: { name: "AuthRetryableFetchError", status: 504 } } as Awaited<ReturnType<typeof client.auth.mfa.listFactors>>);
+    const result = await requireRole(role);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("não pode autorizar sem verificar MFA");
+    expect(result.response.status).toBe(503);
+    expect((await result.response.json()).error.code).toBe("auth_unavailable");
+  });
+
+  it("falha ao confirmar nível de garantia responde503, sem fingir dívida MFA", async () => {
+    preparar({ role: "admin", temFator: true, aal: "aal2" });
+    const client = await createClient();
+    vi.mocked(client.auth.mfa.getAuthenticatorAssuranceLevel).mockResolvedValue({ data: null, error: { name: "AuthRetryableFetchError", status: 503 } } as Awaited<ReturnType<typeof client.auth.mfa.getAuthenticatorAssuranceLevel>>);
+    const result = await requireRole("admin");
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("não pode autorizar sem confirmar nível");
+    expect(result.response.status).toBe(503);
+  });
   it("admin com fator cadastrado e sessão aal1 é BARRADO (o achado)", async () => {
     preparar({ role: "admin", temFator: true, aal: "aal1" });
     const r = await requireRole("admin", { requestId: "req-1" });

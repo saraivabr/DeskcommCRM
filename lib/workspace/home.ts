@@ -35,7 +35,9 @@ export async function loadHomeOverview(
   role: Role,
   input: HomeInput,
   now = new Date(),
+  signal: AbortSignal = AbortSignal.timeout(15_000),
 ): Promise<HomeOverview> {
+  signal.throwIfAborted();
   const canSeeTeam = roleAtLeast(role, "manager");
   const canSeeCases = roleAtLeast(role, "agent");
   if (input.scope === "team" && !canSeeTeam)
@@ -46,6 +48,7 @@ export async function loadHomeOverview(
     let query = db
       .from(table)
       .select("id", { count: "exact", head: true })
+      .abortSignal(signal)
       .eq("organization_id", orgId);
     if (input.scope === "mine") query = query.eq(owner, userId);
     return query;
@@ -64,12 +67,14 @@ export async function loadHomeOverview(
       href: "/app/kanban",
     },
     ...(canSeeCases
-      ? [{
-          id: "agent-cases",
-          label: "Casos da IA aguardando resposta",
-          description: "Casos abertos pela IA que aguardam uma resposta humana.",
-          href: "/app/ai/cases",
-        }]
+      ? [
+          {
+            id: "agent-cases",
+            label: "Casos da IA aguardando resposta",
+            description: "Casos abertos pela IA que aguardam uma resposta humana.",
+            href: "/app/ai/cases",
+          },
+        ]
       : []),
     {
       id: "tasks",
@@ -110,17 +115,20 @@ export async function loadHomeOverview(
       .eq("status", "open")
       .lt("expected_close_date", until.slice(0, 10)),
     ...(canSeeCases
-      ? [(() => {
-          let query = db
-            .from("agent_cases")
-            .select("id,conversations!inner(assigned_to_user_id)", { count: "exact", head: true })
-            .eq("organization_id", orgId)
-            .eq("conversations.organization_id", orgId)
-            .eq("status", "awaiting_human");
-          if (input.scope === "mine")
-            query = query.eq("conversations.assigned_to_user_id", userId);
-          return query;
-        })()]
+      ? [
+          (() => {
+            let query = db
+              .from("agent_cases")
+              .select("id,conversations!inner(assigned_to_user_id)", { count: "exact", head: true })
+              .abortSignal(signal)
+              .eq("organization_id", orgId)
+              .eq("conversations.organization_id", orgId)
+              .eq("status", "awaiting_human");
+            if (input.scope === "mine")
+              query = query.eq("conversations.assigned_to_user_id", userId);
+            return query;
+          })(),
+        ]
       : []),
     base("crm_tasks", "assigned_to").in("status", ["pending", "in_progress"]).lt("due_date", until),
     base("conversations", "assigned_to_user_id").gte("created_at", since).lte("created_at", until),
@@ -134,6 +142,8 @@ export async function loadHomeOverview(
       .gte("closed_at", since)
       .lte("closed_at", until),
   ]);
+  // Um prazo vencido não é um snapshot parcial: não inicie mais consultas.
+  signal.throwIfAborted();
   const measures = definitions.map((definition, index) => {
     const result = results[index];
     return {
@@ -144,6 +154,7 @@ export async function loadHomeOverview(
   let activityQuery = db
     .from("conversations")
     .select("id,last_message_at,contacts:contact_id!inner(display_name,is_anonymized)")
+    .abortSignal(signal)
     .eq("organization_id", orgId)
     .eq("contacts.is_anonymized", false)
     .not("last_message_at", "is", null)
@@ -163,6 +174,7 @@ export async function loadHomeOverview(
   } catch {
     /* The client renders this section as unavailable, never empty. */
   }
+  signal.throwIfAborted();
   return {
     scope: input.scope,
     canSeeTeam,

@@ -8,6 +8,7 @@ import { safeNext } from "@/lib/auth/safe-next";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, type LoginInput } from "@/lib/auth/schemas";
 import { audit, hashEmail } from "@/lib/audit";
+import { isAuthUnavailable, withAuthDeadline } from "@/lib/auth/availability";
 import {
   authRateLimited,
   contaBloqueadaPorFalhas,
@@ -17,7 +18,7 @@ import {
 
 export type SignInResult = {
   ok: false;
-  error: "invalid_credentials" | "rate_limited" | "validation_error" | "mfa_required";
+  error: "invalid_credentials" | "rate_limited" | "validation_error" | "mfa_required" | "auth_unavailable";
   details?: Record<string, unknown>;
   challengeId?: string;
 };
@@ -65,10 +66,19 @@ export async function signInWithPassword(input: LoginInput, next?: string): Prom
     return { ok: false, error: "rate_limited" };
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
-    password: parsed.data.password,
-  });
+  let result;
+  try {
+    result = await withAuthDeadline(() => supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password,
+    }));
+  } catch {
+    return { ok: false, error: "auth_unavailable" };
+  }
+  const { data, error } = result;
+  if (error?.status === 429) return { ok: false, error: "rate_limited" };
+  // Timeout/503 não é senha errada e não pode bloquear a conta por tentativas.
+  if (isAuthUnavailable(error)) return { ok: false, error: "auth_unavailable" };
 
   if (error || !data.user) {
     // Só senha errada gasta o orçamento da conta.
@@ -88,7 +98,17 @@ export async function signInWithPassword(input: LoginInput, next?: string): Prom
 
   // MFA gating — if the user has any verified TOTP factor enrolled, they must
   // complete the challenge in /login/mfa before reaching the app.
-  const { data: factorsData } = await supabase.auth.mfa.listFactors();
+  // A senha pode consumir quase todo o prazo do primeiro cliente. Um cliente
+  // novo lê o cookie recém-gravado e dá à verificação de MFA seu próprio prazo.
+  const mfaClient = await createClient();
+  let factors;
+  try {
+    factors = await withAuthDeadline(() => mfaClient.auth.mfa.listFactors());
+  } catch {
+    return { ok: false, error: "auth_unavailable" };
+  }
+  const { data: factorsData, error: factorsError } = factors;
+  if (factorsError || !factorsData) return { ok: false, error: "auth_unavailable" };
   const verifiedTotp = factorsData?.totp?.find((f) => f.status === "verified");
   if (verifiedTotp) {
     return { ok: false, error: "mfa_required", challengeId: verifiedTotp.id };

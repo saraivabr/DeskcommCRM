@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { homeInputSchema, loadHomeOverview } from "@/lib/workspace/home";
 function database(failure?: string) {
   const queries: { table: string; calls: unknown[][] }[] = [];
@@ -22,6 +22,7 @@ function database(failure?: string) {
         "neq",
         "order",
         "limit",
+        "abortSignal",
       ])
         q[method] = (...args: unknown[]) => {
           record.calls.push([method, ...args]);
@@ -134,5 +135,80 @@ describe("Home real", () => {
     );
     expect(homeInputSchema.safeParse({ scope: "team", days: 365 }).success).toBe(false);
     expect(homeInputSchema.parse({})).toEqual({ scope: "mine", days: 7 });
+  });
+  it("propaga o mesmo cancelamento para todas as consultas, inclusive atividades", async () => {
+    const { db, queries } = database();
+    const controller = new AbortController();
+    await loadHomeOverview(
+      db,
+      "org",
+      "user",
+      "agent",
+      { scope: "mine", days: 7 },
+      now,
+      controller.signal,
+    );
+    expect(queries).toHaveLength(9);
+    for (const query of queries)
+      expect(query.calls).toContainEqual(["abortSignal", controller.signal]);
+  });
+  it("não inicia consultas depois de cancelada", async () => {
+    const { db, queries } = database();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      loadHomeOverview(
+        db,
+        "org",
+        "user",
+        "agent",
+        { scope: "mine", days: 7 },
+        now,
+        controller.signal,
+      ),
+    ).rejects.toThrow();
+    expect(queries).toHaveLength(0);
+  });
+  it("aborta leituras penduradas pelo SDK e não inicia atividades após o prazo", async () => {
+    const controller = new AbortController();
+    let started = 0;
+    let active = 0;
+    let allStarted!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      allStarted = resolve;
+    });
+    const db = createClient("https://database.example", "test-anon-key", {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: {
+        fetch: async (_url, options) =>
+          new Promise<Response>((_resolve, reject) => {
+            started++;
+            active++;
+            if (started === 8) allStarted();
+            const signal = options?.signal;
+            const abort = () => {
+              active--;
+              reject(signal?.reason);
+            };
+            if (signal?.aborted) abort();
+            else signal?.addEventListener("abort", abort, { once: true });
+          }),
+      },
+    });
+    const result = loadHomeOverview(
+      db,
+      "org",
+      "user",
+      "agent",
+      { scope: "mine", days: 7 },
+      now,
+      controller.signal,
+    );
+    const rejected = expect(result).rejects.toThrow();
+    await ready;
+    controller.abort();
+    await rejected;
+    expect(started).toBe(8);
+    expect(active).toBe(0);
   });
 });
