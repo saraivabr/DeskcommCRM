@@ -121,6 +121,59 @@ begin
     end if;
   end loop;
 
+  -- Seeds use ON CONFLICT DO NOTHING: validate their schema, never their existing data.
+  -- Types/defaults match both the baseline and the recovered installation catalog.
+  for item in select * from (values
+    ('ai_models','id','uuid',true,'gen_random_uuid()'),
+    ('ai_models','provider','text',true,null), ('ai_models','model_id','text',true,null),
+    ('ai_models','display_name','text',true,null), ('ai_models','description','text',false,null),
+    ('ai_models','context_window','integer',false,null),
+    ('ai_models','input_price_per_million_cents','integer',false,null),
+    ('ai_models','output_price_per_million_cents','integer',false,null),
+    ('ai_models','supports_tools','boolean',true,null),
+    ('ai_models','is_default_for_provider','boolean',true,'false'),
+    ('ai_models','metadata','jsonb',true,quote_literal('{}') || '::jsonb'),
+    ('ai_models','source','text',true,quote_literal('manual') || '::text'),
+    ('ai_models','supports_vision','boolean',true,'false'),
+    ('ai_models','supports_embedding','boolean',true,'false'),
+    ('ai_pricing','model','text',true,null),
+    ('ai_pricing','prompt_cents_per_million_tokens','numeric(10,4)',false,null),
+    ('ai_pricing','completion_cents_per_million_tokens','numeric(10,4)',false,null),
+    ('ai_pricing','notes','text',false,null),
+    ('ai_pricing','effective_from','timestamp with time zone',true,'now()')
+  ) as seed_columns(table_name,column_name,type_name,required,default_expr) loop
+    select a.*,c.relkind,pg_catalog.pg_get_expr(d.adbin,d.adrelid) as default_sql into p
+      from pg_catalog.pg_class c join pg_catalog.pg_attribute a on a.attrelid=c.oid
+      left join pg_catalog.pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
+      where c.oid=pg_catalog.to_regclass('public.' || item.table_name)
+        and a.attname=item.column_name and not a.attisdropped;
+    if not found or p.relkind <> 'r'
+      or pg_catalog.format_type(p.atttypid,p.atttypmod) is distinct from item.type_name
+      or p.attnotnull is distinct from item.required or p.attidentity <> '' or p.attgenerated <> ''
+      or (item.default_expr is not null and p.default_sql is distinct from item.default_expr) then
+      raise exception 'Unknown catalog seed column/default: %.%',item.table_name,item.column_name;
+    end if;
+  end loop;
+  for item in select * from (values
+    ('ai_models','ai_models_unique','u',array['provider','model_id']::text[]),
+    ('ai_pricing','ai_pricing_pkey','p',array['model']::text[])
+  ) as seed_keys(table_name,constraint_name,kind,columns) loop
+    select k.*,i.indisunique,i.indisvalid,i.indisready,i.indislive,i.indimmediate,
+      i.indnatts,i.indnkeyatts,i.indpred,i.indexprs into p
+      from pg_catalog.pg_constraint k join pg_catalog.pg_index i on i.indexrelid=k.conindid
+      where k.conrelid=pg_catalog.to_regclass('public.' || item.table_name) and k.conname=item.constraint_name;
+    if not found then raise exception 'Catalog seed conflict key missing: %',item.constraint_name; end if;
+    select array_agg(a.attname::text order by key.ordinal) into names
+      from unnest(p.conkey) with ordinality as key(attnum,ordinal)
+      join pg_catalog.pg_attribute a on a.attrelid=p.conrelid and a.attnum=key.attnum;
+    if p.contype::text <> item.kind or not p.convalidated or p.condeferrable
+      or not p.indisunique or not p.indisvalid or not p.indisready or not p.indislive or not p.indimmediate
+      or p.indnatts <> cardinality(item.columns) or p.indnkeyatts <> p.indnatts
+      or p.indpred is not null or p.indexprs is not null or names is distinct from item.columns then
+      raise exception 'Unknown catalog seed conflict key: %',item.constraint_name;
+    end if;
+  end loop;
+
   sources_present := exists (select 1 from pg_catalog.pg_attribute
     where attrelid = 'public.external_db_connections'::regclass and attname = 'source_mode' and not attisdropped);
   if require_new and not sources_present then raise exception 'Release columns are missing'; end if;
