@@ -11,6 +11,8 @@ export const CRITICAL_UNIT = [
   "tests/unit/billing-route-gates.test.ts",
   "tests/unit/billing-metered-operation.test.ts",
   "tests/unit/production-checks.test.ts",
+  "tests/unit/deploy-irb.test.ts",
+  "tests/unit/worker-shutdown-command.test.ts",
 ];
 export const CRITICAL_DB = [
   "tests/invariants/rls-completude-varredura.test.ts",

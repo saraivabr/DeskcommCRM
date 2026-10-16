@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runInNewContext } from "node:vm";
 import { afterEach, describe, expect, it } from "vitest";
 
 const SHA = "a".repeat(40);
@@ -9,6 +10,7 @@ const APP_DIGEST = `sha256:${"b".repeat(64)}`;
 const WORKER_DIGEST = `sha256:${"c".repeat(64)}`;
 const APP = `ghcr.io/saraivabr/deskcomm-app@${APP_DIGEST}`;
 const WORKER = `ghcr.io/saraivabr/deskcomm-worker@${WORKER_DIGEST}`;
+const DIRECT_WORKER = ["node", "--import", "tsx", "workers/agent-worker/main.ts"];
 const previous = {
   services: {
     app: {
@@ -30,16 +32,31 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-function deployment(failure = "", active = true, args = [SHA, APP_DIGEST, WORKER_DIGEST]) {
+function deployment(
+  failure = "",
+  active = true,
+  args = [SHA, APP_DIGEST, WORKER_DIGEST],
+  options: {
+    command?: string[];
+    entrypoint?: string[];
+    restart?: { Name: string; MaximumRetryCount: number };
+  } = {},
+) {
   const dir = mkdtempSync(join(tmpdir(), "irb-deploy-"));
   dirs.push(dir);
   mkdirSync(join(dir, "bin"));
   mkdirSync(join(dir, "root"));
-  writeFileSync(join(dir, "root", "compose.json"), JSON.stringify(previous));
+  const initial = structuredClone(previous);
+  if (options.command) initial.services.worker.command = options.command;
+  if (options.entrypoint) Object.assign(initial.services.worker, { entrypoint: options.entrypoint });
+  writeFileSync(join(dir, "root", "compose.json"), JSON.stringify(initial));
   if (failure === "config") mkdirSync(join(dir, "root", "compose.json.tmp"));
   writeFileSync(
     join(dir, "state.json"),
-    JSON.stringify({ worker: active, app: true, changed: false }),
+    JSON.stringify({
+      worker: active, workerId: "worker-container", app: true, changed: false,
+      restartPolicy: options.restart ?? { Name: "unless-stopped", MaximumRetryCount: 0 },
+    }),
   );
   writeFileSync(
     join(dir, "bin", "docker"),
@@ -59,19 +76,19 @@ if (args[0] === 'image' && args[1] === 'inspect') {
   const ref = args[2];
   const worker = ref.includes('deskcomm-worker');
   const revision = failure === 'revision' ? 'wrong' : '${SHA}';
-  process.stdout.write(JSON.stringify([{ Id: worker ? 'worker-new-id' : 'app-new-id', RepoDigests: failure === 'digest' ? [] : [ref], Config: { Labels: { 'org.opencontainers.image.revision': revision }, Env: ['APP_VERSION=' + (failure === 'image-version' ? 'wrong' : '${SHA}')] } }]));
+  process.stdout.write(JSON.stringify([{ Id: worker ? 'worker-new-id' : 'app-new-id', RepoDigests: failure === 'digest' ? [] : [ref], Config: { Cmd: worker ? (failure === 'image-command' ? ['pnpm', 'exec', 'tsx', 'workers/agent-worker/main.ts'] : ${JSON.stringify(DIRECT_WORKER)}) : ['node', 'server.js'], Entrypoint: failure === 'image-entrypoint' ? ['custom-wrapper'] : ['docker-entrypoint.sh'], Labels: { 'org.opencontainers.image.revision': revision }, Env: ['APP_VERSION=' + (failure === 'image-version' ? 'wrong' : '${SHA}')] } }]));
   process.exit(0);
 }
 if (args[0] === 'inspect') {
-  const id = args.find((arg) => arg === 'app-container' || arg === 'worker-container');
+  const id = args.find((arg) => ['app-container', 'worker-container', 'worker-new-container', 'worker-restored-container'].includes(arg));
   if (!id) process.exit(1);
-  const worker = id === 'worker-container';
+  const worker = id !== 'app-container';
   const config = JSON.parse(fs.readFileSync(path.join(dir, 'root', 'compose.json'), 'utf8')).services[worker ? 'worker' : 'app'];
   const isNew = config.image.includes('@sha256:');
   const env = { ...config.environment };
   if (worker && isNew && failure === 'worker-version') env.APP_VERSION = 'wrong';
   const exitCode = !state.worker ? (failure === 'forced-stop' ? 137 : failure === 'graceful-timeout' ? 1 : 0) : 0;
-  process.stdout.write(JSON.stringify([{ Image: isNew ? (worker ? 'worker-new-id' : 'app-new-id') : 'previous-id', State: { Running: state[worker ? 'worker' : 'app'], Paused: failure === 'paused', ExitCode: exitCode, OOMKilled: false, Health: { Status: 'healthy' } }, Config: { Labels: { 'org.opencontainers.image.revision': isNew ? '${SHA}' : 'old' }, Env: Object.entries(env).map(([key, value]) => key + '=' + value) } }]));
+  process.stdout.write(JSON.stringify([{ Image: isNew ? (worker ? 'worker-new-id' : 'app-new-id') : 'previous-id', State: { Running: state[worker ? 'worker' : 'app'], Paused: failure === 'paused', ExitCode: exitCode, OOMKilled: failure === 'oom-stop', Health: { Status: 'healthy' } }, HostConfig: { RestartPolicy: state.restartPolicy }, Config: { Cmd: config.command, Entrypoint: config.entrypoint ?? ['docker-entrypoint.sh'], Labels: { 'org.opencontainers.image.revision': isNew ? '${SHA}' : 'old' }, Env: Object.entries(env).map(([key, value]) => key + '=' + value) } }]));
   process.exit(0);
 }
 if (args[0] === 'create') { process.stdout.write('extract-container'); process.exit(0); }
@@ -86,8 +103,19 @@ if (args[0] === 'cp') {
 }
 if (args[0] === 'rm') process.exit(0);
 if (args[0] === 'stop') { fail('stop'); state.worker = false; save(); process.exit(0); }
+if (args[0] === 'update') {
+  const [Name, retries] = args[2].split(':');
+  state.restartPolicy = { Name, MaximumRetryCount: Number(retries || 0) }; save();
+  if (Name === 'no') fail('restart-update');
+  process.exit(0);
+}
+if (args[0] === 'wait') {
+  if (failure === 'legacy-timeout') { setInterval(() => {}, 1000); return; }
+  process.stdout.write(failure === 'forced-stop' ? '137' : failure === 'graceful-timeout' ? '1' : '0');
+  process.exit(0);
+}
 if (args[0] === 'compose') {
-  if (args.includes('ps')) { process.stdout.write(args.at(-1) === 'worker' ? 'worker-container' : 'app-container'); process.exit(0); }
+  if (args.includes('ps')) { process.stdout.write(args.at(-1) === 'worker' ? state.workerId : 'app-container'); process.exit(0); }
   if (args.includes('stop')) { state.worker = false; save(); process.exit(0); }
   if (args.includes('up')) {
     const config = JSON.parse(fs.readFileSync(path.join(dir, 'root', 'compose.json'), 'utf8'));
@@ -96,6 +124,11 @@ if (args[0] === 'compose') {
     if (isNew) fail(services.includes('worker') ? 'worker-up' : 'app-up');
     else fail('rollback');
     for (const service of services) state[service] = true;
+    // Reuse on rollback intentionally does NOT undo docker update.
+    if (services.includes('worker') && (isNew || state.workerId !== 'worker-container')) {
+      state.workerId = isNew ? 'worker-new-container' : 'worker-restored-container';
+      state.restartPolicy = { Name: 'unless-stopped', MaximumRetryCount: 0 };
+    }
     state.changed = isNew;
     save(); process.exit(0);
   }
@@ -150,6 +183,12 @@ if (args[0] === 'exec') {
     process.exit(0);
   }
   if (args.includes('node')) {
+    if (args.includes('inspect')) { fail('legacy-process'); process.stdout.write('{"pid":42,"start":"123"}'); process.exit(0); }
+    if (args.includes('signal')) {
+      fail('stop'); fail('legacy-signal');
+      if (failure !== 'legacy-timeout') state.worker = false;
+      save(); process.exit(0);
+    }
     if (failure === 'worker-health') process.exit(1);
     process.exit(0);
   }
@@ -175,7 +214,8 @@ process.stdout.write(JSON.stringify({ data: { status: 'healthy', version: proces
     .replaceAll("/opt/escreveai", join(dir, "root"))
     .replace("/run/lock/escreveai-deploy.lock", join(dir, "deploy.lock"))
     // Accelerate polling only; the deployed health/identity functions stay intact.
-    .replace("for attempt in {1..40}", "for attempt in {1..2}");
+    .replace("for attempt in {1..40}", "for attempt in {1..2}")
+    .replace("timeout=int(sys.argv[2])", "timeout=min(1, int(sys.argv[2]))");
   writeFileSync(join(dir, "deploy.sh"), script);
   const result = spawnSync("bash", [join(dir, "deploy.sh"), ...args], {
     encoding: "utf8",
@@ -214,6 +254,43 @@ process.stdout.write(JSON.stringify({ data: { status: 'healthy', version: proces
 }
 
 describe("IRB deploy executes the approved app and worker together", () => {
+  it("keeps docker stop for the direct Node command without changing restart policy", () => {
+    const proof = deployment("", true, undefined, { command: DIRECT_WORKER });
+    expect(proof.result.status, proof.result.stderr).toBe(0);
+    expect(proof.calls.some((call) => call[0] === "stop")).toBe(true);
+    expect(proof.calls.some((call) => call[0] === "update" || call.includes("signal"))).toBe(false);
+  });
+  it.each([
+    { command: ["node", "custom-worker.js"] },
+    { entrypoint: ["custom-wrapper"] },
+  ])("rejects custom worker execution before stopping or changing it", (options) => {
+    const proof = deployment("", true, undefined, options);
+    expect(proof.result.status).not.toBe(0);
+    expect(proof.state.worker).toBe(true);
+    expect(proof.calls.some((call) => call[0] === "stop" || call[0] === "update" || call.includes("signal"))).toBe(false);
+    if (options.command) expect(proof.config.services.worker.command).toEqual(options.command);
+    if (options.entrypoint) expect(proof.config.services.worker.entrypoint).toEqual(options.entrypoint);
+  });
+  it("restores on-failure retries explicitly when rollback reuses the stopped legacy container", () => {
+    const restart = { Name: "on-failure", MaximumRetryCount: 7 };
+    const proof = deployment("sql", true, undefined, { restart });
+    expect(proof.result.status).not.toBe(0);
+    expect(proof.state.restartPolicy).toEqual(restart);
+    expect(proof.calls).toContainEqual(["update", "--restart", "on-failure:7", "worker-container"]);
+    const restore = proof.calls.findIndex((call) => call[0] === "update" && call[2] === "on-failure:7");
+    const resume = proof.calls.findIndex((call) => call.includes("up") && call.includes("worker"));
+    expect(restore).toBeLessThan(resume);
+    expect(proof.state.worker).toBe(true);
+  });
+  it("restores the captured runtime policy after rollback recreates the worker with another ID", () => {
+    const restart = { Name: "on-failure", MaximumRetryCount: 7 };
+    const proof = deployment("worker-health", true, undefined, { restart });
+    expect(proof.result.status).not.toBe(0);
+    expect(proof.state.workerId).toBe("worker-restored-container");
+    expect(proof.state.restartPolicy).toEqual(restart);
+    expect(proof.calls).toContainEqual(["update", "--restart", "on-failure:7", "worker-restored-container"]);
+    expect(proof.state.worker).toBe(true);
+  });
   it("rejects mutable or malformed arguments before touching Docker", () => {
     for (const args of [
       ["latest", APP_DIGEST, WORKER_DIGEST],
@@ -231,6 +308,9 @@ describe("IRB deploy executes the approved app and worker together", () => {
     "digest",
     "revision",
     "image-version",
+    "image-command",
+    "image-entrypoint",
+    "legacy-process",
     "migration",
     "native-migration",
     "privacy-migration",
@@ -257,6 +337,10 @@ describe("IRB deploy executes the approved app and worker together", () => {
     "stop",
     "forced-stop",
     "graceful-timeout",
+    "oom-stop",
+    "legacy-signal",
+    "legacy-timeout",
+    "restart-update",
     "sql",
     "native-sql",
     "privacy-sql",
@@ -283,9 +367,10 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expect(proof.config).toEqual(previous);
     expect(proof.state.worker).toBe(true);
     expect(proof.state.app).toBe(true);
+    expect(proof.state.restartPolicy).toEqual({ Name: "unless-stopped", MaximumRetryCount: 0 });
     expect(proof.calls.some((call) => call.includes("up") && call.includes("worker"))).toBe(true);
     expect(proof.result.stderr).toContain("restoring previous app and worker");
-    if (["forced-stop", "graceful-timeout"].includes(failure))
+    if (["forced-stop", "graceful-timeout", "oom-stop", "legacy-signal", "legacy-timeout", "restart-update"].includes(failure))
       expect(proof.sql).not.toContain("create function public.automatico_da_prospeccao");
   });
   it("extracts reviewed 0415–0418 without starting the container, drains the worker and preserves unrelated configuration", () => {
@@ -296,9 +381,12 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expected.services.worker.image = WORKER;
     expected.services.app.environment.APP_VERSION = SHA;
     expected.services.worker.environment.APP_VERSION = SHA;
+    expected.services.worker.command = DIRECT_WORKER;
     expect(proof.config).toEqual(expected);
     expect(proof.calls.some((call) => call[0] === "start" || call[0] === "run")).toBe(false);
-    const paused = proof.calls.findIndex((call) => call[0] === "stop");
+    const paused = proof.calls.findIndex((call) => call.includes("signal"));
+    expect(proof.calls.some((call) => call[0] === "stop")).toBe(false);
+    expect(proof.calls.findIndex((call) => call[0] === "update" && call[2] === "no")).toBeLessThan(paused);
     const applied = proof.calls.findIndex((call) => call.includes("psql") && call.includes("-1"));
     const appUp = proof.calls.findIndex((call) => call.includes("up") && call.includes("app"));
     expect(paused).toBeLessThan(applied);
@@ -358,7 +446,7 @@ describe("IRB deploy executes the approved app and worker together", () => {
       "missing",
       "ready",
     ]);
-    const stopped = proof.calls.findIndex((call) => call[0] === "stop");
+    const stopped = proof.calls.findIndex((call) => call.includes("signal"));
     const applied = proof.calls.findIndex((call) => call.includes("psql") && call.includes("-1"));
     const appUp = proof.calls.findIndex((call) => call.includes("up") && call.includes("app"));
     expect(stopped).toBeLessThan(applied);
@@ -380,6 +468,61 @@ describe("IRB deploy executes the approved app and worker together", () => {
     expect(proof.result.stderr).not.toContain(
       "Previous configuration and worker running state restored",
     );
+  });
+});
+
+describe("legacy shutdown identifies the complete process chain", () => {
+  const helper = readFileSync("scripts/deploy-irb.sh", "utf8")
+    .split("<<'LEGACY'\n")[1].split("\nLEGACY\n")[0];
+  const worker = "workers/agent-worker/main.ts";
+  function processes() {
+    return new Map([
+      [1, { args: ["node", "/usr/local/bin/pnpm", "exec", "tsx", worker], parent: 0, start: "10" }],
+      [18, { args: ["node", "./node_modules/.bin/../tsx/dist/cli.mjs", worker], parent: 1, start: "20" }],
+      [34, { args: ["/usr/local/bin/node", "--require", "/app/node_modules/.pnpm/tsx@4/node_modules/tsx/dist/preflight.cjs", "--import", "file:///app/node_modules/.pnpm/tsx@4/node_modules/tsx/dist/loader.mjs", worker], parent: 18, start: "30" }],
+    ]);
+  }
+  function execute(tree: ReturnType<typeof processes>, mode = "inspect", expected = "") {
+    let output = "";
+    const signals: { pid: number; signal: string }[] = [];
+    const fs = {
+      readdirSync: () => [...tree.keys()].map(String),
+      readlinkSync: (file: string) => file.endsWith("/cwd") ? "/app" : "/usr/local/bin/node",
+      readFileSync: (file: string) => {
+        const [, , id, name] = file.split("/");
+        const process = tree.get(Number(id));
+        if (!process) throw new Error("missing process");
+        if (name === "cmdline") return process.args.join("\0") + "\0";
+        const stat = Array<string>(20).fill("0");
+        stat[0] = "S"; stat[1] = String(process.parent); stat[19] = process.start;
+        return `${id} (node) ${stat.join(" ")}`;
+      },
+    };
+    runInNewContext(helper, {
+      require: (name: string) => name === "node:fs" ? fs : { basename: (value: string) => value.split("/").at(-1), resolve: (...parts: string[]) => join(...parts) },
+      process: { argv: ["node", "-", mode, expected], stdout: { write: (value: string) => { output += value; } }, kill: (pid: number, signal: string) => signals.push({ pid, signal }) },
+    });
+    return { output, signals };
+  }
+  it("signals only the verified final Node, never pnpm or tsx", () => {
+    const tree = processes();
+    const identity = execute(tree).output;
+    expect(execute(tree, "signal", identity).signals).toEqual([{ pid: 34, signal: "SIGTERM" }]);
+  });
+  it.each(["missing", "ambiguous", "foreign-parent", "custom-root", "wrong-script"])("rejects %s process trees", (change) => {
+    const tree = processes();
+    if (change === "missing") tree.delete(34);
+    if (change === "ambiguous") tree.set(35, { ...tree.get(34)! });
+    if (change === "foreign-parent") tree.get(18)!.parent = 99;
+    if (change === "custom-root") tree.get(1)!.args[1] = "/usr/local/bin/custom";
+    if (change === "wrong-script") tree.get(34)!.args[5] = "other-worker.ts";
+    expect(() => execute(tree)).toThrow();
+  });
+  it("rejects PID reuse between discovery and signalling", () => {
+    const tree = processes();
+    const identity = execute(tree).output;
+    tree.get(34)!.start = "changed";
+    expect(() => execute(tree, "signal", identity)).toThrow("changed before shutdown");
   });
 });
 

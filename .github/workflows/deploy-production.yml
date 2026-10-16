@@ -117,6 +117,10 @@ jobs:
           ! grep -qE 'event-log drain OFF|Cannot find module|ERR_MODULE_NOT_FOUND|Cannot use import statement|SyntaxError|is not a function|Failed to resolve' worker-boot.log
           grep -qE 'boot falhou:.*ECONNREFUSED.*127.0.0.1:1' worker-boot.log
           echo 'Worker carregou o CMD e recusou apenas o banco isolado esperado.'
+      - name: Provar parada gradual do CMD do worker sem rede
+        env:
+          WORKER_DIGEST: ${{ steps.build-worker.outputs.digest }}
+        run: bash scripts/provar-parada-worker.sh "ghcr.io/saraivabr/deskcomm-worker@$WORKER_DIGEST"
 
   deploy:
     name: Validar revisão e publicar no IRB
@@ -177,7 +181,7 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "$IMAGE_TAG $IMAGE_DIGEST $WORKER_DIGEST"
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 -o ServerAliveInterval=20 -o ServerAliveCountMax=15 -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "$IMAGE_TAG $IMAGE_DIGEST $WORKER_DIGEST"
       - name: Validar Saude em Producao (Smoke Test)
         run: |
           echo "Consultando health check publico..."
