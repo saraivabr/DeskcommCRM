@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { GOV_CONTACT_1, GOV_CONV_UNASSIGNED, GOV_ORG, lastLine, seedGov, sql } from "./gov-helpers";
+import { GOV_CONTACT_1, GOV_ORG, lastLine, seedGov, sql } from "./gov-helpers";
 
 const dir = mkdtempSync(join(tmpdir(), "release-db-"));
 const CONNECTION = "42430000-0000-4000-8000-000000000001";
@@ -29,13 +29,6 @@ describe.sequential("release estável: estado conhecido, transação e reaplica�
     // Confirm that the fresh, current baseline is also an accepted starting point.
     expect(lastLine(sql(preflight))).toBe("ready");
     sql(`
-      drop trigger trg_conversa_calcula_trava_do_contato on public.conversations;
-      drop trigger trg_contato_atualiza_trava_nas_conversas on public.contacts;
-      drop function public.fn_conversa_calcula_trava_do_contato();
-      drop function public.fn_contato_atualiza_trava_nas_conversas();
-      drop function public.comando_da_conversa(public.conversations);
-      alter table public.conversations drop column contato_trava_humano;
-      drop index public.conversations_contact_id_idx;
       drop index public.idx_send_ledger_contato_entregue;
       drop index public.idx_llm_calls_job_id;
       drop index public.idx_lead_checkpoints_job_id;
@@ -44,8 +37,6 @@ describe.sequential("release estável: estado conhecido, transação e reaplica�
       drop view public.external_db_connections_safe;
       alter table public.external_db_connections drop column source_mode, drop column sources;
       ${readFileSync("tests/fixtures/upstream-release-previous.sql", "utf8")}
-      revoke execute on function public.comando_da_conversa(public.conversations) from public, anon;
-      grant execute on function public.comando_da_conversa(public.conversations) to authenticated, service_role;
       revoke all on public.external_db_connections_safe from anon;
       grant select on public.external_db_connections_safe to authenticated;
       update public.contacts set force_human=true where id='${GOV_CONTACT_1}';
@@ -56,11 +47,10 @@ describe.sequential("release estável: estado conhecido, transação e reaplica�
     expect(lastLine(sql(preflight))).toBe("ready");
     expect(() => atomic(apply.replace("insert into escreveai_ops.schema_releases", "select 1/0;\ninsert into escreveai_ops.schema_releases"))).toThrow();
     expect(lastLine(sql("select to_regclass('escreveai_ops.schema_releases') is null;"))).toBe("t");
-    expect(lastLine(sql("select count(*) from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='contato_trava_humano';"))).toBe("0");
+    expect(lastLine(sql("select count(*) from information_schema.columns where table_schema='public' and table_name='external_db_connections' and column_name='source_mode';"))).toBe("0");
     expect(lastLine(sql(`select force_human from public.contacts where id='${GOV_CONTACT_1}';`))).toBe("t");
     expect(lastLine(atomic(apply))).toBe("ready");
     expect(lastLine(sql(verify))).toBe("ready");
-    expect(lastLine(sql(`select contato_trava_humano from public.conversations where id='${GOV_CONV_UNASSIGNED}';`))).toBe("t");
     expect(lastLine(sql(`select source_mode || '|' || sources::text from public.external_db_connections where id='${CONNECTION}';`))).toBe("all|[]");
     const before = lastLine(sql("select checksum || '|' || applied_at::text from escreveai_ops.schema_releases;"));
     expect(lastLine(atomic(apply))).toBe("ready");
@@ -69,11 +59,11 @@ describe.sequential("release estável: estado conhecido, transação e reaplica�
   });
 
   it.each([
-    ["corpo desconhecido", "create or replace function public.comando_da_conversa(public.conversations) returns text language sql stable security definer set search_path=public as $$ select 'unknown'::text $$;"],
-    ["acesso anon", "grant execute on function public.comando_da_conversa(public.conversations) to anon;"],
+    ["corpo desconhecido", "create or replace function public.fn_attendant_metrics(p_org uuid,p_from timestamptz,p_to timestamptz,p_owner uuid default null) returns jsonb language sql stable set search_path=public as $$ select '{}'::jsonb $$;"],
+    ["acesso anon", "grant execute on function public.fn_attendant_metrics(uuid,timestamptz,timestamptz,uuid) to anon;"],
     ["índice incompatível", "drop index public.idx_llm_calls_job_id; create index idx_llm_calls_job_id on public.llm_calls(organization_id);"],
     ["view sem RLS invoker", "alter view public.external_db_connections_safe set (security_invoker=false);"],
-    ["gatilho ausente", "drop trigger trg_conversa_calcula_trava_do_contato on public.conversations;"],
+    ["default alterado", "alter table public.external_db_connections alter column source_mode set default 'list';"],
     ["journal exposto", "grant usage on schema escreveai_ops to service_role; grant select on escreveai_ops.schema_releases to service_role;"],
     ["checksum diferente", "update escreveai_ops.schema_releases set checksum=repeat('0',64);"],
   ])("recusa %s sem adotar ou sobrescrever o estado", (_name, sabotage) => {

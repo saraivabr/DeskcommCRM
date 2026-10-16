@@ -1,25 +1,6 @@
 -- Reviewed pre-release function/view definitions from immutable 7c4e885.
 -- Test fixture only: never applied to production by the release builder.
 
-create or replace function public.comando_da_conversa(c public.conversations)
-returns text
-language sql
-stable
-set search_path = public
-as $comando$
-  select public.fn_comando_da_conversa(
-    c.status,
-    c.assigned_to_user_id,
-    c.bot_silenced_until,
-    -- `coalesce` porque `contact_id` é anulável no schema: contato ausente não pode
-    -- virar `null` e derrubar a linha inteira para fora de todo filtro — o efeito
-    -- seria uma conversa invisível em TODAS as abas.
-    coalesce((select ct.force_human from public.contacts ct where ct.id = c.contact_id), false),
-    coalesce((select ct.is_blocked  from public.contacts ct where ct.id = c.contact_id), false),
-    now()
-  );
-$comando$;
-
 create or replace function public.fn_attendant_metrics(
   p_org uuid,
   p_from timestamptz,

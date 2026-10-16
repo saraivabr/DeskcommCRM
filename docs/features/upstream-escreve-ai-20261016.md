@@ -34,20 +34,23 @@ O envio consulta o histórico somente no replay de uma chave existente, preserva
 ledger de idempotência e procura a mensagem pela chave primária antes do formato
 legado. A saúde do worker conta somente jobs ativos.
 
-As migrations próprias 0420–0422 acrescentam índices e removem consultas repetidas:
+As migrations próprias 0420 e 0422 acrescentam índices e removem consultas repetidas:
 
 - 0420: índices de send_ledger por contato, métricas por job e eventos em processamento.
-- 0421: trava do contato mantida por gatilhos na conversa; atualização direta do bit
-  é recalculada, o tenant é conferido e a expiração do silêncio continua pelo relógio.
 - 0422: métricas de atendentes recortam candidatas pelo período antes de consultar
   mensagens. A saída e a RLS são preservadas e comparadas com a função anterior.
 
-Estas são mudanças de leitura e manutenção derivada. Não geram mensagens nem
+Estas são mudanças de leitura e indexação. Não geram mensagens nem
 mudam o encaminhamento IA↔humano: a Inbox, fila e métricas são os consumidores dos
 mesmos estados. Falhas de acesso e consulta continuam visíveis pelas superfícies
-existentes. O mapa de entrada e saída é: contato → gatilhos → conversa → Inbox/fila;
-mensagens → recorte por período → métricas de atendentes; política → sessão → tela
-Segurança e auditoria.
+existentes. O mapa de entrada e saída é: mensagens → recorte por período → métricas
+de atendentes; política → sessão → tela Segurança e auditoria.
+
+A otimização de cache do controle da conversa (0421, ainda não publicada) foi
+retirada da seleção após a revisão encontrar uma corrida entre criar/trocar uma
+conversa e alterar a trava humana do contato. O wrapper existente continua lendo
+o contato diretamente. As sete áreas do escopo permanecem representadas; essa
+otimização só poderá voltar com uma solução de concorrência comprovada.
 
 ## Banco e publicação
 

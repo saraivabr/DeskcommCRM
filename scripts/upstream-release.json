@@ -7,10 +7,6 @@
       "sha256": "6cc457e08b8051b01166231883ec26af0105744b7da22a893ed5f7a9eed60837"
     },
     {
-      "file": "20261016082100_0421_o_comando_da_conversa_le_o_bit_do_contato.sql",
-      "sha256": "d98b800f7d31678490c4f71055c35c881a68555ea85aa3468d5a620e7b135d8f"
-    },
-    {
       "file": "20261016082200_0422_recorte_da_janela_nas_metricas.sql",
       "sha256": "a8bf9f67ffbe5a44b6bbf38cf24a1f1702efd723e44967240fd69edc5858c3ca"
     },
