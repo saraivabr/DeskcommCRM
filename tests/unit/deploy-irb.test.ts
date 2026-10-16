@@ -472,8 +472,12 @@ describe("IRB deploy executes the approved app and worker together", () => {
 });
 
 describe("legacy shutdown identifies the complete process chain", () => {
-  const helper = readFileSync("scripts/deploy-irb.sh", "utf8")
-    .split("<<'LEGACY'\n")[1].split("\nLEGACY\n")[0];
+  const helper = (() => {
+    const source = readFileSync("scripts/deploy-irb.sh", "utf8")
+      .split("<<'LEGACY'\n")[1]?.split("\nLEGACY\n")[0];
+    if (!source) throw new Error("Legacy shutdown helper is missing");
+    return source;
+  })();
   const worker = "workers/agent-worker/main.ts";
   function processes() {
     return new Map([
