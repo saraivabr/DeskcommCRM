@@ -461,3 +461,4 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 | `20261016082100` | `0421_o_comando_da_conversa_le_o_bit_do_contato` | Inbox lê a trava do contato na conversa, mantida por gatilhos; tenant e expiração do silêncio preservados. Port b72161cd0/8b92355f9 adaptado à regra escreve.ai. |
 
 | `20261016082200` | `0422_recorte_da_janela_nas_metricas` | Métricas de atendentes recortam candidatas antes de ler mensagens, preservando resultados e RLS. Port upstream 7a640ee26. |
+| `20261016143000` | `0430_banco_externo_fontes_liberadas` | Tabelas/views e colunas permitidas por conexão; view segura mantém RLS e só expõe contagem. Port do upstream PR #2634, sem alterar migrations aplicadas. |

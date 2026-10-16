@@ -898,6 +898,7 @@ export const AUDIT_ACTIONS = [
   "meta.operation_checkpointed",
   "meta.campaign_draft_updated",
   "meta.campaign_approved",
+  "external_db_sources.updated",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

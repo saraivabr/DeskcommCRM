@@ -603,6 +603,7 @@ jobs:
       # pela própria spec, em loopback, com SQLite e PID exclusivos.
       EXTENSIONS_LOCAL_CATALOG_ORIGIN: "http://127.0.0.1:56331"
       SPECS_PARTE_1: >-
+        integracao-dados-fontes-liberadas.spec.ts
         instagram-social.spec.ts
         meta-native-connections.spec.ts
         meta-native-ads.spec.ts
