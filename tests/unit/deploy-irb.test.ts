@@ -275,8 +275,10 @@ describe("IRB deploy executes the approved app and worker together", () => {
     const transactions = proof.calls.map((call, i) => ({ call, i }))
       .filter(({ call }) => call.includes("psql") && call.includes("-1"));
     expect(transactions).toHaveLength(1);
-    expect(transactions[0].i).toBeGreaterThan(pause);
-    expect(transactions[0].i).toBeLessThan(proof.calls.findIndex((call) => call.includes("up")));
+    const transaction = transactions[0];
+    if (!transaction) throw new Error("Expected the release transaction before changing images");
+    expect(transaction.i).toBeGreaterThan(pause);
+    expect(transaction.i).toBeLessThan(proof.calls.findIndex((call) => call.includes("up")));
     expect(proof.sql).toContain("-- escreve.ai stable release preflight");
     expect(proof.sql).toContain("escreveai_ops.schema_releases");
     expect(proof.sql).toContain("-- escreve.ai stable release verify");

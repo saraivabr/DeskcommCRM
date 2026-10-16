@@ -42,13 +42,14 @@ describe("pacote explícito da atualização estável", () => {
 
   it.each(["checksum", "path", "duplicate", "order", "empty", "transaction"])("recusa %s antes de produzir SQL executável", (fault) => {
     const { root, manifest, run } = fixture();
-    if (fault === "checksum") manifest.migrations[0].sha256 = "0".repeat(64);
-    if (fault === "path") manifest.migrations[0].file = "../../baseline.sql";
-    if (fault === "duplicate") manifest.migrations.push(manifest.migrations[0]);
+    const entry = manifest.migrations[0];
+    if (!entry) throw new Error("O manifesto da fixture precisa conter uma migration para testar recusas");
+    if (fault === "checksum") entry.sha256 = "0".repeat(64);
+    if (fault === "path") entry.file = "../../baseline.sql";
+    if (fault === "duplicate") manifest.migrations.push(entry);
     if (fault === "order") manifest.migrations.reverse();
     if (fault === "empty") manifest.migrations = [];
     if (fault === "transaction") {
-      const entry = manifest.migrations[0];
       const content = "COMMIT;\nselect 'must not escape outer transaction';\n";
       writeFileSync(join(root, "supabase/migrations", entry.file), content);
       entry.sha256 = createHash("sha256").update(content).digest("hex");
