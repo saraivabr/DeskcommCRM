@@ -4,12 +4,12 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { Providers } from "@/app/providers";
-import { createClient, resetRealtimeAuthentication } from "@/lib/supabase/browser";
+import { resetRealtimeAuthentication } from "@/lib/supabase/browser";
+import { apiClient } from "@/lib/api/client";
 import type { AuthUser, ActiveOrg, Role } from "@/lib/auth/types";
 import { ROLE_RANK } from "@/lib/auth/types";
 
@@ -33,7 +33,6 @@ export function AuthProvider({
   children: ReactNode;
 }) {
   const [refreshing, setRefreshing] = useState(false);
-  const supabaseRef = useRef(createClient());
 
   useEffect(() => {
     resetRealtimeAuthentication();
@@ -54,20 +53,34 @@ export function AuthProvider({
     return () => clearInterval(timer);
   }, [user.support]);
 
-  // Refresh session every 40 minutes (JWT default 1h, with margin).
+  // O browser não lê o cookie HttpOnly: refreshSession() local sempre ficava
+  // sem sessão. A mesma origem permite ao proxy/servidor renovar o cookie.
   useEffect(() => {
-    const interval = setInterval(
-      async () => {
-        setRefreshing(true);
-        try {
-          await supabaseRef.current.auth.refreshSession();
-        } finally {
-          setRefreshing(false);
-        }
-      },
-      40 * 60 * 1000,
-    );
-    return () => clearInterval(interval);
+    const controller = new AbortController();
+    let checking = false;
+    let lastCheck = Date.now();
+    const check = async () => {
+      if (checking || document.visibilityState === "hidden" || Date.now() - lastCheck < 5 * 60_000) return;
+      checking = true;
+      lastCheck = Date.now();
+      setRefreshing(true);
+      try {
+        await apiClient.get("/api/v1/auth/session", { signal: controller.signal });
+      } catch {
+        // 401 real já encaminha ao login no apiClient. Indisponibilidade não
+        // apaga a sessão; o próximo intervalo/retorno à aba tenta novamente.
+      } finally {
+        checking = false;
+        if (!controller.signal.aborted) setRefreshing(false);
+      }
+    };
+    const interval = setInterval(() => { void check(); }, 5 * 60_000);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", check);
+    };
   }, []);
 
   const value = useMemo<AuthCtx>(

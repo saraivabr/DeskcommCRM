@@ -45,7 +45,7 @@ describe("o verificador de PKCE da entrada com Google viaja de volta", () => {
     );
     // E o cliente de sempre continua Strict: o que fica frouxo é o verificador
     // de uso único, nunca o cookie de sessão.
-    expect(FONTE_DO_CLIENTE).toMatch(/export async function createClient\(\)[\s\S]{0,120}?"strict"/);
+    expect(FONTE_DO_CLIENTE).toMatch(/export async function createClient\([^)]*\)[\s\S]{0,120}?"strict"/);
   });
 
   it("a action de ida usa esse cliente — e não o de sessão", () => {

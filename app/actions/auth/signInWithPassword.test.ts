@@ -81,4 +81,28 @@ describe("signInWithPassword — teto de tentativas", () => {
     expect(resultados.filter((r) => r?.error === "rate_limited")).toHaveLength(0);
     expect(signIn).toHaveBeenCalledTimes(10);
   });
+
+  it("instabilidade do provedor não gasta as cinco falhas de senha da conta", async () => {
+    const { signInWithPassword } = await import("./signInWithPassword");
+    const input = { email: "indisponivel@example.com", password: "senha-certa-123" };
+    signIn.mockResolvedValue({ data: { user: null, session: null }, error: { status: 504, message: "private upstream details" } } as never);
+    for (let i = 0; i < 6; i++) {
+      expect(await signInWithPassword(input)).toEqual({ ok: false, error: "auth_unavailable" });
+    }
+    // Depois de seis falhas da infraestrutura, todas as cinco tentativas reais
+    // de senha continuam disponíveis; a sexta senha errada ainda bloqueia.
+    signIn.mockResolvedValue({ data: { user: null, session: null }, error: { status: 400, message: "Invalid login credentials" } } as never);
+    for (let i = 0; i < 5; i++) {
+      expect((await signInWithPassword(input)).error).toBe("invalid_credentials");
+    }
+    expect((await signInWithPassword(input)).error).toBe("rate_limited");
+  });
+
+  it("senha válida com leitura de MFA indisponível não confirma login nem dispensa fator", async () => {
+    const { signInWithPassword } = await import("./signInWithPassword");
+    signIn.mockResolvedValue({ data: { user: { id: "u1" }, session: {} }, error: null } as never);
+    const client = await createClient();
+    vi.mocked(client.auth.mfa.listFactors).mockResolvedValue({ data: null, error: { status: 503, message: "unavailable" } } as never);
+    expect(await signInWithPassword({ email: "mfa-indisponivel@example.com", password: "senha-certa-123" })).toEqual({ ok: false, error: "auth_unavailable" });
+  });
 });

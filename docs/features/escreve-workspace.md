@@ -14,6 +14,10 @@ A conversa permanece em memória enquanto a pessoa navega no aplicativo; trocar 
 
 ## Interface
 
+A visão geral lê `GET /api/v1/workspace/home` com os parâmetros validados de escopo e período. Organização, pessoa e papel vêm da sessão, com os mesmos filtros e RLS das consultas anteriores. A leitura pode ser cancelada no navegador e tem prazo no servidor; o controle de cada tentativa impede que uma resposta antiga substitua a mais recente. Ao esgotar a espera, a tela apresenta uma mensagem e libera Atualizar. A recuperação não fica atrás de uma Server Action pendurada na fila de ações do navegador.
+
+A verificação de identidade e permissões distingue sessão inválida de serviço indisponível. Falhas temporárias retornam `503 auth_unavailable`, `Retry-After: 2` e `Cache-Control: no-store`; o proxy oferece uma página de nova tentativa sem consultar o layout ou apagar o cookie. Leituras de autorização têm prazo de oito segundos. O navegador consulta `GET /api/v1/auth/session` na mesma origem a cada cinco minutos com a aba visível, também ao retornar a ela quando o intervalo venceu. Assim, o servidor pode renovar o cookie HttpOnly. Um `401` de sessão expirada leva à entrada com destino interno preservado. O cliente repete somente GET em `429/502/503/504`, até três tentativas; uma espera solicitada acima de cinco segundos devolve o erro imediatamente. POST/PATCH/PUT/DELETE não são repetidos automaticamente.
+
 No campo de pergunta, Enter envia e Shift+Enter quebra a linha. A confirmação de composição de texto (IME) não envia a pergunta.
 
 Manrope é a fonte da interface e IBM Plex Mono permanece para dados técnicos. A casca tem tokens neutros locais, conserva o destaque da marca e respeita o branding personalizado. Ícones Phosphor na navegação e GSAP para recolher a barra e entrar na tela. `prefers-reduced-motion` desliga os movimentos. O histórico e os controles continuam utilizáveis por teclado.
@@ -33,8 +37,11 @@ O drawer sugere o recorte pela área: Inbox → conversas, Funis → oportunidad
 - Pendências operacionais: não cria tarefas ou demandas; não há novo fluxo de handoff/expiração.
 - Configuração: modelo, credenciais e orçamento permanecem na configuração de IA existente; falta de configuração aparece como falha recuperável.
 - Laço de retorno: erro de consulta mantém a pergunta para corrigir ou tentar novamente; a pessoa verifica a fonte. Leitura pura não cria aprendizado ou alteração automática de dados.
+- Recuperação dos indicadores: `WorkspaceOverview` cancela a tentativa vencida e permite nova consulta; a rota interrompe as leituras do banco e devolve o erro de autenticação sem substituir indisponibilidade por sessão expirada.
 - Mapa: `docs/architecture/escreve-workspace.architecture.json`.
 
 ## Validação local
 
 Os testes de unidade `workspace-assistant`, `workspace-action` e `workspace-context` cobrem permissões, escopo por organização, histórico, fontes inválidas, erros, teclado/IME e ditado controlado. Voz nesses testes usa um reconhecimento simulado; não prova o serviço de voz de cada navegador. O provedor externo precisa de credencial válida para uma resposta gerada real; a suíte de unidade isola esse serviço, e não constitui prova de geração ao vivo.
+
+`tests/journeys/ci-smoke.spec.ts` exercita a Home no navegador com sessão e banco reais do ambiente descartável do CI: consulta presa, prazo esgotado, nova tentativa e entrada após remoção dos cookies de teste. Os testes `workspace-home` cobrem também resultados tardios e cancelamento. Consulte a execução do CI da revisão para o resultado; a existência dos testes não é uma declaração de aprovação.

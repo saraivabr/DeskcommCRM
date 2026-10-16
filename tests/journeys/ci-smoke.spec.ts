@@ -27,6 +27,7 @@ test("sessão real protege API e abre Home, cobrança e Studio sem gerar conteú
 
   await page.goto("/app");
   await expect(page.getByRole("heading", { name: "Visão geral", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Atualizar operação" })).toBeEnabled();
   const signedIn = await page.request.get("/api/v1/instagram");
   expect(signedIn.status()).toBe(200);
   expect((await signedIn.json()).data).toMatchObject({ items: [], can_create: true });
@@ -46,4 +47,59 @@ test("sessão real protege API e abre Home, cobrança e Studio sem gerar conteú
   await page.screenshot({ path: testInfo.outputPath("studio-sem-geracao.png"), fullPage: true });
   expect(generations).toBe(0);
   expect(backendErrors).toEqual([]);
+});
+
+test("Home interrompe consulta presa, recupera pelo botão e volta ao destino após sessão expirada", async ({
+  page,
+  context,
+}, testInfo) => {
+  await page.goto("/login");
+  await page.locator("#email").fill(process.env.OWNER_EMAIL!);
+  await page.locator("#password").fill(process.env.OWNER_PASSWORD!);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await expect(page).toHaveURL(/\/app(?:\/|$)/);
+  await expect(page.getByRole("button", { name: "Atualizar operação" })).toBeEnabled();
+  await page.clock.install();
+
+  let calls = 0;
+  let release: (() => void) | undefined;
+  const stalled = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/v1/workspace/home?*", async (route) => {
+    calls++;
+    if (calls === 1) {
+      await stalled;
+      await route.abort().catch(() => undefined);
+      return;
+    }
+    await route.continue();
+  });
+  try {
+    await page.goto("/app");
+    await expect.poll(() => calls).toBe(1);
+    const refresh = page.getByRole("button", { name: "Atualizar operação" });
+    await expect(refresh).toBeDisabled();
+    // Avança somente o relógio da página; a sessão e o banco continuam reais.
+    await page.clock.fastForward(21_000);
+    await expect(refresh).toBeEnabled();
+    await expect(page.getByRole("alert")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("home-consulta-interrompida.png"), fullPage: true });
+    await refresh.click();
+    await expect.poll(() => calls).toBeGreaterThan(1);
+    await expect(refresh).toBeEnabled();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    expect(new URL(page.url()).pathname).toBe("/app");
+
+    // Expiração real no navegador de teste: o próximo GET deve sair do shell.
+    await context.clearCookies();
+    await refresh.click();
+    await expect(page).toHaveURL(/\/login\?next=%2Fapp$/);
+    await page.locator("#email").fill(process.env.OWNER_EMAIL!);
+    await page.locator("#password").fill(process.env.OWNER_PASSWORD!);
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    await expect(page).toHaveURL(/\/app$/);
+    await expect(page.getByRole("button", { name: "Atualizar operação" })).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath("home-recuperada.png"), fullPage: true });
+  } finally {
+    release?.();
+  }
 });

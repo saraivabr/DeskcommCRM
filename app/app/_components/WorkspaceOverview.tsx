@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { useT } from "@/hooks/i18n/useT";
 import styles from "./workspace-home.module.css";
-import { getHomeOverview } from "../_home-action";
+import { apiClient } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/types";
 import type { HomeInput, HomeOverview } from "@/lib/workspace/home";
 
 function activityDateLabel(instant: string, now = new Date()) {
@@ -48,26 +49,44 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
   const [busy, setBusy] = useState(true);
   useEffect(() => {
     let current = true;
-    void getHomeOverview({ scope, days })
-      .then((result) => {
-        if (!current) return;
-        if (result.ok) setData(result.data);
-        else {
-          setData(null);
-          setError(result.message);
-        }
+    const controller = new AbortController();
+    // GET cancelável: uma consulta presa não segura o retry na fila de Actions.
+    // O prazo da tela também descarta respostas atrasadas da tentativa anterior.
+    const timeout = window.setTimeout(() => {
+      if (!current) return;
+      current = false;
+      controller.abort();
+      setData(null);
+      setError("A conexão falhou. Tente atualizar novamente.");
+      setBusy(false);
+    }, 20_000);
+    void apiClient
+      .get<{ data: HomeOverview }>(`/api/v1/workspace/home?scope=${scope}&days=${days}`, {
+        signal: controller.signal,
+        timeoutMs: 20_000,
       })
-      .catch(() => {
+      .then(({ data: result }) => {
+        if (!current) return;
+        setData(result);
+      })
+      .catch((cause: unknown) => {
         if (current) {
           setData(null);
-          setError("A conexão falhou. Tente atualizar novamente.");
+          setError(
+            cause instanceof ApiError && cause.status === 401
+              ? "Não foi possível autorizar esta consulta. Confira sua sessão e suas permissões."
+              : "A conexão falhou. Tente atualizar novamente.",
+          );
         }
       })
       .finally(() => {
+        window.clearTimeout(timeout);
         if (current) setBusy(false);
       });
     return () => {
       current = false;
+      controller.abort();
+      window.clearTimeout(timeout);
     };
   }, [scope, days, revision]);
   const attention = data?.attention

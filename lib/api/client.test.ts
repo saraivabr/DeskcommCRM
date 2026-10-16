@@ -175,48 +175,23 @@ describe("apiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  it("t11: 429 num POST segue retentando — ali o servidor DISSE que não processou", async () => {
-    // A regra nova é sobre incerteza, não sobre método: um 429 é resposta, e
-    // resposta não deixa dúvida sobre o que aconteceu.
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse(429, { error: {} }, { "Retry-After": "0" }))
+  it.each([429, 502, 503, 504])("POST %i não é repetido: resposta de proxy não prova ausência de efeito", async (status) => {
+    fetchMock.mockResolvedValue(jsonResponse(status, { error: { code: "upstream_unavailable" } }, { "Retry-After": "1" }));
+    await expect(apiClient.post("/x", { a: 1 })).rejects.toMatchObject({ status });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([502, 503, 504])("GET %i recupera com uma nova leitura", async (status) => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(status, { error: {} }))
       .mockResolvedValueOnce(jsonResponse(200, { data: { ok: true } }));
-
-    await apiClient.post("/x", { a: 1 });
-
+    await expect(apiClient.get("/x")).resolves.toEqual({ data: { ok: true } });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("t11b: 503 com Retry-After num POST também repete, esperando o que o servidor pediu", async () => {
-    // Contrato do discador: `POST /api/v1/voice/calls` responde 503
-    // `wacalls_not_connected` + `Retry-After` quando o WaCalls diz "websocket
-    // not connected" (o erro nasce ANTES de qualquer <call> sair, então repetir
-    // é seguro). O comportamento do cliente já existia; este caso o PRENDE,
-    // para a rota não depender de um retry que alguém poderia tirar.
-    //
-    // `Retry-After: "1"`, e não "0": `parseRetryAfterSeconds` descarta zero e
-    // cai no backoff, e o caminho que honra o valor do servidor ficaria sem
-    // medida.
-    vi.useFakeTimers();
-    fetchMock
-      .mockResolvedValueOnce(
-        jsonResponse(
-          503,
-          { error: { code: "wacalls_not_connected", message: "sem conexão" } },
-          { "Retry-After": "1" },
-        ),
-      )
-      .mockResolvedValueOnce(jsonResponse(201, { data: { id: "c1" } }));
-
-    const pendente = apiClient.post<{ data: { id: string } }>("/api/v1/voice/calls", {
-      contactId: "x",
-    });
-
-    await vi.advanceTimersByTimeAsync(900);
-    expect(fetchMock, "repetiu antes do Retry-After").toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(200);
-    expect(await pendente).toEqual({ data: { id: "c1" } });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+  it("Retry-After enorme termina com erro em vez de prender a tela", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(503, { error: {} }, { "Retry-After": "3600" }));
+    await expect(apiClient.get("/x")).rejects.toMatchObject({ status: 503 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   /**

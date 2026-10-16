@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransition, useState } from "react";
-import { useRouter } from "next/navigation";
+import { unstable_rethrow, useRouter } from "next/navigation";
 
 import { useT } from "@/hooks/i18n/useT";
 import { loginSchema, type LoginInput } from "@/lib/auth/schemas";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signInWithPassword } from "@/app/actions/auth/signInWithPassword";
+import { safeNext } from "@/lib/auth/safe-next";
 
 export function LoginForm({ next }: { next?: string }) {
   const t = useT();
@@ -32,10 +33,15 @@ export function LoginForm({ next }: { next?: string }) {
     startTransition(async () => {
       // Server Action redirects on success — no return value reaches here.
       // On failure, an error discriminator is returned and rendered inline.
-      const res = await signInWithPassword(values, next);
+      const res = await signInWithPassword(values, next).catch((error: unknown) => {
+        // Server Actions entregam o redirect de sucesso como erro de controle
+        // para o RedirectBoundary do Next. Nunca convertê-lo em erro de rede.
+        unstable_rethrow(error);
+        return { ok: false, error: "auth_unavailable" } as const;
+      });
       if (!res) {
         // Should be unreachable (redirect throws), but guard anyway.
-        router.replace(next || "/app");
+        router.replace(safeNext(next, "/app"));
         return;
       }
       if (res.error === "mfa_required") {
@@ -47,6 +53,8 @@ export function LoginForm({ next }: { next?: string }) {
       }
       if (res.error === "invalid_credentials") {
         setServerError(t("Email ou senha incorretos."));
+      } else if (res.error === "auth_unavailable") {
+        setServerError(t("Não foi possível verificar seu acesso agora. Tente novamente em instantes."));
       } else if (res.error === "rate_limited") {
         setServerError(t("Muitas tentativas. Aguarde alguns minutos."));
       } else if (res.error === "validation_error") {

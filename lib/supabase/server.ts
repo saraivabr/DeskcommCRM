@@ -9,6 +9,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookieSecure } from "@/lib/supabase/cookie-secure";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
+import { createAuthFetch } from "@/lib/supabase/auth-fetch";
 
 /**
  * Tudo o que vale para TODO cookie deste cliente, menos o `sameSite` — que é
@@ -32,15 +33,20 @@ function opcoesDeCookie(sameSite: "strict" | "lax") {
   };
 }
 
-async function clienteDeServidor(sameSite: "strict" | "lax") {
+async function clienteDeServidor(sameSite: "strict" | "lax", signal?: AbortSignal) {
   const cookieStore = await cookies();
+  const authFetch = createAuthFetch(signal);
 
   return createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+    global: { fetch: authFetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+        // Um refresh que chegou depois do prazo não altera a sessão que a
+        // resposta de indisponibilidade acabou de preservar.
+        if (authFetch.hasTimedOut()) return;
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
             cookieStore.set(name, value, options);
@@ -55,8 +61,9 @@ async function clienteDeServidor(sameSite: "strict" | "lax") {
   });
 }
 
-export async function createClient() {
-  return clienteDeServidor("strict");
+/** signal é opt-in para operações de leitura; nunca usado como prazo global de escritas. */
+export async function createClient(options?: { signal?: AbortSignal }) {
+  return clienteDeServidor("strict", options?.signal);
 }
 
 /**

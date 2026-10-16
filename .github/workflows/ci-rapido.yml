@@ -67,9 +67,10 @@ jobs:
       - name: Login, sessão e telas essenciais com banco real
         run: bash scripts/ci-smoke.sh
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
+        continue-on-error: true
         with:
-          name: ci-smoke-failure
+          name: ci-smoke-evidence
           path: test-results/
           retention-days: 3
   ci-rapido:

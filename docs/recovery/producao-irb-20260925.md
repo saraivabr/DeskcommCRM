@@ -32,3 +32,13 @@ A entrega automática exige o workflow `ci-rapido.yml` concluído com sucesso pa
 Na consolidação da PR #2, os arquivos de migrations do fork receberam os sufixos livres 0400 (Instagram Studio), 0401 (missões de voz) e 0402 (Growth/auditoria). Seus timestamps e conteúdos SQL foram preservados; as identidades já aplicadas no Supabase não mudaram. Os sufixos 0321–0323 conflitavam com migrations recebidas do upstream.
 
 O chat com efeitos de atividade e Enter para enviar foi incorporado da área `melhoria-no-chat-com-IA`. A implementação alternativa de Meta nativa, ainda não commitada na cópia Orca principal, permanece preservada naquela área e fora desta entrega com Zernio.
+
+## Prioridade de CPU aplicada em 16/10/2026
+
+Na janela 02:34–03:04 UTC, a VM com 2 vCPUs apresentou carga de 28–35, CPU steal de 70–73% e timeouts: 45 respostas 504 em `/auth/v1/user`, 186 respostas 503 no REST e 123 respostas 499. Os serviços permaneciam `healthy`, os buffers do Nginx estavam corretos e não havia espera por lock na amostra do Postgres. O health público, isoladamente, não comprovava acesso autenticado.
+
+Foi aplicada prioridade relativa com `docker update`, sem reiniciar serviços: `cpu_shares: 8192` em app, auth, db, rest, supavisor e api-gw do Escreve.ai; `cpu_shares: 256` nas duas cargas concorrentes observadas, `kw-orquestrador` e `kw-doctoralia-email`. Os valores foram persistidos em `/opt/escreveai/compose.json` e `/opt/kw-sync/docker-compose.yml`; ambos passaram na validação do Compose. Neste runtime, os pesos efetivos medidos foram respectivamente 532 e 35, ante 100. Quotas absolutas, memória, dados e sessões dos canais foram preservados.
+
+Na janela posterior 03:09:40–03:11:43 UTC não houve 499 nem 5xx; quatro chamadas reais de `/auth/v1/user` retornaram 200. A carga ficou em 5,49; as sondas de health responderam em 29–311 ms e login em 74–189 ms. O steal permaneceu em 57–63%, portanto a melhora observada não prova capacidade sustentada nem identifica a origem da restrição no hypervisor.
+
+Backup protegido e ferramentas de reversão ficam em `/opt/backups/escreveai/cpu-priority-20261016T030928Z`. Após deploy, execute `python3 /opt/backups/escreveai/cpu-priority-20261016T030928Z/validate.py` no IRB para conferir execução, pesos efetivos e persistência. O `rollback.py` desse diretório restaura somente os campos de CPU, preservando as imagens e demais configurações que tenham mudado depois. Não restaure os Composes integrais antigos para reverter apenas a prioridade.

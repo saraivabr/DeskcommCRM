@@ -80,7 +80,7 @@
       "lane": "app",
       "col": 1,
       "type": "service",
-      "label": "getHomeOverview: sessão, escopo validado e consultas independentes"
+      "label": "GET /api/v1/workspace/home: sessão, escopo validado e consultas canceláveis"
     },
     {
       "id": "catalog",
@@ -129,7 +129,7 @@
     {
       "from": "overview",
       "to": "homeAction",
-      "label": "minhas/equipe, 7/30 dias"
+      "label": "minhas/equipe, 7/30 dias; prazo e cancelamento por tentativa"
     },
     {
       "from": "homeAction",

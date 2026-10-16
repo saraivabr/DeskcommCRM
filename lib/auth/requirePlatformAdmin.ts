@@ -19,6 +19,7 @@
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { AUTH_TIMEOUT_MS, AuthUnavailableError, isAuthUnavailable, withAuthDeadline } from "@/lib/auth/availability";
 
 export interface PlatformAdminInfo {
   user_id: string;
@@ -32,29 +33,36 @@ export interface PlatformAdminContext {
 }
 
 export async function requirePlatformAdmin(): Promise<PlatformAdminContext> {
-  const supabase = await createClient();
+  const supabase = await createClient({ signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  let result;
+  try {
+    result = await withAuthDeadline(() => supabase.auth.getUser());
+  } catch {
+    throw new AuthUnavailableError();
+  }
+  const { data: { user }, error } = result;
+  if (isAuthUnavailable(error)) throw new AuthUnavailableError();
+  if (error || !user) {
     redirect("/login?next=/admin");
   }
 
   // platform_admins RLS: only platform admins read; non-admins get null → forbid.
-  const { data: paRow } = await supabase
+  const { data: paRow, error: paError } = await supabase
     .from("platform_admins")
     .select("user_id, scope, mfa_required, revoked_at")
     .eq("user_id", user.id)
     .is("revoked_at", null)
     .maybeSingle();
 
+  if (paError) throw new AuthUnavailableError();
   if (!paRow) {
     redirect("/admin/forbidden");
   }
 
   if (paRow.mfa_required) {
-    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const { data: aalData, error: aalError } = await withAuthDeadline(() => supabase.auth.mfa.getAuthenticatorAssuranceLevel());
+    if (aalError || !aalData) throw new AuthUnavailableError();
     if (aalData?.currentLevel !== "aal2") {
       redirect("/login/mfa?next=/admin");
     }
