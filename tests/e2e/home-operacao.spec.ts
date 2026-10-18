@@ -48,7 +48,7 @@ test.describe("Home e assistente global", () => {
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
     await page.waitForURL(/\/app(?:\/|$)/);
     await page.goto("/app");
-    await expect(page.getByRole("heading", { name: "Visão geral" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /Só escreve aí\./ })).toBeVisible();
     const scope = page.getByRole("combobox", { name: "Escopo das pendências" });
     await expect(scope).toBeEnabled();
     await expect(scope).toHaveValue("mine");

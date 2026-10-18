@@ -27,7 +27,7 @@ test("sessão real protege API e abre Home, cobrança e Studio sem gerar conteú
   });
 
   await page.goto("/app");
-  await expect(page.getByRole("heading", { name: "Visão geral", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Só escreve aí\./ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Atualizar operação" })).toBeEnabled();
   const signedIn = await page.request.get("/api/v1/instagram");
   expect(signedIn.status()).toBe(200);

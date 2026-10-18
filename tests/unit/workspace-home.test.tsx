@@ -54,43 +54,35 @@ beforeEach(() => {
   mocks.overview.mockReset().mockResolvedValue(response());
 });
 describe("Home produtiva", () => {
-  it("mostra horário de hoje e data para atividade antiga, com instante completo acessível", async () => {
-    const today = new Date();
-    today.setHours(8, 30, 0, 0);
-    const old = new Date(today);
-    old.setFullYear(old.getFullYear() - 1);
+  it("mostra só o que espera por você e diz quando está tudo em dia", async () => {
     const result = response();
     mocks.overview.mockResolvedValue({
       ...result,
       data: {
         ...result.data,
-        activities: [
-          {
-            id: "today",
-            title: "Conversa de hoje",
-            at: today.toISOString(),
-            href: "/app/inbox?id=today",
-          },
-          { id: "old", title: "Conversa antiga", at: old.toISOString(), href: "/app/inbox?id=old" },
+        attention: [
+          { id: "tasks", label: "Tarefas atrasadas", description: "", href: "/app/tasks", count: 0 },
+          { id: "conversations", label: "Conversas abertas", description: "", href: "/app/inbox", count: 5 },
         ],
       },
     });
     render(<WorkspaceHome />);
-    const todayLink = await screen.findByRole("link", { name: /Conversa de hoje/ });
-    const oldLink = screen.getByRole("link", { name: /Conversa antiga/ });
-    expect(todayLink.querySelector("time")).toHaveTextContent(
-      today.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    );
-    expect(oldLink.querySelector("time")).toHaveTextContent(
-      old.toLocaleDateString([], { day: "2-digit", month: "2-digit", year: "numeric" }),
-    );
-    expect(oldLink.querySelector("time")).toHaveAttribute("title", old.toLocaleString());
-    expect(oldLink.querySelector("time")).toHaveAttribute("datetime", old.toISOString());
+    const aberta = await screen.findByRole("link", { name: /Conversas abertas/ });
+    expect(aberta).toHaveTextContent("5");
+    expect(screen.queryByText("Tarefas atrasadas")).toBeNull();
+    expect(screen.queryByText("Tudo em dia. Nada esperando você.")).toBeNull();
+  });
+
+  it("sem pendências, a Início diz que está tudo em dia", async () => {
+    const result = response();
+    mocks.overview.mockResolvedValue({ ...result, data: { ...result.data, attention: [] } });
+    render(<WorkspaceHome />);
+    expect(await screen.findByText("Tudo em dia. Nada esperando você.")).toBeInTheDocument();
   });
 
   it("usa título aprovado, composer único e padrão pessoal sem opção equipe não autorizada", async () => {
     render(<WorkspaceHome />);
-    expect(screen.getByRole("heading", { name: "Visão geral" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /Só escreve aí\./ })).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", { name: "O que você quer saber sobre seu CRM?" }),
     ).toBeInTheDocument();
@@ -177,7 +169,7 @@ describe("recuperação de uma consulta presa", () => {
     expect(signal.aborted).toBe(true);
     expect(screen.getByRole("alert")).toHaveTextContent("Tente atualizar novamente.");
     expect(screen.getByRole("button", { name: "Atualizar operação" })).toBeEnabled();
-    expect(screen.queryByText("Consultando sua operação…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Olhando suas conversas…")).not.toBeInTheDocument();
 
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Atualizar operação" })),
@@ -241,10 +233,10 @@ it("mantém o último snapshot enquanto atualiza a operação", async () => {
   render(<WorkspaceHome />);
   await screen.findByText("Tarefas atrasadas");
   fireEvent.click(screen.getByRole("button", { name: "Atualizar operação" }));
-  expect(await screen.findByText("Atualizando sua operação…")).toBeInTheDocument();
+  expect(await screen.findByText("Atualizando…")).toBeInTheDocument();
   expect(screen.getByText("Tarefas atrasadas")).toBeInTheDocument();
   finish(response());
   await waitFor(() =>
-    expect(screen.queryByText("Atualizando sua operação…")).not.toBeInTheDocument(),
+    expect(screen.queryByText("Atualizando…")).not.toBeInTheDocument(),
   );
 });
