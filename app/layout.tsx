@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, IBM_Plex_Mono } from "next/font/google";
+import { Inter, IBM_Plex_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { Toaster } from "sonner";
 import { coresDaBarraDoNavegador } from "@/lib/branding/barra-do-navegador";
@@ -25,7 +25,9 @@ import { Providers } from "./providers";
 import { PublicEnvScript } from "./public-env-script";
 import "./globals.css";
 
-const interfaceFont = Manrope({
+// Inter, a mesma grotesca da home (escreve.ai/crm): títulos pretos e pesados
+// com tracking negativo. A Plex Mono abaixo faz os rótulos, como lá.
+const interfaceFont = Inter({
   subsets: ["latin", "latin-ext"],
   display: "swap",
   variable: "--font-interface",
@@ -108,7 +110,7 @@ export const viewport: Viewport = {
 
 // Inline FOUC-prevention. Conteúdo é string literal estática (zero input do usuário),
 // portanto seguro. Lê localStorage + prefers-color-scheme antes do primeiro paint.
-const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('deskcomm-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var r=(s==='dark'||s==='light')?s:(s==='system'?(d?'dark':'light'):'dark');document.documentElement.setAttribute('data-theme',r);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
+const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('deskcomm-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var r=(s==='dark'||s==='light')?s:(s==='system'?(d?'dark':'light'):'light');document.documentElement.setAttribute('data-theme',r);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();`;
 
 /**
  * Motivos já registrados neste processo. `EstiloDaMarca` roda em TODA
@@ -263,7 +265,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html
       lang="pt-BR"
-      data-theme="dark"
+      data-theme="light"
       suppressHydrationWarning
       className={`${interfaceFont.variable} ${plexMono.variable}`}
     >

@@ -55,6 +55,7 @@ vi.mock("@/lib/auth/server", () => ({
 }));
 vi.mock("@/lib/auth/vinculo-revogado", () => ({ acessoFoiRevogado: async () => false }));
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: vi.fn() }),
   redirect: (destino: string) => {
     throw new Error(`redirect inesperado para ${destino}`);
   },

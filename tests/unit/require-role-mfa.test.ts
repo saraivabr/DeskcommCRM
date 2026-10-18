@@ -43,11 +43,18 @@ function montarStub({ role, temFator, aal }: Cenario) {
   return {
     rpc: vi.fn(async () => ({ data: role, error: null })),
     auth: {
+      // Os fatores vêm na resposta do `getUser()` — a mesma ida ao GoTrue que
+      // `loadAuthUser` faz; `listFactors()` era um segundo `getUser()` por dentro.
+      getUser: vi.fn(async () => ({
+        data: {
+          user: {
+            id: USER_ID,
+            factors: temFator ? [{ id: "f1", factor_type: "totp", status: "verified" }] : [],
+          },
+        },
+        error: null,
+      })),
       mfa: {
-        listFactors: vi.fn(async () => ({
-          data: { totp: temFator ? [{ id: "f1", status: "verified" }] : [] },
-          error: null,
-        })),
         getAuthenticatorAssuranceLevel: vi.fn(async () => ({
           data: { currentLevel: aal, nextLevel: temFator ? "aal2" : aal },
           error: null,
@@ -80,7 +87,7 @@ describe("requireRole — MFA é política de sessão, não de cadastro", () => 
   it.each(["viewer", "admin"] as const)("falha consultando fatores de %s bloqueia503, nunca autoriza como sem MFA", async (role) => {
     preparar({ role, temFator: true, aal: "aal1" });
     const client = await createClient();
-    vi.mocked(client.auth.mfa.listFactors).mockResolvedValue({ data: null, error: { name: "AuthRetryableFetchError", status: 504 } } as Awaited<ReturnType<typeof client.auth.mfa.listFactors>>);
+    vi.mocked(client.auth.getUser).mockResolvedValue({ data: { user: null }, error: { name: "AuthRetryableFetchError", status: 504 } } as unknown as Awaited<ReturnType<typeof client.auth.getUser>>);
     const result = await requireRole(role);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("não pode autorizar sem verificar MFA");
@@ -184,7 +191,7 @@ describe("requireRole — leituras independentes em paralelo", () => {
       stub as unknown as Awaited<ReturnType<typeof createClient>>,
     );
     const resultado = requireRole("admin");
-    await vi.waitFor(() => expect(stub.auth.mfa.listFactors).toHaveBeenCalled());
+    await vi.waitFor(() => expect(stub.auth.getUser).toHaveBeenCalled());
     liberar({ data: "admin", error: null });
     expect((await resultado).ok).toBe(true);
   });
@@ -192,7 +199,7 @@ describe("requireRole — leituras independentes em paralelo", () => {
   it("preserva forbidden_role mesmo se a leitura de MFA falhar", async () => {
     preparar({ role: "viewer", temFator: false, aal: "aal1" });
     const stub = montarStub({ role: "viewer", temFator: false, aal: "aal1" });
-    stub.auth.mfa.listFactors.mockRejectedValue(new Error("MFA indisponível"));
+    stub.auth.getUser.mockRejectedValue(new Error("MFA indisponível"));
     vi.mocked(createClient).mockResolvedValue(
       stub as unknown as Awaited<ReturnType<typeof createClient>>,
     );
@@ -204,7 +211,7 @@ describe("requireRole — leituras independentes em paralelo", () => {
   it("não libera acesso quando a leitura de MFA necessária falha", async () => {
     preparar({ role: "admin", temFator: false, aal: "aal1" });
     const stub = montarStub({ role: "admin", temFator: false, aal: "aal1" });
-    stub.auth.mfa.listFactors.mockRejectedValue(new Error("MFA indisponível"));
+    stub.auth.getUser.mockRejectedValue(new Error("MFA indisponível"));
     vi.mocked(createClient).mockResolvedValue(
       stub as unknown as Awaited<ReturnType<typeof createClient>>,
     );

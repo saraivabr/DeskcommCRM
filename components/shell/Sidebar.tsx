@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { LinkDeNavegacao } from "./LinkDeNavegacao";
 import { LogotipoDoProduto, SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
@@ -48,7 +48,7 @@ export function SidebarContent({
     );
   return (
     <>
-      <Link
+      <LinkDeNavegacao
         href="/app"
         onClick={onNavigate}
         aria-label={`${name} — início`}
@@ -78,13 +78,13 @@ export function SidebarContent({
             {collapsed ? [...name][0] : name}
           </span>
         )}
-      </Link>
+      </LinkDeNavegacao>
       {activeOrg && <TenantSwitcher sidebar collapsed={collapsed} />}
       <nav
         aria-label={t("Navegação principal")}
         className="min-h-0 flex-1 overflow-y-auto px-3 pt-7 pb-3"
       >
-        <Link
+        <LinkDeNavegacao
           href="/app"
           onClick={onNavigate}
           title={collapsed ? t("Início") : undefined}
@@ -94,7 +94,7 @@ export function SidebarContent({
         >
           <House strokeWidth={1.5} className="h-[18px] w-[18px] shrink-0" aria-hidden />
           {!collapsed && <span>{t("Início")}</span>}
-        </Link>
+        </LinkDeNavegacao>
         {workspaceGroups(destinations).map((group) => (
           <div key={group.id} className="pt-[22px]">
             {!collapsed && (
@@ -107,7 +107,7 @@ export function SidebarContent({
               const label = item.workspace?.sidebarLabel ?? item.workspace?.label ?? item.label;
               const Icon = item.icon;
               return (
-                <Link
+                <LinkDeNavegacao
                   key={item.href}
                   href={item.href}
                   onClick={onNavigate}
@@ -118,13 +118,13 @@ export function SidebarContent({
                 >
                   <Icon size={19} weight="light" aria-hidden className="shrink-0" />
                   {!collapsed && <span>{t(label)}</span>}
-                </Link>
+                </LinkDeNavegacao>
               );
             })}
           </div>
         ))}
         <div className="pt-7">
-          <Link
+          <LinkDeNavegacao
             href="/app/ferramentas"
             onClick={onNavigate}
             title={collapsed ? t("Todas as ferramentas") : undefined}
@@ -134,12 +134,12 @@ export function SidebarContent({
           >
             <ArtisanIcon symbol="tools" className="h-5 w-5 shrink-0" />
             {!collapsed && <span>{t("Todas as ferramentas")}</span>}
-          </Link>
+          </LinkDeNavegacao>
         </div>
       </nav>
       <div className="shrink-0 px-3 pb-3 md:[@media(min-height:950px)]:pb-[59px]">
         {destinations.some((d) => d.group === "organizacao") && (
-          <Link
+          <LinkDeNavegacao
             href="/app/settings"
             onClick={onNavigate}
             title={collapsed ? t("Configurações") : undefined}
@@ -148,7 +148,7 @@ export function SidebarContent({
           >
             <ArtisanIcon symbol="settings" className="h-5 w-5 shrink-0" />
             {!collapsed && <span>{t("Configurações")}</span>}
-          </Link>
+          </LinkDeNavegacao>
         )}
         <div
           className={cn(

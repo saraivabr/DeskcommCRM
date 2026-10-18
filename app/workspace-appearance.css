@@ -2,8 +2,21 @@ html:has(.workspace-shell) {
   font-size: max(100%, 16px);
 }
 
-/* Authenticated surfaces and portals share the same tokens. Brand colors remain
-   owned by the branding resolver; amber is an attention accent, not a brand. */
+/* ─────────────────────────────────────────────────────────────────────────
+   A área logada segue a HOME (https://escreve.ai/crm, `/_escreve/home.css`):
+   papel branco, tinta preta, linhas finas, espaço de sobra e o verde como
+   sinal. Os valores são os tokens de lá, não aproximações:
+
+     --paper #ffffff · --ink #050706 · --muted #68716c
+     linhas #e0e7e2 / #dce4df · superfície alternada #f5f7f6 / #f8faf9
+     --green #00ed64 (botão principal, sempre com texto #03180b)
+     --forest #008b3f (ícone; o texto pequeno usa #007f3a, 5,1:1 no branco)
+     menta #e8fff0 com borda #ccebd8 (selecionado, etiqueta)
+
+   Substitui a paleta creme/marrom com âmbar (#ff9a66). A cor de MARCA
+   (`--color-accent*`) continua sendo do resolvedor de marca — o verde daqui é
+   o SINAL da casca (item ativo, chamada principal, foco), como o âmbar era.
+   ───────────────────────────────────────────────────────────────────────── */
 body:has(.workspace-shell) {
   --background: var(--color-bg);
   --foreground: var(--color-text);
@@ -17,164 +30,200 @@ body:has(.workspace-shell) {
   --muted-foreground: var(--color-text-muted);
   --border: var(--color-border);
   --input: var(--color-border);
-  --workspace-amber: #ff9a66;
-  --workspace-ink: #332820;
-  --workspace-paper: #fcf8f1;
-  --workspace-glass: color-mix(in srgb, var(--color-surface) 88%, transparent);
-  --workspace-shadow: 0 18px 48px -30px #1b100e66;
-  --color-bg: #eee5da;
-  --color-surface: #fffaf3;
-  --color-surface-elevated: #f2e9de;
-  --color-text: #302820;
-  --color-text-muted: #6a5b50;
-  --color-text-subtle: #766354;
-  --color-border: #dacbbd;
-  --color-border-strong: #b8a28e;
+  --workspace-signal: #00ed64;
+  --workspace-signal-hover: #00d85b;
+  --workspace-signal-ink: #03180b;
+  --workspace-forest: #007f3a;
+  --workspace-mint: #e8fff0;
+  --workspace-mint-line: #ccebd8;
+  --workspace-focus: #008b3f;
+  --workspace-ink: #050706;
+  --workspace-paper: #f8faf9;
+  --workspace-glass: var(--color-surface);
+  --workspace-shadow: none;
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #f5f7f6;
+  --color-text: #050706;
+  --color-text-muted: #68716c;
+  --color-text-subtle: #6a736e;
+  --color-border: #e0e7e2;
+  --color-border-strong: #c5d0c8;
 }
+/* Escuro continua a um clique (seletor de tema): o mesmo desenho em verde-noite,
+   sem o marrom. */
 [data-theme="dark"] body:has(.workspace-shell) {
-  --color-bg: #211c19;
-  --color-surface: #342d29;
-  --color-surface-elevated: #443a33;
-  --color-text: #fff8ef;
-  --color-text-muted: #d1c0b2;
-  --color-text-subtle: #bba99b;
-  --color-border: #5e4e42;
-  --color-border-strong: #86705f;
-  --workspace-glass: #342d29e8;
-  --workspace-shadow: 0 20px 56px -26px #0009;
+  --color-bg: #070a08;
+  --color-surface: #0f1411;
+  --color-surface-elevated: #172019;
+  --color-text: #f3f6f4;
+  --color-text-muted: #a8b3ac;
+  --color-text-subtle: #8e9a93;
+  --color-border: #223029;
+  --color-border-strong: #33463b;
+  --workspace-forest: #3ee584;
+  --workspace-mint: #0d2a18;
+  --workspace-mint-line: #1c4a2d;
+  --workspace-focus: #00ed64;
+  --workspace-ink: #f3f6f4;
+  --workspace-paper: #0f1411;
 }
+
+/* A casca encosta nas bordas, como a home: barra lateral e topo separados do
+   conteúdo por UMA linha fina, sem painéis flutuantes nem sombra. */
 .workspace-app {
-  background:
-    radial-gradient(ellipse at 8% 0%, #b784502b, transparent 48%),
-    radial-gradient(ellipse at 95% 100%, #a8623424, transparent 45%), var(--color-bg);
-  padding: 14px;
-  gap: 14px;
+  background: var(--color-bg);
+  padding: 0;
+  gap: 0;
 }
 .workspace-app > div:last-child {
-  min-height: calc(100dvh - 28px);
+  min-height: 100dvh;
 }
 .workspace-app .workspace-sidebar {
-  top: 14px;
-  height: calc(100dvh - 28px);
-  border: 1px solid var(--color-border);
-  border-radius: 22px;
-  background: var(--workspace-glass);
-  box-shadow: var(--workspace-shadow);
-  backdrop-filter: blur(20px);
+  top: 0;
+  height: 100dvh;
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-surface);
+  box-shadow: none;
+  backdrop-filter: none;
 }
+/* O logo ocupa a mesma altura do topo (64px): as duas linhas de baixo se
+   encontram e viram uma só régua horizontal. */
 .workspace-app .workspace-sidebar > a {
-  height: 76px;
+  height: 64px;
+  margin-inline: 0;
+  padding-inline: 20px;
 }
 .workspace-app .workspace-sidebar nav {
-  padding-top: 16px;
+  padding-top: 20px;
+}
+.workspace-app .workspace-sidebar nav > div > p {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  color: var(--color-text-muted);
 }
 .workspace-app .workspace-nav-item {
-  min-height: 44px;
-  border-radius: 12px;
+  min-height: 42px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.workspace-app .workspace-nav-item:hover {
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
 }
 .workspace-app .workspace-nav-item.is-active {
-  background: var(--workspace-amber);
-  color: var(--workspace-ink);
-  box-shadow: 0 5px 18px #e6763524;
+  background: var(--workspace-mint);
+  color: var(--color-text);
+  font-weight: 650;
+  box-shadow: inset 3px 0 0 var(--workspace-signal);
 }
 .workspace-app .workspace-nav-item.is-active svg {
-  color: inherit;
+  color: var(--workspace-forest);
+}
+.workspace-app .workspace-nav-item:focus-visible {
+  outline: 2px solid var(--workspace-focus);
+  outline-offset: 2px;
 }
 .workspace-app .workspace-topbar {
-  top: 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  background: var(--workspace-glass);
-  box-shadow: var(--workspace-shadow);
+  top: 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--color-surface) 95%, transparent);
+  box-shadow: none;
 }
 .workspace-app main[data-workspace] {
-  margin-top: 14px;
-  background: var(--workspace-glass);
-  border: 1px solid var(--color-border);
-  border-radius: 22px;
-  box-shadow: var(--workspace-shadow);
-  min-height: calc(100dvh - 106px);
+  margin-top: 0;
+  background: var(--color-bg);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: calc(100dvh - 64px);
+}
+/* Título de página: preto, pesado e apertado — a assinatura da home. */
+.workspace-app main[data-workspace] h1 {
+  color: var(--color-text);
+  font-weight: 760;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+/* O serifado "editorial" (`font-serif`, `.artisan-title`, Georgia) vira a
+   grotesca pesada da home dentro da área logada — 14 telas usam o utilitário,
+   e a troca mora aqui para não espalhar uma decisão de tema por elas. */
+.workspace-app :is(h1, h2, h3, dd, p).font-serif,
+.workspace-app .artisan-title {
+  font-family: var(--font-interface), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 720;
+  letter-spacing: -0.045em;
+}
+.workspace-app :is(h1, h2, h3).font-serif,
+.workspace-app .artisan-title {
+  font-style: normal;
 }
 .workspace-app main[data-workspace="preferences"] [data-slot="card"],
 .workspace-app [data-slot="card"] {
   border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border-radius: 12px;
   background: var(--color-surface);
-  box-shadow: 0 8px 24px -20px #0005;
+  box-shadow: none;
 }
 .workspace-app :is(input, textarea, select) {
   border-radius: 10px;
 }
 .workspace-app :is(input, textarea, select):focus-visible {
-  outline: 2px solid var(--workspace-amber);
-  outline-offset: 3px;
+  outline: 2px solid var(--workspace-focus);
+  outline-offset: 2px;
 }
 .workspace-app .artisan-table {
   border: 1px solid var(--color-border);
 }
 .workspace-app .workspace-inbox {
-  border-radius: 18px;
-  box-shadow: var(--workspace-shadow);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: none;
 }
 .workspace-app .workspace-inbox-list {
   background: var(--color-surface);
 }
 .workspace-app .workspace-inbox-conversation {
-  background: radial-gradient(ellipse at 50% 0%, #b77f4520, transparent 65%), var(--color-bg);
+  background: var(--workspace-paper);
 }
 .workspace-app .workspace-conversation-item {
   width: calc(100% - 16px);
   margin: 4px 8px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 14px 10px;
 }
 .workspace-app .workspace-conversation-item[aria-current="true"] {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-elevated);
+  border-color: var(--workspace-mint-line);
+  background: var(--workspace-mint);
 }
 .workspace-app .workspace-conversation-item[aria-current="true"] > span[aria-hidden] {
   inset-block: 12px;
   border-radius: 999px;
-  background: var(--workspace-amber);
+  background: var(--workspace-signal);
 }
 .workspace-app [data-testid="message-bubble"]:not([data-bare-sticker]) {
   padding: 12px 14px;
-  box-shadow: 0 4px 14px #0000000a;
+  box-shadow: none;
 }
 .workspace-app [data-testid="message-bubble"][data-direction="inbound"]:not([data-bare-sticker]) {
-  background: var(--color-surface-elevated);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
 }
-@media (max-width: 1023px) {
-  .workspace-app {
-    padding: 8px;
-  }
-  .workspace-app .workspace-topbar {
-    top: 8px;
-    border-radius: 16px;
-  }
-  .workspace-app main[data-workspace] {
-    margin-top: 8px;
-    border-radius: 18px;
-  }
-}
 @media (max-width: 640px) {
-  .workspace-app {
-    padding: 0;
-  }
-  .workspace-app .workspace-topbar {
-    top: 0;
-    border-radius: 0;
-    border-inline: 0;
-  }
   .workspace-app main[data-workspace] {
-    margin-top: 0;
-    border-radius: 0;
-    border: 0;
+    min-height: calc(100dvh - 64px);
   }
   .workspace-app .workspace-inbox {
-    border-radius: 12px;
+    border-radius: 10px;
   }
 }
 
@@ -216,7 +265,7 @@ body:has(.workspace-shell) {
   flex: none;
 }
 .workspace-shell.workspace-app main[data-workspace="home"] h1 {
-  font-size: 32px;
+  font-size: clamp(44px, 4.6vw, 72px);
 }
 @media (max-width: 640px) {
   .workspace-shell.workspace-app main[data-workspace="conversation"] {
@@ -231,7 +280,7 @@ body:has(.workspace-shell) {
     width: 100%;
   }
   .workspace-shell.workspace-app main[data-workspace="home"] h1 {
-    font-size: 28px;
+    font-size: 40px;
   }
 }
 
@@ -259,8 +308,8 @@ body:has(.workspace-shell) {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--color-surface-elevated);
+  border-radius: 12px;
+  background: var(--workspace-paper);
 }
 .workspace-pipeline-summary > div {
   display: flex;
@@ -274,15 +323,16 @@ body:has(.workspace-shell) {
   font-size: 12px;
 }
 .workspace-pipeline-summary strong {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
   overflow-wrap: anywhere;
 }
 .workspace-pipeline-summary > div + div {
   border-left: 1px solid var(--border);
 }
 .workspace-shell .workspace-stage {
-  border-radius: 20px;
+  border-radius: 12px;
   background: var(--color-surface-elevated);
   border-color: transparent;
 }
@@ -296,9 +346,9 @@ body:has(.workspace-shell) {
   border-bottom: 0;
 }
 .workspace-shell .workspace-lead-card {
-  border-radius: 14px;
+  border-radius: 10px;
   padding: 16px;
-  box-shadow: 0 4px 16px #0000000a;
+  box-shadow: none;
 }
 .workspace-shell .workspace-lead-card h3 {
   font-size: 15px;

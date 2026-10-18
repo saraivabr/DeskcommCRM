@@ -34,13 +34,26 @@ export async function GET(_req: NextRequest): Promise<Response> {
   if (!user) return fail("unauthenticated", "Faça login para continuar.", 401);
 
   const db = createAdminClient();
-  const { data: version, error: versionError } = await db
-    .from("system_version")
-    .select(
-      "current_version, latest_version, off_release, compare_failed, has_known_release, changelog_raw, agent_last_seen_at, updated_at",
-    )
-    .eq("id", 1)
-    .maybeSingle();
+  // As duas leituras são independentes e saíam em série: o rodapé da barra
+  // lateral pede esta rota em toda página. Juntas custam a mais lenta; os erros
+  // continuam conferidos na mesma ordem de antes.
+  const [{ data: version, error: versionError }, { data: run, error: runError }] = await Promise.all([
+    db
+      .from("system_version")
+      .select(
+        "current_version, latest_version, off_release, compare_failed, has_known_release, changelog_raw, agent_last_seen_at, updated_at",
+      )
+      .eq("id", 1)
+      .maybeSingle(),
+    db
+      .from("system_update_runs")
+      .select(
+        "id, status, last_step, dispatched_at, finished_at, from_version, to_version, log_tail, disputa_de_banco, retentativas_do_banco, passada_do_banco",
+      )
+      .order("dispatched_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   // Sem checar o erro, uma falha de leitura vira `current = ""` em silêncio —
   // e mais abaixo isso poderia se disfarçar de "sem atualização disponível".
@@ -58,17 +71,9 @@ export async function GET(_req: NextRequest): Promise<Response> {
   // diagnóstico que o dono tem sem abrir um terminal, que é justamente o que
   // esta feature existe para eliminar.
   //
-  // Lido ANTES da bifurcação por papel de propósito: o rodapé da sidebar (que
-  // todo mundo vê) e esta tela precisam falar da MESMA versão — a que está
-  // rodando.
-  const { data: run, error: runError } = await db
-    .from("system_update_runs")
-    .select(
-      "id, status, last_step, dispatched_at, finished_at, from_version, to_version, log_tail, disputa_de_banco, retentativas_do_banco, passada_do_banco",
-    )
-    .order("dispatched_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Lido ANTES da bifurcação por papel de propósito (no `Promise.all` acima): o
+  // rodapé da sidebar (que todo mundo vê) e esta tela precisam falar da MESMA
+  // versão — a que está rodando.
 
   if (runError) {
     logger.error("[system/version] leitura do run mais recente falhou", { error: runError.message });

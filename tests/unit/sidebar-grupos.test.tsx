@@ -16,7 +16,7 @@ vi.mock("@/hooks/auth/AuthProvider", () => ({
 }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/app/inbox",
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }),
 }));
 vi.mock("@/components/connections/ConnectionHealthDot", () => ({
   ConnectionHealthDot: () => null,

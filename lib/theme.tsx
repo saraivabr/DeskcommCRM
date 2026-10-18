@@ -21,15 +21,17 @@ type ThemeContextValue = {
 
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
+// Padrão CLARO: a área logada segue a home (escreve.ai/crm) — papel branco,
+// tinta preta, verde de acento. O escuro continua a um clique no seletor de tema.
 function readStoredTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   try {
     const v = window.localStorage.getItem(STORAGE_KEY);
     if (v === "light" || v === "dark" || v === "system") return v;
   } catch {
     // localStorage indisponível (modo privado, sandbox) — segue com default.
   }
-  return "dark";
+  return "light";
 }
 
 function getSystemTheme(): ResolvedTheme {
@@ -43,7 +45,7 @@ function applyTheme(resolved: ResolvedTheme) {
 }
 
 /**
- * O snapshot do servidor e da hidratação usa o padrão escuro. Depois do commit,
+ * O snapshot do servidor e da hidratação usa o padrão claro. Depois do commit,
  * useSyncExternalStore aplica a preferência salva sem divergência de hidratação.
  * A opção system continua acompanhando a preferência do sistema operacional.
  */
@@ -56,7 +58,7 @@ function getTemaSnapshot(): Theme {
   return temaEmCache;
 }
 function getTemaSnapshotDoServidor(): Theme {
-  return "dark";
+  return "light";
 }
 function inscreverEmTema(ouvinte: Ouvinte): () => void {
   ouvintesDeTema.add(ouvinte);

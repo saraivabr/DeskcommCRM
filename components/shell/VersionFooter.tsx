@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import { LinkDeNavegacao } from "@/components/shell/LinkDeNavegacao";
 
 import { ArrowCircleUp } from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
@@ -47,7 +47,7 @@ export function VersionFooter({
 
   const novo = data.latest_version?.replace(/^v/i, "") ?? "";
   return (
-    <Link
+    <LinkDeNavegacao
       href="/app/settings/atualizacao"
       onClick={onNavigate}
       title={`${t("Nova versão")} ${novo} ${t("disponível")}`}
@@ -64,6 +64,6 @@ export function VersionFooter({
         </span>
       )}
       {collapsed && <ArrowCircleUp size={16} aria-hidden />}
-    </Link>
+    </LinkDeNavegacao>
   );
 }
