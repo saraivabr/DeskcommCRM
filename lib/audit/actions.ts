@@ -905,6 +905,8 @@ export const AUDIT_ACTIONS = [
   "ai.login_codex_conectado",
   // A conta da empresa foi desconectada pela própria tela de Credenciais.
   "ai.login_codex_desconectado",
+  // Entendedor de áudio: liga/desliga e preferências da organização.
+  "entendedor.settings_updated",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

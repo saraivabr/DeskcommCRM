@@ -638,6 +638,16 @@ export const NAV_CATALOG = [
 
   // ---- Canais — por onde as mensagens entram e saem ----
   {
+    href: "/app/entendedor",
+    label: "Entendedor de áudio",
+    // "áudio", "resumo" e "minutos" na descrição: é por essas palavras que se
+    // procura no ⌘K, e a busca varre a descrição além do rótulo.
+    description: "Entende os áudios do seu WhatsApp e responde com um resumo do que importa. 30 minutos grátis por mês.",
+    icon: "Microphone",
+    group: "canais",
+    sidebar: true,
+  },
+  {
     href: "/app/connections",
     label: "Conexões",
     // Cobre os DOIS caminhos desde o PR #105: número por QR e canal oficial da

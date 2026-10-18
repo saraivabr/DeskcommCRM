@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Entendedor de áudio",
+    "subtitle": "Áudio do WhatsApp → nota curta na conversa, com franquia mensal",
+    "output": "entendedor-de-audio.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "canal",
+      "label": "Canal"
+    },
+    {
+      "id": "app",
+      "label": "Aplicativo e workers"
+    },
+    {
+      "id": "db",
+      "label": "Banco"
+    }
+  ],
+  "mainPath": [
+    "ingest",
+    "persist",
+    "derive",
+    "entendedor",
+    "envio"
+  ],
+  "nodes": [
+    {
+      "id": "ingest",
+      "lane": "canal",
+      "col": 0,
+      "type": "service",
+      "label": "lib/waha/ingest.ts: áudio recebido ou enviado, duração em metadata.audio_seconds"
+    },
+    {
+      "id": "persist",
+      "lane": "app",
+      "col": 1,
+      "type": "service",
+      "label": "media-persist-worker: baixa a mídia para o Storage"
+    },
+    {
+      "id": "derive",
+      "lane": "app",
+      "col": 2,
+      "type": "service",
+      "label": "media-derive-worker: fala → texto; emite audio_understanding.requested"
+    },
+    {
+      "id": "settings",
+      "lane": "db",
+      "col": 2,
+      "type": "database",
+      "label": "audio_understanding_settings: liga/desliga e preferências (RLS, escrita de admin)"
+    },
+    {
+      "id": "entendedor",
+      "lane": "app",
+      "col": 3,
+      "type": "service",
+      "label": "workers/entendedor-de-audio.ts: política, contexto, modelo, nota"
+    },
+    {
+      "id": "uso",
+      "lane": "db",
+      "col": 3,
+      "type": "database",
+      "label": "audio_understanding_usage + fn_entendedor_reservar/liquidar: franquia atômica por mensagem"
+    },
+    {
+      "id": "modelo",
+      "lane": "app",
+      "col": 4,
+      "type": "service",
+      "label": "Ponto 'Entender o áudio' (painel de Provedores) + crédito de IA"
+    },
+    {
+      "id": "envio",
+      "lane": "canal",
+      "col": 5,
+      "type": "service",
+      "label": "Adapter do canal: nota citando o áudio na mesma conversa"
+    },
+    {
+      "id": "mensagens",
+      "lane": "db",
+      "col": 5,
+      "type": "database",
+      "label": "messages: nota sent_via=system, audio_summary/audio_intent no áudio"
+    },
+    {
+      "id": "central",
+      "lane": "db",
+      "col": 4,
+      "type": "database",
+      "label": "agent_inbox_items: franquia esgotada / sem modelo"
+    },
+    {
+      "id": "tela",
+      "lane": "app",
+      "col": 0,
+      "type": "service",
+      "label": "/app/entendedor + /api/v1/entendedor: ligar, preferências e minutos do mês"
+    }
+  ],
+  "edges": [
+    {
+      "from": "ingest",
+      "to": "persist",
+      "label": "media.persist_requested"
+    },
+    {
+      "from": "persist",
+      "to": "derive",
+      "label": "media.derive_requested"
+    },
+    {
+      "from": "derive",
+      "to": "entendedor",
+      "label": "audio_understanding.requested"
+    },
+    {
+      "from": "entendedor",
+      "to": "settings",
+      "label": "lê a configuração da org"
+    },
+    {
+      "from": "entendedor",
+      "to": "uso",
+      "label": "reserva antes, cobra só com envio aceito"
+    },
+    {
+      "from": "entendedor",
+      "to": "modelo",
+      "label": "entendimento estruturado"
+    },
+    {
+      "from": "entendedor",
+      "to": "envio",
+      "label": "texto + citação do áudio"
+    },
+    {
+      "from": "entendedor",
+      "to": "mensagens",
+      "label": "nota na timeline da conversa"
+    },
+    {
+      "from": "entendedor",
+      "to": "central",
+      "label": "laço de retorno quando não entrega"
+    },
+    {
+      "from": "tela",
+      "to": "settings",
+      "label": "admin liga e ajusta"
+    },
+    {
+      "from": "tela",
+      "to": "uso",
+      "label": "minutos usados no mês"
+    }
+  ]
+}
