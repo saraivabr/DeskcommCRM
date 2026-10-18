@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
+import { LinkDeNavegacao } from "@/components/shell/LinkDeNavegacao";
 import {
   ArrowRight,
   RefreshCw,
@@ -168,7 +168,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
             {data.movement.map((item) => {
               const Icon = icons[item.id] ?? Sparkles;
               return (
-                <Link
+                <LinkDeNavegacao
                   key={item.id}
                   href={item.href}
                   className={styles.metric}
@@ -183,7 +183,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
                     {t(item.count === null ? "Consulta indisponível" : "Ver detalhes")}
                     <ArrowRight size={14} aria-hidden />
                   </span>
-                </Link>
+                </LinkDeNavegacao>
               );
             })}
           </div>
@@ -201,16 +201,16 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
           {data && (
             <>
               {firstPending && (
-                <Link href={firstPending.href} className={styles.nextAction}>
+                <LinkDeNavegacao href={firstPending.href} className={styles.nextAction}>
                   {t("Abrir pendência")}: {t(firstPending.label)}
                   <ArrowRight size={16} aria-hidden />
-                </Link>
+                </LinkDeNavegacao>
               )}
               <div className={styles.priorityList}>
                 {attention?.map((item) => {
                   const Icon = icons[item.id] ?? Sparkles;
                   return (
-                    <Link
+                    <LinkDeNavegacao
                       key={item.id}
                       href={item.href}
                       className={styles.priorityRow}
@@ -233,7 +233,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
                           {t("Não foi possível consultar. Atualize para tentar novamente.")}
                         </span>
                       )}
-                    </Link>
+                    </LinkDeNavegacao>
                   );
                 })}
               </div>
@@ -253,7 +253,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
               <span className={styles.eyebrow}>{t("CONVERSAS")}</span>
               <h2 id="home-activity-title">{t("Conversas recentes")}</h2>
             </div>
-            <Link
+            <LinkDeNavegacao
               href={
                 (data?.scope ?? scope) === "mine"
                   ? "/app/inbox?filter=mine"
@@ -263,7 +263,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
             >
               {t("Ver tudo")}
               <ArrowRight size={14} aria-hidden />
-            </Link>
+            </LinkDeNavegacao>
           </div>
           {data &&
             (data.activities === null ? (
@@ -273,7 +273,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
             ) : data.activities.length ? (
               <div>
                 {data.activities.map((item) => (
-                  <Link key={item.id} href={item.href} className={styles.activity}>
+                  <LinkDeNavegacao key={item.id} href={item.href} className={styles.activity}>
                     <span className={styles.activityAvatar}>
                       {item.title.trim().slice(0, 1).toLocaleUpperCase()}
                     </span>
@@ -284,7 +284,7 @@ export function WorkspaceOverview({ assistant }: { assistant?: ReactNode }) {
                     <time dateTime={item.at} title={new Date(item.at).toLocaleString()}>
                       {activityDateLabel(item.at)}
                     </time>
-                  </Link>
+                  </LinkDeNavegacao>
                 ))}
               </div>
             ) : (

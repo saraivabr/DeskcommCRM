@@ -34,10 +34,23 @@ export function AuthProvider({
 }) {
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    resetRealtimeAuthentication();
-    return resetRealtimeAuthentication;
-  }, [user.id, activeOrg?.orgId, user.support?.id, user.support?.access_mode]);
+  // Invalida o token do Realtime quando o CONTEXTO acaba — troca de usuário,
+  // organização ou acompanhamento, e desmontagem. É a limpeza que faz isso: ela
+  // roda antes de cada troca de dependência e ao desmontar.
+  //
+  // O corpo NÃO zera mais na primeira montagem. Efeitos rodam do filho para o
+  // pai, então os canais (`useRealtimeChannel`) já tinham pedido
+  // `/api/v1/auth/realtime-token` quando este efeito zerava a época: a resposta
+  // em voo era descartada, os seis canais caíam em `channel_error`, assinavam de
+  // novo 1 s depois (segunda ida ao token) e o "reassinado" disparava mais uma
+  // checagem de `/api/v1/auth/interface`. Medido em produção em 2026-10-18: duas
+  // chamadas ao token por página aberta. Na primeira montagem não há contexto
+  // anterior para invalidar — o de uma montagem anterior já foi zerado pela
+  // limpeza dela.
+  useEffect(
+    () => resetRealtimeAuthentication,
+    [user.id, activeOrg?.orgId, user.support?.id, user.support?.access_mode],
+  );
 
   // Revogação/scope no banco também derrubam o snapshot aberto de UI/realtime.
   useEffect(() => {

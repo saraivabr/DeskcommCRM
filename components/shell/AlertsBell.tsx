@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import { LinkDeNavegacao } from "@/components/shell/LinkDeNavegacao";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { destinosDaInterface } from "@/lib/navigation/interface";
 
@@ -29,7 +29,7 @@ function VisibleAlertsBell() {
   const count = data?.open_count ?? 0;
 
   return (
-    <Link
+    <LinkDeNavegacao
       href="/app/ai/inbox"
       aria-label={
         count > 0
@@ -48,6 +48,6 @@ function VisibleAlertsBell() {
           {count > 99 ? "99+" : count}
         </span>
       ) : null}
-    </Link>
+    </LinkDeNavegacao>
   );
 }

@@ -7,6 +7,12 @@ const mocks = vi.hoisted(() => ({
   send: vi.fn(),
   auth: { user: { id: "u1" }, activeOrg: { orgId: "org1", name: "Empresa", role: "admin" } },
 }));
+// `LinkDeNavegacao` antecipa a rota por intenção via `useRouter().prefetch`;
+// fora do App Router o hook real recusa, e aqui só importa o desenho.
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ prefetch: vi.fn() }),
+}));
 vi.mock("@/lib/api/client", () => ({ apiClient: { get: mocks.overview } }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/components/workspace/WorkspaceAssistant", () => ({

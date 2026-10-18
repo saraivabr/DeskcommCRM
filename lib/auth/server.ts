@@ -126,13 +126,30 @@ export function ehSessaoAusente(error: { name?: string } | null | undefined): bo
   return error?.name === "AuthSessionMissingError";
 }
 
+/**
+ * A ida ao GoTrue (`/auth/v1/user`) da requisição, UMA vez.
+ *
+ * `loadAuthUser` e `isMfaEnrolled` faziam cada um a sua — e
+ * `supabase.auth.mfa.listFactors()` é, por dentro, outro `getUser()` que só
+ * filtra `user.factors` (auth-js 2.116, `GoTrueClient._listFactors`). Toda rota
+ * com `requireRole` e toda renderização de `/app` pagavam então DUAS idas ao
+ * GoTrue, além da do proxy. Medido em produção (os.escreve.ai, 2026-10-18):
+ * rota que só confere permissão levava 2–3,4 s, contra 0,3 s de `/health`.
+ *
+ * Os fatores que `isMfaEnrolled` precisa já vêm nesta mesma resposta.
+ */
+const lerUsuarioDaSessao = cache(async () => {
+  const supabase = await createClient({ signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) });
+  return getUserWithDeadline(() => supabase.auth.getUser());
+});
+
 export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
   // Toda a resolução de identidade/permissões é leitura e compartilha o prazo:
   // getUser, memberships, plataforma e acompanhamento não se acumulam em série.
   const supabase = await createClient({ signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) });
   let result;
   try {
-    result = await getUserWithDeadline(() => supabase.auth.getUser());
+    result = await lerUsuarioDaSessao();
   } catch {
     logger.error("[auth] getUser falhou — verificação indisponível");
     throw new AuthUnavailableError();
@@ -150,6 +167,15 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
   // recuperável da tela, ou vira 503 no guard REST, preservando a sessão.
   if (isAuthUnavailable(error)) throw new AuthUnavailableError();
   if (error || !user) return null;
+
+  // O acompanhamento (RPC `fn_support_context`) não depende das memberships e
+  // rodava DEPOIS delas — uma etapa a mais em série em toda requisição. Sai
+  // junto agora; a falha dele continua sendo lida só depois das checagens de
+  // erro das memberships, na mesma ordem de antes.
+  const suporteEmVoo = readSupportContext(supabase).then(
+    (valor) => ({ ok: true as const, valor }),
+    () => ({ ok: false as const }),
+  );
 
   // Platform admin e Org memberships consultados em paralelo no Supabase:
   // elimina round-trip sequencial a cada requisição.
@@ -233,12 +259,9 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
     };
   });
 
-  let support;
-  try {
-    support = await readSupportContext(supabase);
-  } catch {
-    throw new AuthUnavailableError();
-  }
+  const suporte = await suporteEmVoo;
+  if (!suporte.ok) throw new AuthUnavailableError();
+  const support = suporte.valor;
   const fullName = (user.user_metadata?.full_name as string | undefined) ?? null;
   const avatarUrl = (user.user_metadata?.avatar_url as string | undefined) ?? null;
   const locale = (user.user_metadata?.locale as string | undefined) ?? null;
@@ -309,11 +332,14 @@ export async function requireAuth(): Promise<AuthUser> {
  * Use only in Server Components / Server Actions (cookie session).
  */
 export const isMfaEnrolled = cache(async (): Promise<boolean> => {
-  const supabase = await createClient({ signal: AbortSignal.timeout(AUTH_TIMEOUT_MS) });
-  const { data, error } = await withAuthDeadline(() => supabase.auth.mfa.listFactors());
+  // Mesma resposta do GoTrue que `loadAuthUser` já pediu nesta requisição: é o
+  // que `listFactors()` lia, sem a segunda ida (ver `lerUsuarioDaSessao`).
+  // Rejeição sobe como subia do `listFactors()` (o prazo já vira
+  // `AuthUnavailableError` dentro de `withAuthDeadline`).
+  const { data: { user }, error } = await lerUsuarioDaSessao();
   // Falhar ao ler os fatores não significa que a pessoa não ativou MFA.
-  if (error || !data) throw new AuthUnavailableError();
-  return !!data?.totp?.some((f) => f.status === "verified");
+  if (error || !user) throw new AuthUnavailableError();
+  return !!user.factors?.some((f) => f.factor_type === "totp" && f.status === "verified");
 });
 
 /**

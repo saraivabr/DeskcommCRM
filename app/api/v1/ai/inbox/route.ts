@@ -50,16 +50,19 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (status !== "all") {
     query = query.eq("status", status);
   }
-  const { data, error } = await query;
+  // Lista e contagem são independentes e saíam em série; o sino da barra
+  // superior pede esta rota em toda página (e a cada 60 s).
+  const [{ data, error }, { count: openCount }] = await Promise.all([
+    query,
+    admin
+      .from("agent_inbox_items")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", org.orgId)
+      .eq("status", "open"),
+  ]);
   if (error) {
     return fail("internal_error", t("Falha ao carregar os avisos."), 500, { requestId });
   }
-
-  const { count: openCount } = await admin
-    .from("agent_inbox_items")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", org.orgId)
-    .eq("status", "open");
 
   const items = await resolverDestinosDosAvisos(await createClient(), org.orgId, org.role, data ?? []);
   return ok({ items, open_count: openCount ?? 0 }, { requestId });

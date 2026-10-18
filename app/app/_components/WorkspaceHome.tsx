@@ -4,7 +4,7 @@ import { BarChart3, Sparkles, Filter, ArrowUpRight } from "lucide-react";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useT } from "@/hooks/i18n/useT";
 import { useWorkspaceAssistant } from "@/components/workspace/WorkspaceAssistant";
-import Link from "next/link";
+import { LinkDeNavegacao } from "@/components/shell/LinkDeNavegacao";
 import { WorkspaceOverview } from "./WorkspaceOverview";
 import { HomeComposer } from "./HomeComposer";
 import styles from "./workspace-home.module.css";
@@ -76,10 +76,10 @@ function WorkspaceSession({
           </p>
         </div>
         {!needsPlan && (
-          <Link href="/app/inbox" className={styles.headerAction}>
+          <LinkDeNavegacao href="/app/inbox" className={styles.headerAction}>
             {t("Abrir conversas")}
             <ArrowUpRight size={16} aria-hidden />
-          </Link>
+          </LinkDeNavegacao>
         )}
       </header>
       {needsPlan ? (
@@ -92,12 +92,12 @@ function WorkspaceSession({
             )}
           </p>
           {canChoosePlan && (
-            <Link
+            <LinkDeNavegacao
               href="/app/settings/billing"
               className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
             >
               {t("Ver planos e contratar")}
-            </Link>
+            </LinkDeNavegacao>
           )}
         </section>
       ) : (

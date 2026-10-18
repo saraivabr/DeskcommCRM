@@ -27,7 +27,7 @@
 // componente de servidor não enxerga contexto de client, então ou ele recebia o
 // idioma por prop — mudando a assinatura e todo chamador — ou passa a ser
 // client e o lê de onde já está. Ele não faz nada de servidor: é Link e prosa.
-import Link from "next/link";
+import { LinkDeNavegacao } from "@/components/shell/LinkDeNavegacao";
 
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useT } from "@/hooks/i18n/useT";
@@ -75,12 +75,12 @@ export function ConexaoCaidaBanner({ caidas }: { caidas: ConexaoCaida[] }) {
           {` — ${t("nenhuma mensagem entra nem sai.")}`}
         </span>
       </div>
-      {podeAbrirConexoes ? <Link
+      {podeAbrirConexoes ? <LinkDeNavegacao
         href="/app/connections"
         className="rounded-md border border-red-400 bg-white/70 px-3 py-1 font-medium text-red-950 hover:bg-white dark:border-red-700 dark:bg-red-900/40 dark:text-red-50 dark:hover:bg-red-900/70"
       >
         {precisaEscanear ? t("Escanear o QR") : t("Ver conexões")}
-      </Link> : <span>{t("Peça a quem administra para revisar a conexão do WhatsApp.")}</span>}
+      </LinkDeNavegacao> : <span>{t("Peça a quem administra para revisar a conexão do WhatsApp.")}</span>}
     </div>
   );
 }
