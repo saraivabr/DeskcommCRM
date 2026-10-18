@@ -75,6 +75,11 @@ interface Excecao {
  * linhas da OUTRA organização, não uma leitura como superusuário.
  */
 const PROVA_PROPRIA: readonly Excecao[] = [
+  ...["audio_understanding_settings", "audio_understanding_usage"].map((tabela) => ({
+    tabela,
+    razao:
+      "entendedor-de-audio.test.ts: set role authenticated + JWT de duas organizações; cada uma lê zero linhas da outra em configuração e consumo, viewer e admin alheio não alteram, e authenticated não insere consumo nem chama a reserva.",
+  })),
   ...["meta_privacy_targets", "meta_privacy_storage_objects", "meta_privacy_media_tombstones"].map(
     (tabela) => ({
       tabela,

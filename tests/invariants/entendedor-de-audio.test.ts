@@ -78,26 +78,34 @@ describe("entendedor de áudio — RLS", () => {
 
 describe("entendedor de áudio — reserva atômica", () => {
   it("admite enquanto o áudio inteiro cabe, e recusa o que estoura", () => {
-    expect(reservar(ORG_A, MSG(1), 40)).toBe("t|reservado|40");
-    expect(reservar(ORG_A, MSG(2), 30)).toBe("f|franquia_esgotada|40");
-    expect(reservar(ORG_A, MSG(3), 20)).toBe("t|reservado|60");
+    expect(reservar(ORG_A, MSG(1), 40)).toBe("true|reservado|40");
+    expect(reservar(ORG_A, MSG(2), 30)).toBe("false|franquia_esgotada|40");
+    expect(reservar(ORG_A, MSG(3), 20)).toBe("true|reservado|60");
   });
 
   it("a mesma mensagem não reserva duas vezes", () => {
-    expect(reservar(ORG_A, MSG(1), 40)).toBe("t|ja_reservado|60");
+    expect(reservar(ORG_A, MSG(1), 40)).toBe("true|ja_reservado|60");
   });
 
   it("a franquia de uma organização não consome a da outra", () => {
-    expect(reservar(ORG_B, MSG(4), 60)).toBe("t|reservado|60");
+    expect(reservar(ORG_B, MSG(4), 60)).toBe("true|reservado|60");
   });
 
   it("liberar devolve a franquia; cobrado nunca volta a liberado", () => {
     const liquidar = (msg: string, status: string) =>
       lastLine(sql(`set session_replication_role = replica; select public.fn_entendedor_liquidar('${ORG_A}', '${msg}', '${status}', null, 'teste');`));
     expect(liquidar(MSG(1), "released")).toBe("t");
-    expect(reservar(ORG_A, MSG(5), 40)).toBe("t|reservado|60");
+    expect(reservar(ORG_A, MSG(5), 40)).toBe("true|reservado|60");
     expect(liquidar(MSG(3), "charged")).toBe("t");
     expect(liquidar(MSG(3), "released")).toBe("f");
-    expect(reservar(ORG_A, MSG(3), 20)).toBe("f|ja_cobrado|60");
+    expect(reservar(ORG_A, MSG(3), 20)).toBe("false|ja_cobrado|60");
+  });
+});
+
+describe("entendedor de áudio — consumo isolado", () => {
+  it("cada organização lê só o próprio consumo", () => {
+    expect(Number(como(VIEWER_A, `select count(*) from audio_understanding_usage where organization_id='${ORG_B}';`))).toBe(0);
+    expect(Number(como(ADMIN_B, `select count(*) from audio_understanding_usage where organization_id='${ORG_A}';`))).toBe(0);
+    expect(Number(como(ADMIN_B, `select count(*) from audio_understanding_usage where organization_id='${ORG_B}';`))).toBeGreaterThan(0);
   });
 });
