@@ -590,3 +590,119 @@
     font-size: 15px;
   }
 }
+
+/* ── Início sem cara de sistema ─────────────────────────────────────────────
+   A frase da marca, a caixa onde se escreve o pedido e, embaixo, só o que
+   espera por você em frases grandes. Sem cards de número nem painéis. */
+.home {
+  max-width: 1080px;
+  padding-top: 72px;
+}
+.welcome {
+  justify-content: flex-start;
+}
+.cursor {
+  display: inline-block;
+  width: 0.09em;
+  height: 0.76em;
+  margin-left: 0.06em;
+  vertical-align: -0.04em;
+  background: var(--workspace-signal);
+}
+.headingQuiet {
+  color: var(--muted-foreground);
+}
+.ask {
+  margin-top: 48px;
+  max-width: 760px;
+}
+.ask .composer {
+  border: 2px solid var(--foreground);
+  border-radius: 16px;
+}
+.ask .composer textarea {
+  font-size: 18px;
+  min-height: 88px;
+}
+.ask .composer:focus-within {
+  border-color: var(--workspace-focus);
+}
+.pending {
+  margin-top: 80px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+.pendingHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.pendingHead h2 {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.pendingList {
+  display: flex;
+  flex-direction: column;
+}
+.pendingRow {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pendingRow strong {
+  min-width: 2ch;
+  font-size: 44px;
+  font-weight: 780;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pendingRow span {
+  flex: 1;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.pendingRow svg {
+  align-self: center;
+  color: var(--muted-foreground);
+  transition: transform 160ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pendingRow:hover svg {
+    color: var(--workspace-forest);
+    transform: translateX(4px);
+  }
+}
+.allClear {
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+@media (max-width: 640px) {
+  .home {
+    padding-top: 32px;
+  }
+  .ask {
+    margin-top: 32px;
+  }
+  .pending {
+    margin-top: 48px;
+  }
+  .pendingRow strong {
+    font-size: 34px;
+  }
+  .pendingRow span,
+  .allClear {
+    font-size: 19px;
+  }
+}

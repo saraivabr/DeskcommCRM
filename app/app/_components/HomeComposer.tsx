@@ -24,7 +24,7 @@ export function HomeComposer() {
         disabled={busy}
         maxLength={2000}
         rows={2}
-        placeholder={t("Pergunte sobre sua operação...")}
+        placeholder={t("Escreve o que você precisa…")}
         onKeyDown={(event) => {
           if (
             event.key === "Enter" &&
