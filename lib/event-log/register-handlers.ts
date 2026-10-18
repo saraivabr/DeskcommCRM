@@ -21,6 +21,7 @@ import { followupGatilhoLeadHandler } from "@/lib/followup/gatilho-lead.handler"
 import { followupGatilhoCasoHandler } from "@/lib/followup/gatilho-caso.handler";
 import { mediaPersistHandler } from "@/workers/media-persist-worker.handler";
 import { mediaDeriveHandler } from "@/workers/media-derive-worker.handler";
+import { entendedorDeAudioHandler } from "@/workers/entendedor-de-audio.handler";
 import { nativeMessagingHandler } from "@/workers/native-messaging-worker.handler";
 import { metaOperationHandler } from "@/workers/meta-operation-worker.handler";
 import { webPushInboundHandler } from "@/lib/notifications/push.handler";
@@ -56,6 +57,9 @@ export function ensureHandlersRegistered(): void {
   registerHandler(followupGatilhoPresencaHandler);
   registerHandler(mediaPersistHandler);
   registerHandler(mediaDeriveHandler);
+  // Depois da derivação, que é quem emite o pedido; antes dos consumidores de
+  // rede externa do fim da lista, porque a nota é o que a pessoa está esperando.
+  registerHandler(entendedorDeAudioHandler);
   registerHandler(metaOperationHandler);
   registerHandler(nativeMessagingHandler);
   registerHandler(webPushInboundHandler);

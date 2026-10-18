@@ -13523,6 +13523,29 @@ export const DICIONARIO: Traducoes = {
 
   "Assistente com autonomia de operação": { es: "Asistente con autonomía de operación" },
   "Ao conectar Facebook ou Instagram, esta instalação recebe a identificação da autorização, as contas permitidas e os dados necessários para publicar e acompanhar campanhas. Se você habilitar o atendimento, também recebe os identificadores e o conteúdo das mensagens necessárias para receber e responder às conversas autorizadas na caixa de atendimento. Você pode solicitar a exclusão dos dados locais recebidos por essa autorização.": { es: "Al conectar Facebook o Instagram, esta instalación recibe la identificación de la autorización, las cuentas permitidas y los datos necesarios para publicar y supervisar campañas. Si habilitas la atención, también recibe los identificadores y el contenido de los mensajes necesarios para recibir y responder a las conversaciones autorizadas en la bandeja de atención. Puedes solicitar la eliminación de los datos locales recibidos mediante esa autorización." },
+  // Entendedor de áudio (app/app/entendedor).
+  "A franquia renova em": { es: "La franquicia se renueva el" },
+  "Ainda não conectou seu WhatsApp?": { es: "¿Todavía no conectaste tu WhatsApp?" },
+  "Chega um áudio no seu WhatsApp e, em segundos, a conversa recebe uma nota curta com o que importa. Você não precisa ouvir para saber do que se trata.": { es: "Llega un audio a tu WhatsApp y, en segundos, la conversación recibe una nota breve con lo que importa. No necesitas escucharlo para saber de qué se trata." },
+  "Conecte pelo QR Code ou pelo código de pareamento. O Entendedor usa as conexões desta organização.": { es: "Conéctalo con el código QR o con el código de vinculación. El Entendedor usa las conexiones de esta organización." },
+  "Entendedor de áudio": { es: "Entendedor de audio" },
+  "Ligado": { es: "Activado" },
+  "Ligar o Entendedor de áudio": { es: "Activar el Entendedor de audio" },
+  "Ligue para começar a usar. Você pode desligar quando quiser.": { es: "Actívalo para empezar a usarlo. Puedes desactivarlo cuando quieras." },
+  "Minutos grátis deste mês": { es: "Minutos gratuitos de este mes" },
+  "Não foi possível carregar o Entendedor de áudio.": { es: "No fue posible cargar el Entendedor de audio." },
+  "O que foi dito": { es: "Lo que se dijo" },
+  "O que importa": { es: "Lo que importa" },
+  "O texto da fala, para conferir. Fica recolhido no Ler mais.": { es: "El texto de lo que se dijo, para revisar. Queda oculto en Leer más." },
+  "Os minutos acabaram. A franquia renova em": { es: "Se acabaron los minutos. La franquicia se renueva el" },
+  "Os próximos áudios das suas conexões de WhatsApp recebem a nota.": { es: "Los próximos audios de tus conexiones de WhatsApp recibirán la nota." },
+  "Quando um contato manda áudio, a nota vai na própria conversa, citando o áudio.": { es: "Cuando un contacto envía un audio, la nota llega en la misma conversación, citando el audio." },
+  "Só administradores mudam o Entendedor de áudio.": { es: "Solo los administradores pueden cambiar el Entendedor de audio." },
+  "Também explica os áudios que você manda pelo seu WhatsApp.": { es: "También explica los audios que envías desde tu WhatsApp." },
+  "Uma ou duas frases com o que a pessoa quis dizer.": { es: "Una o dos frases con lo que la persona quiso decir." },
+  "Áudios entendidos este mês:": { es: "Audios entendidos este mes:" },
+  "Áudios que você envia": { es: "Audios que envías" },
+  "Áudios que você recebe": { es: "Audios que recibes" },
 };
 
 /**

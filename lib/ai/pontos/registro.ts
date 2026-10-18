@@ -314,6 +314,20 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "entendimento_de_audio",
+    rotulo: "Entender o áudio",
+    oQueFaz:
+      "Lê o que foi dito num áudio do WhatsApp e escreve uma nota curta com o que importa, enviada na própria conversa.",
+    papel: "entender",
+    exige: {},
+    emissor: "workers/entendedor-de-audio.ts",
+    sintomaDeFalha:
+      "Os áudios param de receber a nota do Entendedor, e a Central avisa que o ponto está sem modelo.",
+    // O custo entra pelo crédito de IA (`runMeteredOperation`), mas a chamada
+    // ainda não grava linha em `llm_calls` — mesma dívida da transcrição.
+    registraEm: "nenhum",
+  },
+  {
     id: "followup_classify",
     rotulo: "Ler a resposta ao follow-up",
     oQueFaz:

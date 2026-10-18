@@ -225,6 +225,25 @@ export async function deriveMessageMedia(row: EventRow): Promise<HandlerResult> 
     await admin.from("messages")
       .update({ media_derived_text: text, media_derived_status: "ready" })
       .eq("id", msg.id).eq("organization_id", msg.organization_id);
+    // Áudio com texto pronto vira pedido ao entendedor. Quem decide se a
+    // organização usa o entendedor é o consumidor (`workers/entendedor-de-audio.ts`),
+    // não este worker: aqui não se lê configuração de outro módulo.
+    if (msg.type === "audio" && text && text !== MARCADOR_NAO_LIDA) {
+      const { error: emitErr } = await admin.rpc("emit_event" as never, {
+        p_event_type: "audio_understanding.requested",
+        p_entity_kind: "message",
+        p_entity_id: msg.id,
+        p_payload: { message_id: msg.id },
+        p_metadata: { source: "media_derive" },
+        p_organization_id: msg.organization_id,
+      } as never);
+      if (emitErr) {
+        logger.warn("[media-derive] não consegui pedir o entendimento do áudio", {
+          message_id: msg.id,
+          error: emitErr.message,
+        });
+      }
+    }
     return { consumer_key, status: "ok" };
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);

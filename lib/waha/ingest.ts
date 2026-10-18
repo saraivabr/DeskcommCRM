@@ -300,6 +300,23 @@ export function mediaMimeOf(p: WahaPayload): string | null {
 }
 
 /**
+ * Duração do áudio, em segundos, como o WhatsApp a declarou. O NOWEB a manda em
+ * `_data.message.audioMessage.seconds`; `media.duration` é o formato do WAHA
+ * mais novo. Ausente ou inválida = `undefined`, e a chave nem entra no
+ * metadata. Quem cobra minuto (o entendedor de áudio) precisa da duração que o
+ * usuário viu no app, não de uma estimativa.
+ */
+export function segundosDoAudio(p: WahaPayload): number | undefined {
+  const msg = p._data?.message as { audioMessage?: { seconds?: unknown } } | null | undefined;
+  const candidatos = [msg?.audioMessage?.seconds, (p.media as { duration?: unknown } | null | undefined)?.duration];
+  for (const c of candidatos) {
+    const n = typeof c === "string" ? Number(c) : c;
+    if (typeof n === "number" && Number.isFinite(n) && n > 0 && n < 86_400) return n;
+  }
+  return undefined;
+}
+
+/**
  * `payload.timestamp` em ISO-8601, robusto à UNIDADE. O WAHA manda segundos
  * (epoch s), mas um proxy/integrador pode mandar milissegundos ou
  * nanossegundos — e `new Date(ns * 1000).toISOString()` LANÇA `RangeError:
@@ -669,7 +686,7 @@ async function handleInbound(
       sent_via: "external_device",
       sent_at: dataDoTimestamp(p.timestamp, now),
       delivered_at: now,
-      metadata: { raw_type: p.type, ack_name: p.ackName },
+      metadata: { raw_type: p.type, ack_name: p.ackName, audio_seconds: segundosDoAudio(p) },
     })
     .select("id")
     .maybeSingle();
@@ -911,7 +928,7 @@ async function handleOutboundFromUserPhone(
       media_mime: mediaMimeOf(p),
       sent_via: "external_device",
       sent_at: dataDoTimestamp(p.timestamp, now),
-      metadata: { raw_type: p.type, fromMe: true },
+      metadata: { raw_type: p.type, fromMe: true, audio_seconds: segundosDoAudio(p) },
     })
     .select("id")
     .maybeSingle();

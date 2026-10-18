@@ -461,6 +461,7 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 
 | `20261016082200` | `0422_recorte_da_janela_nas_metricas` | Métricas de atendentes recortam candidatas antes de ler mensagens, preservando resultados e RLS. Port upstream 7a640ee26. |
 | `20261016143000` | `0430_banco_externo_fontes_liberadas` | Tabelas/views e colunas permitidas por conexão; view segura mantém RLS e só expõe contagem. Port do upstream PR #2634, sem alterar migrations aplicadas. |
+| `20261017220000` | `0431_entendedor_de_audio` | Entendedor de áudio: configuração por organização (nasce desligado), consumo por áudio com `unique (organization_id, message_id)` e reserva/liquidação atômicas sob lock por organização; franquia mensal em segundos, liquidada só após envio aceito. |
 | `20261016082400` | `0424_publicar_assinatura_por_empresa` | Valida modelo SIWC no catálogo da credencial da própria organização; preserva guardas de publicação e grants service_role. |
 | `20261016082500` | `0425_catalogo_gpt_6` | Acrescenta opções GPT-6 com preço Standard verificado; preserva padrões e registros existentes. |
 | `20261016082600` | `0426_catalogo_claude_5_5` | Acrescenta opções Claude 5.5 com preço Standard verificado; preserva padrões e registros existentes. |
