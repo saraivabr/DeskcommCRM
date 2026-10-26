@@ -33,3 +33,6 @@ evidence
 
 # Brand images are runtime assets, including generated illustrations.
 !public/**
+
+# Host do canvas do Tempo: ferramenta de design, não faz parte do runtime.
+tempo

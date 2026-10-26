@@ -704,8 +704,18 @@ export const DICIONARIO: Traducoes = {
     es: "Registros visibles del equipo. Indicadores independientes, sin atribución entre ellos.",
   },
   "Consulta indisponível": { es: "Consulta no disponible" },
-  "A conexão falhou. Tente atualizar novamente.": {
-    es: "La conexión falló. Intenta actualizar de nuevo.",
+  "A conexão falhou. Tente de novo.": { es: "La conexión falló. Inténtalo de nuevo." },
+  "Escreve o que você precisa…": { es: "Escribe lo que necesitas…" },
+  "Seu espaço está pronto.": { es: "Tu espacio está listo." },
+  "A IA está incluída em todos os planos. Ative o acesso para começar.": {
+    es: "La IA está incluida en todos los planes. Activa el acceso para empezar.",
+  },
+  "Só escreve aí.": { es: "Solo escríbelo." },
+  "A gente faz.": { es: "Nosotros lo hacemos." },
+  "Escreva o que você precisa": { es: "Escribe lo que necesitas" },
+  "Tudo em dia. Nada esperando você.": { es: "Todo al día. Nada te está esperando." },
+  "Não deu para ver o que espera por você.": {
+    es: "No pudimos ver lo que te está esperando.",
   },
   "Escolha um período e um escopo válidos.": { es: "Elige un período y un alcance válidos." },
   "Não foi possível autorizar esta consulta. Confira sua sessão e suas permissões.": {

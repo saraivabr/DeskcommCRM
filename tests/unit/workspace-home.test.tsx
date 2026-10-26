@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { WorkspaceHome } from "@/app/app/_components/WorkspaceHome";
+import { ApiError } from "@/lib/api/types";
 const mocks = vi.hoisted(() => ({
   overview: vi.fn(),
   open: vi.fn(),
@@ -117,6 +118,23 @@ describe("Home produtiva", () => {
     fireEvent.click(screen.getByRole("button", { name: "Atualizar operação" }));
     await screen.findByText("Tarefas atrasadas");
   });
+  it("falha de conexão traz Tentar de novo dentro do alerta, e ele repete a consulta", async () => {
+    mocks.overview.mockRejectedValueOnce(new Error("offline"));
+    render(<WorkspaceHome />);
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent("A conexão falhou. Tente de novo.");
+    fireEvent.click(within(alerta).getByRole("button", { name: "Tentar de novo" }));
+    await screen.findByText("Tarefas atrasadas");
+    expect(mocks.overview).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("falha de autorização não oferece Tentar de novo: repetir não resolve sessão", async () => {
+    mocks.overview.mockRejectedValueOnce(new ApiError(401, "unauthorized", undefined, "req-1"));
+    render(<WorkspaceHome />);
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent("Confira sua sessão e suas permissões.");
+    expect(within(alerta).queryByRole("button")).toBeNull();
+  });
   it("troca organização limpa dados e volta ao escopo pessoal", async () => {
     mocks.overview.mockResolvedValue(response(true));
     const view = render(<WorkspaceHome />);
@@ -167,7 +185,7 @@ describe("recuperação de uma consulta presa", () => {
     expect(screen.getByRole("button", { name: "Atualizar operação" })).toBeDisabled();
     await act(() => vi.advanceTimersByTimeAsync(20_000));
     expect(signal.aborted).toBe(true);
-    expect(screen.getByRole("alert")).toHaveTextContent("Tente atualizar novamente.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Tente de novo.");
     expect(screen.getByRole("button", { name: "Atualizar operação" })).toBeEnabled();
     expect(screen.queryByText("Olhando suas conversas…")).not.toBeInTheDocument();
 

@@ -167,8 +167,12 @@ describe("Tailwind 4 — a ponte token → utilitário", () => {
       .filter((nome) => {
         // Só interessa pasta que entrega UI ao browser. `tests/` e `docs/`
         // escrevem className em fixture e em exemplo, e ficam de fora de
-        // propósito — varrê-las publicaria CSS que nenhuma tela usa.
-        if (["tests", "docs", "scripts", "supabase", "public", "tasks", "loop"].includes(nome)) {
+        // propósito — varrê-las publicaria CSS que nenhuma tela usa. `tempo/` é
+        // o host do canvas do Tempo: não vai ao browser do produto, e o próprio
+        // `tempo/app/globals.css` declara o `@source` das pastas dele.
+        if (
+          ["tests", "docs", "scripts", "supabase", "public", "tasks", "loop", "tempo"].includes(nome)
+        ) {
           return false;
         }
         return temClassName(path.join(RAIZ, nome));

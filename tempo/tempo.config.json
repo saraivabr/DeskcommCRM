@@ -1,0 +1,9 @@
+{
+  "paths": {
+    "canvases": "./designs"
+  },
+  "scripts": {
+    "install": "cd .. && pnpm install --frozen-lockfile && cd tempo && pnpm install --ignore-workspace",
+    "start": "npm run dev"
+  }
+}

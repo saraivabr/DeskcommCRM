@@ -24,5 +24,7 @@
     "tests/**/*.ts",
     "tests/**/*.tsx"
   ],
-  "exclude": ["node_modules", ".next", "dist", "scripts/**"]
+  // `tempo/` é o host do canvas do Tempo, com node_modules e tsconfig próprios:
+  // sem `tempo/node_modules` (CI, clone novo) o `tempo-sdk` nem resolve.
+  "exclude": ["node_modules", ".next", "dist", "scripts/**", "tempo/**"]
 }
