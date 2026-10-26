@@ -23,6 +23,10 @@ export default defineConfig([
     ".claude/worktrees/",
     ".superpowers/**/bundles/",
     ".superpowers/**/playwright-browsers/",
+    // Host do canvas do Tempo: cache de build e runtime gerados, como o .next/ da raiz.
+    "tempo/.next/",
+    "tempo/.tempo/",
+    "tempo/node_modules/",
     // Bibliotecas de terceiros vendorizadas e compactadas para o site público.
     // Os scripts autorais em website/assets continuam sob lint.
     "website/assets/gsap.min.js",
