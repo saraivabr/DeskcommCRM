@@ -7,15 +7,18 @@ import styles from "./workspace-home.module.css";
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
 import type { HomeInput, HomeOverview } from "@/lib/workspace/home";
+import { PendingLoadError } from "./PendingLoadError";
 
 const priority = ["tasks", "agent-cases", "leads", "conversations"];
+const FALHA_DE_CONEXAO = { message: "A conexão falhou. Tente de novo.", retryable: true };
 
 export function WorkspaceOverview() {
   const t = useT();
   const [scope, setScope] = useState<HomeInput["scope"]>("mine");
   const [revision, setRevision] = useState(0);
   const [data, setData] = useState<HomeOverview | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // `retryable` decide o botão: repetir resolve rede, não sessão sem permissão.
+  const [error, setError] = useState<{ message: string; retryable: boolean } | null>(null);
   const [busy, setBusy] = useState(true);
   useEffect(() => {
     let current = true;
@@ -27,7 +30,7 @@ export function WorkspaceOverview() {
       current = false;
       controller.abort();
       setData(null);
-      setError("A conexão falhou. Tente atualizar novamente.");
+      setError(FALHA_DE_CONEXAO);
       setBusy(false);
     }, 20_000);
     void apiClient
@@ -44,8 +47,12 @@ export function WorkspaceOverview() {
           setData(null);
           setError(
             cause instanceof ApiError && cause.status === 401
-              ? "Não foi possível autorizar esta consulta. Confira sua sessão e suas permissões."
-              : "A conexão falhou. Tente atualizar novamente.",
+              ? {
+                  message:
+                    "Não foi possível autorizar esta consulta. Confira sua sessão e suas permissões.",
+                  retryable: false,
+                }
+              : FALHA_DE_CONEXAO,
           );
         }
       })
@@ -59,6 +66,11 @@ export function WorkspaceOverview() {
       window.clearTimeout(timeout);
     };
   }, [scope, revision]);
+  const reload = () => {
+    setBusy(true);
+    setError(null);
+    setRevision((value) => value + 1);
+  };
   const pendentes = data?.attention
     .filter((item) => item.count === null || item.count > 0)
     .sort((a, b) => priority.indexOf(a.id) - priority.indexOf(b.id));
@@ -90,11 +102,7 @@ export function WorkspaceOverview() {
             className={styles.refresh}
             disabled={busy}
             aria-label={t("Atualizar operação")}
-            onClick={() => {
-              setBusy(true);
-              setError(null);
-              setRevision((value) => value + 1);
-            }}
+            onClick={reload}
           >
             <RefreshCw size={16} className={busy ? "animate-spin" : ""} aria-hidden />
           </button>
@@ -104,9 +112,11 @@ export function WorkspaceOverview() {
         {busy ? t(data ? "Atualizando…" : "Olhando suas conversas…") : "\u00a0"}
       </p>
       {error && (
-        <p role="alert" className={styles.error}>
-          {t(error)}
-        </p>
+        <PendingLoadError
+          message={error.message}
+          busy={busy}
+          onRetry={error.retryable ? reload : undefined}
+        />
       )}
       {data &&
         (pendentes && pendentes.length > 0 ? (

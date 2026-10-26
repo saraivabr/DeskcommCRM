@@ -688,6 +688,69 @@
   font-weight: 600;
   letter-spacing: -0.03em;
 }
+/* A falha fala como o resto da Início: frase grande, motivo em cinza e a ação
+   ao lado — no botão verde da casa, não numa caixa vermelha genérica. */
+.loadError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.loadError p {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+.loadError strong {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.loadError span {
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+.retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: var(--workspace-signal);
+  color: var(--workspace-signal-ink);
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .retry:hover:not(:disabled) {
+    background: var(--workspace-signal-hover);
+  }
+}
+.retry:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+@media (max-width: 640px) {
+  .loadError {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .loadError strong {
+    font-size: 19px;
+  }
+  .retry {
+    justify-content: center;
+  }
+}
 @media (max-width: 640px) {
   .home {
     padding-top: 32px;
