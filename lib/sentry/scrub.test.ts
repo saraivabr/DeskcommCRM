@@ -130,3 +130,42 @@ describe("sentryScrubHooks", () => {
     expect(JSON.stringify(crumb)).not.toContain(TOKEN);
   });
 });
+
+describe("URLs de navegação e Referer — porte parcial de fd6c5d7a8", () => {
+  const entrada = "https://crm.exemplo.com/team/accept-invite/fixture-convite?code=fixture-code";
+  const redigida = "https://crm.exemplo.com/team/accept-invite/[TOKEN]?code=[REDACTED]";
+
+  it.each(["referer", "Referer", "REFERER"])("redige %s em eventos de erro", (nome) => {
+    const evento = sentryScrubHooks.beforeSend({
+      request: { headers: { [nome]: entrada, "content-type": "application/json" } },
+    });
+    expect(evento.request.headers).toEqual({
+      [nome]: redigida,
+      "content-type": "application/json",
+    });
+  });
+
+  it("redige Referer também em transações", () => {
+    const evento = sentryScrubHooks.beforeSendTransaction({
+      request: { headers: { Referer: entrada } },
+    });
+    expect(evento.request.headers.Referer).toBe(redigida);
+  });
+
+  it.each(["url", "from", "to"])("redige %s do breadcrumb sem perder contexto", (campo) => {
+    const breadcrumb = sentryScrubHooks.beforeBreadcrumb({
+      data: { [campo]: entrada, motivo: "navegacao" },
+    });
+    expect(breadcrumb.data).toEqual({ [campo]: redigida, motivo: "navegacao" });
+  });
+
+  it("tolera campos ausentes e preserva metadados que não são strings", () => {
+    expect(sentryScrubHooks.beforeBreadcrumb({})).toEqual({});
+    const dados = { from: null, to: 42, url: false };
+    expect(sentryScrubHooks.beforeBreadcrumb({ data: dados }).data).toEqual(dados);
+    expect(
+      sentryScrubHooks.beforeSend({ request: { headers: { Referer: null } } }).request.headers
+        .Referer,
+    ).toBeNull();
+  });
+});

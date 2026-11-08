@@ -119,6 +119,10 @@ function scrubHeaders(headers: unknown): void {
   const record = headers as Record<string, string>;
   for (const key of Object.keys(record)) {
     if (isSensitiveHeader(key)) delete record[key];
+    // Referer contém a URL anterior, que pode carregar um convite ou assinatura.
+    else if (/^referer$/i.test(key) && typeof record[key] === "string") {
+      record[key] = scrubUrl(record[key]);
+    }
   }
 }
 
@@ -179,9 +183,11 @@ export const sentryScrubHooks = {
     if (typeof breadcrumb.message === "string") {
       breadcrumb.message = scrubUrl(breadcrumb.message);
     }
-    const url = breadcrumb.data?.url;
-    if (typeof url === "string" && breadcrumb.data) {
-      breadcrumb.data.url = scrubUrl(url);
+    // Navegação registra tanto a origem quanto o destino da troca de rota.
+    const data = breadcrumb.data;
+    for (const campo of ["url", "from", "to"]) {
+      const valor = data?.[campo];
+      if (data && typeof valor === "string") data[campo] = scrubUrl(valor);
     }
     return breadcrumb;
   },
