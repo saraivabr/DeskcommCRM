@@ -94,11 +94,15 @@ LABEL org.opencontainers.image.source="https://github.com/melgarafael/DeskcommCR
 # alternativa anterior era `process.env.npm_package_version`, que é `undefined`
 # sob `CMD ["node","server.js"]` — só existe quando o processo nasce de um
 # `npm`/`pnpm run`. Toda instalação do mundo reportava o fallback "0.1.0".
+# O servidor standalone deve manter o socket além do proxy (Caddy: 120 s;
+# Traefik: 90 s), evitando 502 ao reaproveitar conexão já fechada.
+# Manter em sincronia com playwright.config.ts.
 ARG APP_VERSION=dev
 ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
     NEXT_TELEMETRY_DISABLED=1 \
+    KEEP_ALIVE_TIMEOUT=125000 \
     APP_VERSION=$APP_VERSION
 # ffmpeg: a derivação de vídeo (Onda 3.1) roda no processo do app — o cron
 # event-log-drain executa o media_derive handler, que chama `ffmpeg` via spawn
